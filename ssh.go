@@ -1,2 +1,1 @@
-package "gantry" // import "github.com/ad-freiburg/gantry"
-
+package gantry // import "github.com/ad-freiburg/gantry"
