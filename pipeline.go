@@ -1,9 +1,10 @@
-package pipeline // import "github.com/ad-freiburg/gantry/pipeline"
+package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/ghodss/yaml"
 )
@@ -72,9 +73,64 @@ func (p *Pipeline) Check() error {
 		}
 	}
 	for _, step := range p.Definition.Steps {
-		if len(roleProvider[step.Role]) < 1 {
+		if len(step.Role) > 0 && len(roleProvider[step.Role]) < 1 {
 			return fmt.Errorf("No machine for role '%s'", step.Role)
 		}
 	}
 	return nil
+}
+
+func (p *Pipeline) BuildImages() error {
+	for _, step := range p.Definition.Steps {
+		fmt.Printf("\n Building step: %s\n", step.Name)
+		r := NewImageBuilder(step)
+		err := r.Exec()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) ExecuteSteps() error {
+	for _, step := range p.Definition.Steps {
+		fmt.Printf("\n Running step: %s\n", step.Name)
+		r := NewImageRunner(step)
+		err := r.Exec()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type Machine struct {
+	Host  string
+	Roles StringSet
+	Paths Paths
+}
+
+type Paths struct {
+	Input   map[string]string
+	Output  map[string]string
+	Scratch string
+}
+
+type Step struct {
+	Name    string    `json:"name"`
+	Role    string    `json:"role"`
+	Context string    `json:"context"`
+	Ports   []string  `json:"ports"`
+	Volumes []string  `json:"volumes"`
+	After   StringSet `json:"after"`
+	machine *Machine
+}
+
+func (s *Step) ImageName() string {
+	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+}
+
+func (s *Step) Runner() Runner {
+	r := NewLocalRunner()
+	return r
 }

@@ -1,19 +1,34 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
-	"github.com/ad-freiburg/gantry/pipeline"
+	"github.com/ad-freiburg/gantry"
 )
 
 func main() {
-	p, err := pipeline.NewPipeline(os.Args[1], os.Args[2])
+	log.Print("Load pipeline\n")
+	p, err := gantry.NewPipeline(os.Args[1], os.Args[2])
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	fmt.Printf("Pipeline:  %#v\n", p)
+
+	// Check for obvious errors
+	log.Print("Check pipeline\n")
 	if err = p.Check(); err != nil {
-		fmt.Println(err.Error())
+		log.Fatal(err)
+	}
+
+	// Build images
+	log.Print("Build steps\n")
+	if err = p.BuildImages(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Execute step after step
+	log.Print("Exec steps\n")
+	if err = p.ExecuteSteps(); err != nil {
+		log.Fatal(err)
 	}
 }

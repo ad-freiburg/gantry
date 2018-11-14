@@ -1,4 +1,4 @@
-package pipeline // import "github.com/ad-freiburg/gantry/pipeline"
+package gantry // import "github.com/ad-freiburg/gantry"
 
 import "encoding/json"
 
