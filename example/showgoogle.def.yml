@@ -1,0 +1,13 @@
+version: '0'
+steps:
+  - name: Download Google
+    context: /tmp/downloader
+    ports:
+      - 8080:8080
+    volumes:
+      - /tmp/downloader/urllists/:/input:ro
+      - /tmp/downloader/out/:/output
+  - name: Cat Google
+    context: /tmp/catter
+    volumes:
+      - /tmp/downloader/out/:/input:ro
