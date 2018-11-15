@@ -1,6 +1,7 @@
 package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 )
@@ -51,6 +52,33 @@ func (r *CommandRunner) Exec() error {
 	return r.runner.Exec()
 }
 
+// Check for existence of Image
+type ImageExistenceChecker struct {
+	runner Runner
+	step   Step
+}
+
+func NewImageExistenceChecker(step Step) *ImageExistenceChecker {
+	r := &ImageExistenceChecker{runner: step.Runner(), step: step}
+	r.runner.SetCommand("wharfer", []string{"images", "--format", "{{.Repository}}"})
+	return r
+}
+
+func (r *ImageExistenceChecker) Exec() error {
+	err := r.runner.Exec()
+	if err != nil {
+		return err
+	}
+
+	// Check output
+	found := false
+
+	if !found {
+		return fmt.Errorf("Image not found '%s'", r.step.ImageName())
+	}
+	return nil
+}
+
 // Build images
 type ImageBuilder struct {
 	runner Runner
@@ -58,11 +86,26 @@ type ImageBuilder struct {
 
 func NewImageBuilder(step Step) *ImageBuilder {
 	r := &ImageBuilder{runner: step.Runner()}
-	r.runner.SetCommand("wharfer", []string{"build", "--tag", step.ImageName(), step.Context})
+	r.runner.SetCommand("wharfer", []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
 	return r
 }
 
 func (r *ImageBuilder) Exec() error {
+	return r.runner.Exec()
+}
+
+// Pull images
+type ImagePuller struct {
+	runner Runner
+}
+
+func NewImagePuller(step Step) *ImagePuller {
+	r := &ImagePuller{runner: step.Runner()}
+	r.runner.SetCommand("wharfer", []string{"pull", step.ImageName()})
+	return r
+}
+
+func (r *ImagePuller) Exec() error {
 	return r.runner.Exec()
 }
 

@@ -116,17 +116,26 @@ type Paths struct {
 	Scratch string
 }
 
+type BuildInfo struct {
+	Context    string `json:"context"`
+	Dockerfile string `json:"Dockerfile"`
+}
+
 type Step struct {
-	Name    string    `json:"name"`
-	Role    string    `json:"role"`
-	Context string    `json:"context"`
-	Ports   []string  `json:"ports"`
-	Volumes []string  `json:"volumes"`
-	After   StringSet `json:"after"`
-	machine *Machine
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	BuildInfo BuildInfo `json:"build"`
+	Image     string    `json:"image"`
+	Ports     []string  `json:"ports"`
+	Volumes   []string  `json:"volumes"`
+	After     StringSet `json:"after"`
+	machine   *Machine
 }
 
 func (s *Step) ImageName() string {
+	if s.Image != "" {
+		return s.Image
+	}
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
