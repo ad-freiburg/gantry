@@ -15,3 +15,10 @@ steps:
       context: /tmp/catter
     volumes:
       - /tmp/downloader/out/:/input:ro
+    after:
+      - Download Google
+  - name: Cat Input
+    build:
+      context: /tmp/catter
+    volumes:
+      - /tmp/downloader/urllists/:/input:ro
