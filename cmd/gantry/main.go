@@ -21,8 +21,8 @@ func main() {
 	}
 
 	// Build images
-	log.Print("Build steps\n")
-	if err = p.BuildImages(); err != nil {
+	log.Print("Prepare steps\n")
+	if err = p.PrepareImages(); err != nil {
 		log.Fatal(err)
 	}
 

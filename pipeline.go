@@ -73,18 +73,34 @@ func (p *Pipeline) Check() error {
 		}
 	}
 	for _, step := range p.Definition.Steps {
-		if len(step.Role) > 0 && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s'", step.Role)
+		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
+			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
+		}
+		if step.Image == "" && step.BuildInfo.Context == "" {
+			return fmt.Errorf("No container information for '%s'", step.Name)
 		}
 	}
 	return nil
 }
 
-func (p *Pipeline) BuildImages() error {
+func (p *Pipeline) PrepareImages() error {
 	for _, step := range p.Definition.Steps {
-		fmt.Printf("\n Building step: %s\n", step.Name)
+		fmt.Printf("\n Prepare step: %s\n", step.Name)
+		existence := NewImageExistenceChecker(step)
+		err := existence.Exec()
+		if err == nil {
+			continue
+		}
+
+		if step.Image != "" {
+			r := NewImagePuller(step)
+			err := r.Exec()
+			if err == nil {
+				continue
+			}
+		}
 		r := NewImageBuilder(step)
-		err := r.Exec()
+		err = r.Exec()
 		if err != nil {
 			return err
 		}
