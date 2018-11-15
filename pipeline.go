@@ -15,7 +15,7 @@ type Pipeline struct {
 }
 
 type PipelineDefinition struct {
-	Steps []Step `json:"steps"`
+	Steps StepList `json:"steps"`
 }
 
 type PipelineEnvironment struct {
@@ -46,8 +46,7 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 	if err != nil {
 		return err
 	}
-	yaml.Unmarshal(data, &p.Definition)
-	return nil
+	return yaml.Unmarshal(data, &p.Definition)
 }
 
 func (p *Pipeline) setPipelineEnvironment(path string) error {
@@ -61,8 +60,7 @@ func (p *Pipeline) setPipelineEnvironment(path string) error {
 	if err != nil {
 		return err
 	}
-	yaml.Unmarshal(data, &p.Environment)
-	return nil
+	return yaml.Unmarshal(data, &p.Environment)
 }
 
 func (p *Pipeline) Check() error {
@@ -72,7 +70,8 @@ func (p *Pipeline) Check() error {
 			roleProvider[role] = append(roleProvider[role], machine)
 		}
 	}
-	for _, step := range p.Definition.Steps {
+
+	for _, step := range p.Definition.Steps.All() {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
 			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
 		}
@@ -84,7 +83,7 @@ func (p *Pipeline) Check() error {
 }
 
 func (p *Pipeline) PrepareImages() error {
-	for _, step := range p.Definition.Steps {
+	for _, step := range p.Definition.Steps.All() {
 		fmt.Printf("\n Prepare step: %s\n", step.Name)
 		existence := NewImageExistenceChecker(step)
 		err := existence.Exec()
@@ -109,12 +108,14 @@ func (p *Pipeline) PrepareImages() error {
 }
 
 func (p *Pipeline) ExecuteSteps() error {
-	for _, step := range p.Definition.Steps {
-		fmt.Printf("\n Running step: %s\n", step.Name)
-		r := NewImageRunner(step)
-		err := r.Exec()
-		if err != nil {
-			return err
+	for _, steps := range p.Definition.Steps {
+		for _, step := range steps {
+			fmt.Printf("\n Running step: %s\n", step.Name)
+			r := NewImageRunner(step)
+			err := r.Exec()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
