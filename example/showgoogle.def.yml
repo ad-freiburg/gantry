@@ -1,6 +1,6 @@
 version: '0'
 steps:
-  - name: Download Google
+  Download Google:
     build:
       context: /tmp/downloader
       dockerfile: Dockerfile
@@ -10,14 +10,14 @@ steps:
     volumes:
       - /tmp/downloader/urllists/:/input:ro
       - /tmp/downloader/out/:/output
-  - name: Cat Google
+  Cat Google:
     build:
       context: /tmp/catter
     volumes:
       - /tmp/downloader/out/:/input:ro
     after:
       - Download Google
-  - name: Cat Input
+  Cat Input:
     build:
       context: /tmp/catter
     volumes:

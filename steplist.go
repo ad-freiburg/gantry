@@ -79,18 +79,16 @@ func (l StepList) All() []Step {
 func (l *StepList) UnmarshalJSON(data []byte) error {
 	result := make([][]Step, 0)
 
-	var listStorage []Step
-	err := json.Unmarshal(data, &listStorage)
+	mapStorage := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &mapStorage)
 	if err != nil {
 		return err
 	}
-	mapStorage := make(map[string]Step, 0)
-	for _, step := range listStorage {
-		if _, found := mapStorage[step.Name]; found {
-			return fmt.Errorf("Duplicate step '%s'", step.Name)
-		}
-		mapStorage[step.Name] = step
+	for name, step := range mapStorage {
+		step.Name = name
+		mapStorage[name] = step
 	}
+	fmt.Printf("%#v\n", mapStorage)
 
 	// Determine components and topological order
 	t := &tarjan{
