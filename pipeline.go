@@ -146,6 +146,7 @@ type Step struct {
 	Ports       []string  `json:"ports"`
 	Volumes     []string  `json:"volumes"`
 	Environment []string  `json:"environment"`
+	Args        []string  `json:"args"`
 	After       StringSet `json:"after"`
 	machine     *Machine
 }

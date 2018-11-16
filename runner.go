@@ -127,6 +127,9 @@ func NewImageRunner(step Step) *ImageRunner {
 		args = append(args, "-e", envvar)
 	}
 	args = append(args, step.ImageName())
+	if len(step.Args) > 0 {
+		args = append(args, step.Args...)
+	}
 	r.runner.SetCommand("wharfer", args)
 	return r
 }
