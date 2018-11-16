@@ -123,6 +123,9 @@ func NewImageRunner(step Step) *ImageRunner {
 	for _, volume := range step.Volumes {
 		args = append(args, "-v", volume)
 	}
+	for _, envvar := range step.Environment {
+		args = append(args, "-e", envvar)
+	}
 	args = append(args, step.ImageName())
 	r.runner.SetCommand("wharfer", args)
 	return r

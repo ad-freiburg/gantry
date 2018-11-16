@@ -139,14 +139,15 @@ type BuildInfo struct {
 }
 
 type Step struct {
-	Name      string    `json:"name"`
-	Role      string    `json:"role"`
-	BuildInfo BuildInfo `json:"build"`
-	Image     string    `json:"image"`
-	Ports     []string  `json:"ports"`
-	Volumes   []string  `json:"volumes"`
-	After     StringSet `json:"after"`
-	machine   *Machine
+	Name        string    `json:"name"`
+	Role        string    `json:"role"`
+	BuildInfo   BuildInfo `json:"build"`
+	Image       string    `json:"image"`
+	Ports       []string  `json:"ports"`
+	Volumes     []string  `json:"volumes"`
+	Environment []string  `json:"environment"`
+	After       StringSet `json:"after"`
+	machine     *Machine
 }
 
 func (s *Step) ImageName() string {
