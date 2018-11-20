@@ -4,7 +4,55 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 )
+
+func getContainerExecutable() string {
+	if isWharferInstalled() {
+		if isUserRoot() || isUserInDockerGroup() {
+			return "docker"
+		}
+		return "wharfer"
+	}
+	return "docker"
+}
+
+func isUserRoot() bool {
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+	return u.Uid == "0"
+}
+
+func isUserInDockerGroup() bool {
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+	gids, err := u.GroupIds()
+	if err != nil {
+		return false
+	}
+	for _, gid := range gids {
+		group, err := user.LookupGroupId(gid)
+		if err != nil {
+			return false
+		}
+		if group.Name == "docker" {
+			return true
+		}
+	}
+	return false
+}
+
+func isWharferInstalled() bool {
+	cmd := exec.Command("wharfer", "--version")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
 
 type Executable interface {
 	Exec() error
@@ -60,7 +108,7 @@ type ImageExistenceChecker struct {
 
 func NewImageExistenceChecker(step Step) *ImageExistenceChecker {
 	r := &ImageExistenceChecker{runner: step.Runner(), step: step}
-	r.runner.SetCommand("wharfer", []string{"images", "--format", "{{.Repository}}"})
+	r.runner.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.Repository}}"})
 	return r
 }
 
@@ -86,7 +134,7 @@ type ImageBuilder struct {
 
 func NewImageBuilder(step Step) *ImageBuilder {
 	r := &ImageBuilder{runner: step.Runner()}
-	r.runner.SetCommand("wharfer", []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
+	r.runner.SetCommand(getContainerExecutable(), []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
 	return r
 }
 
@@ -101,7 +149,7 @@ type ImagePuller struct {
 
 func NewImagePuller(step Step) *ImagePuller {
 	r := &ImagePuller{runner: step.Runner()}
-	r.runner.SetCommand("wharfer", []string{"pull", step.ImageName()})
+	r.runner.SetCommand(getContainerExecutable(), []string{"pull", step.ImageName()})
 	return r
 }
 
@@ -130,7 +178,7 @@ func NewImageRunner(step Step) *ImageRunner {
 	if len(step.Args) > 0 {
 		args = append(args, step.Args...)
 	}
-	r.runner.SetCommand("wharfer", args)
+	r.runner.SetCommand(getContainerExecutable(), args)
 	return r
 }
 
