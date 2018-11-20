@@ -20,14 +20,14 @@ func init() {
 	gantryenv = "Gantryenv"
 	defFileUsage := fmt.Sprintf("Explicit %s to use", gantrydef)
 	envFileUsage := fmt.Sprintf("Explicit %s to use", gantryenv)
-	flag.StringVar(&defFile, "file", gantrydef, defFileUsage+" (shorthand)")
+	flag.StringVar(&defFile, "file", gantrydef, defFileUsage)
 	flag.StringVar(&defFile, "f", gantrydef, defFileUsage+" (shorthand)")
-	flag.StringVar(&envFile, "env", gantryenv, envFileUsage+" (shorthand)")
+	flag.StringVar(&envFile, "env", gantryenv, envFileUsage)
 	flag.StringVar(&envFile, "e", gantryenv, envFileUsage+" (shorthand)")
 }
 
 func main() {
-	// Try to open Gantrydef
+	flag.Parse()
 
 	log.Print("Load pipeline\n")
 	p, err := gantry.NewPipeline(defFile, envFile)
