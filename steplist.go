@@ -79,22 +79,21 @@ func (l StepList) All() []Step {
 func (l *StepList) UnmarshalJSON(data []byte) error {
 	result := make([][]Step, 0)
 
-	mapStorage := make(map[string]Step, 0)
-	err := json.Unmarshal(data, &mapStorage)
+	storage := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &storage)
 	if err != nil {
 		return err
 	}
-	for name, step := range mapStorage {
+	for name, step := range storage {
 		step.Name = name
-		mapStorage[name] = step
+		storage[name] = step
 	}
-	fmt.Printf("%#v\n", mapStorage)
 
 	// Determine components and topological order
 	t := &tarjan{
-		graph: mapStorage,
-		nodes: make([]tarjanNode, 0, len(mapStorage)),
-		index: make(map[string]int, len(mapStorage)),
+		graph: storage,
+		nodes: make([]tarjanNode, 0, len(storage)),
+		index: make(map[string]int, len(storage)),
 	}
 	for v := range t.graph {
 		if _, ok := t.index[v]; !ok {
@@ -118,7 +117,6 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 			requirements[r] = true
 		}
 		delete(requirements, step.Name)
-		fmt.Printf("%#v\n\n", requirements)
 		if len(result)-1 < resultIndex {
 			result = append(result, make([]Step, 0))
 		}
