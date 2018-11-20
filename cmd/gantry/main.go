@@ -1,15 +1,36 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
-	"os"
 
 	"github.com/ad-freiburg/gantry"
 )
 
+var (
+	defFile   string
+	envFile   string
+	gantrydef string
+	gantryenv string
+)
+
+func init() {
+	gantrydef = "Gantrydef"
+	gantryenv = "Gantryenv"
+	defFileUsage := fmt.Sprintf("Explicit %s to use", gantrydef)
+	envFileUsage := fmt.Sprintf("Explicit %s to use", gantryenv)
+	flag.StringVar(&defFile, "file", gantrydef, defFileUsage+" (shorthand)")
+	flag.StringVar(&defFile, "f", gantrydef, defFileUsage+" (shorthand)")
+	flag.StringVar(&envFile, "env", gantryenv, envFileUsage+" (shorthand)")
+	flag.StringVar(&envFile, "e", gantryenv, envFileUsage+" (shorthand)")
+}
+
 func main() {
+	// Try to open Gantrydef
+
 	log.Print("Load pipeline\n")
-	p, err := gantry.NewPipeline(os.Args[1], os.Args[2])
+	p, err := gantry.NewPipeline(defFile, envFile)
 	if err != nil {
 		log.Fatal(err)
 	}
