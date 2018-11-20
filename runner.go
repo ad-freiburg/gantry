@@ -164,7 +164,7 @@ type ImageRunner struct {
 
 func NewImageRunner(step Step) *ImageRunner {
 	r := &ImageRunner{runner: step.Runner()}
-	args := []string{"run"}
+	args := []string{"run", "--rm"}
 	for _, port := range step.Ports {
 		args = append(args, "-p", port)
 	}
