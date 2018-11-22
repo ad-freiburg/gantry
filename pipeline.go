@@ -15,35 +15,39 @@ type Pipeline struct {
 }
 
 type PipelineDefinition struct {
-	Steps    StepList    `json:"steps"`
-	Services ServiceList `json:"services"`
+	Steps     StepList    `json:"steps"`
+	Services  ServiceList `json:"services"`
+	pipelines *pipelines
 }
 
 func (p PipelineDefinition) Pipelines() (*pipelines, error) {
-	steps := make(map[string]Step, 0)
-	for name, step := range p.Steps {
-		if val, ok := steps[name]; ok {
-			return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+	if p.pipelines == nil {
+		steps := make(map[string]Step, 0)
+		for name, step := range p.Steps {
+			if val, ok := steps[name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			steps[name] = step
 		}
-		steps[name] = step
-	}
-	for name, step := range p.Services {
-		if val, ok := steps[name]; ok {
-			return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+		for name, step := range p.Services {
+			if val, ok := steps[name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			steps[name] = step
 		}
-		steps[name] = step
-	}
 
-	t, err := NewTarjan(steps)
-	if err != nil {
-		return nil, err
+		t, err := NewTarjan(steps)
+		if err != nil {
+			return nil, err
+		}
+		res, err := t.Parse()
+		if err != nil {
+			return nil, err
+		}
+		result := pipelines(*res)
+		p.pipelines = &result
 	}
-	res, err := t.Parse()
-	if err != nil {
-		return nil, err
-	}
-	result := pipelines(*res)
-	return &result, nil
+	return p.pipelines, nil
 }
 
 type pipelines [][]Step
