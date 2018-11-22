@@ -3,6 +3,7 @@ package gantry // import "github.com/ad-freiburg/gantry"
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Adapted version of https://github.com/looplab/tarjan/blob/master/tarjan.go
@@ -35,7 +36,7 @@ func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	for w, _ := range deps {
+	for w, _ := range *deps {
 		if _, ok := td.graph[w]; !ok {
 			return nil, fmt.Errorf("Unknown dependency '%s' for step '%s'", w, v)
 		}
@@ -100,7 +101,11 @@ func (t *tarjan) Parse() (*[][]Step, error) {
 	for i := len(t.output) - 1; i >= 0; i-- {
 		steps := t.output[i]
 		if len(steps) > 1 {
-			return nil, fmt.Errorf("cyclic component found in pipeline: '%#v'", steps)
+			names := make([]string, len(steps))
+			for i, step := range steps {
+				names[i] = step.Name
+			}
+			return nil, fmt.Errorf("cyclic component found in /sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
 		for r, _ := range step.After {
@@ -118,12 +123,12 @@ func (t *tarjan) Parse() (*[][]Step, error) {
 	return &result, nil
 }
 
-type StepList [][]Step
+type StepList map[string]Step
 
 func (l StepList) All() []Step {
 	result := make([]Step, 0)
-	for _, steps := range l {
-		result = append(result, steps...)
+	for _, step := range l {
+		result = append(result, step)
 	}
 	return result
 }
@@ -139,20 +144,11 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 		step.Name = name
 		storage[name] = step
 	}
-
-	// Determine components and topological order
-	t, err := NewTarjan(storage)
-	if err != nil {
-		return err
-	}
-
-	// write result
-	result, err := t.Parse()
-	*l = *result
-	return err
+	*l = storage
+	return nil
 }
 
-type ServiceList [][]Step
+type ServiceList map[string]Step
 
 func (l *ServiceList) UnmarshalJSON(data []byte) error {
 	serviceStorage := make(map[string]Service, 0)
@@ -168,15 +164,6 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 			Detach:  true,
 		}
 	}
-
-	// Determine components and topological order
-	t, err := NewTarjan(stepStorage)
-	if err != nil {
-		return err
-	}
-
-	// write result
-	result, err := t.Parse()
-	*l = *result
-	return err
+	*l = stepStorage
+	return nil
 }

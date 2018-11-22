@@ -19,23 +19,19 @@ type PipelineDefinition struct {
 	Services ServiceList `json:"services"`
 }
 
-func (p PipelineDefinition) StepList() (*StepList, error) {
+func (p PipelineDefinition) Pipelines() (*pipelines, error) {
 	steps := make(map[string]Step, 0)
-	for _, pipeline := range p.Steps {
-		for _, step := range pipeline {
-			if val, ok := steps[step.Name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			steps[step.Name] = step
+	for name, step := range p.Steps {
+		if val, ok := steps[name]; ok {
+			return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 		}
+		steps[name] = step
 	}
-	for _, pipeline := range p.Services {
-		for _, step := range pipeline {
-			if val, ok := steps[step.Name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			steps[step.Name] = step
+	for name, step := range p.Services {
+		if val, ok := steps[name]; ok {
+			return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 		}
+		steps[name] = step
 	}
 
 	t, err := NewTarjan(steps)
@@ -43,9 +39,23 @@ func (p PipelineDefinition) StepList() (*StepList, error) {
 		return nil, err
 	}
 	res, err := t.Parse()
-	result := &StepList{}
-	*result = *res
-	return result, err
+	if err != nil {
+		return nil, err
+	}
+	result := pipelines(*res)
+	return &result, nil
+}
+
+type pipelines [][]Step
+
+func (p pipelines) AllSteps() []Step {
+	result := make([]Step, 0)
+	for _, pipeline := range p {
+		for _, step := range pipeline {
+			result = append(result, step)
+		}
+	}
+	return result
 }
 
 type PipelineEnvironment struct {
@@ -104,11 +114,11 @@ func (p Pipeline) Check() error {
 		}
 	}
 
-	steplist, err := p.Definition.StepList()
+	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
-	for _, step := range steplist.All() {
+	for _, step := range pipelines.AllSteps() {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
 			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
 		}
@@ -123,11 +133,11 @@ func (p Pipeline) Check() error {
 }
 
 func (p Pipeline) PrepareImages() error {
-	steplist, err := p.Definition.StepList()
+	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
-	for _, step := range steplist.All() {
+	for _, step := range pipelines.AllSteps() {
 		fmt.Printf("\n Prepare Image: %s\n", step.Name)
 		err := NewImageExistenceChecker(step)()
 		if err == nil {
@@ -149,12 +159,12 @@ func (p Pipeline) PrepareImages() error {
 }
 
 func (p Pipeline) ExecuteSteps() error {
-	steplist, err := p.Definition.StepList()
+	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
-	for _, steps := range *steplist {
-		for _, step := range steps {
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
 			fmt.Printf("\n Starting: %s\n", step.Name)
 			NewContainerKiller(step)()
 			NewOldContainerRemover(step)()
@@ -203,8 +213,15 @@ type Step struct {
 	Detach bool      `json:"detach"`
 }
 
-func (s Step) Dependencies() (StringSet, error) {
-	return StringSet{}, nil
+func (s Step) Dependencies() (*StringSet, error) {
+	r := StringSet{}
+	for dep, _ := range s.After {
+		r[dep] = true
+	}
+	for dep, _ := range s.DependsOn {
+		r[dep] = true
+	}
+	return &r, nil
 }
 
 func (s Step) ImageName() string {
