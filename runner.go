@@ -1,6 +1,8 @@
 package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -58,6 +60,7 @@ func isWharferInstalled() bool {
 
 type Executable interface {
 	Exec() error
+	Output() ([]byte, error)
 }
 
 type Runner interface {
@@ -83,117 +86,132 @@ func (r *LocalRunner) Exec() error {
 	return cmd.Run()
 }
 
+func (r *LocalRunner) Output() ([]byte, error) {
+	cmd := exec.Command(r.name, r.args...)
+	return cmd.Output()
+}
+
 func (r *LocalRunner) SetCommand(name string, args []string) {
 	r.name = name
 	r.args = args
 }
 
-// Run arbitray command on machine
-type CommandRunner struct {
-	runner Runner
-}
-
-func NewCommandRunner(runner Runner) *CommandRunner {
-	r := &CommandRunner{runner: runner}
-	return r
-}
-
-func (r *CommandRunner) Exec() error {
-	return r.runner.Exec()
-}
-
-// Check for existence of Image
-type ImageExistenceChecker struct {
-	runner Runner
-	step   Step
-}
-
-func NewImageExistenceChecker(step Step) *ImageExistenceChecker {
-	r := &ImageExistenceChecker{runner: step.Runner(), step: step}
-	r.runner.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.Repository}}"})
-	return r
-}
-
-func (r *ImageExistenceChecker) Exec() error {
-	err := r.runner.Exec()
-	if err != nil {
-		return err
+func NewImageBuilder(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
+		return r.Exec()
 	}
+}
 
-	// Check output
-	found := false
-
-	if !found {
-		return fmt.Errorf("Image not found '%s'", r.step.ImageName())
+func NewImagePuller(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"pull", step.ImageName()})
+		return r.Exec()
 	}
-	return nil
 }
 
-// Build images
-type ImageBuilder struct {
-	runner Runner
-}
-
-func NewImageBuilder(step Step) *ImageBuilder {
-	r := &ImageBuilder{runner: step.Runner()}
-	r.runner.SetCommand(getContainerExecutable(), []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
-	return r
-}
-
-func (r *ImageBuilder) Exec() error {
-	return r.runner.Exec()
-}
-
-// Pull images
-type ImagePuller struct {
-	runner Runner
-}
-
-func NewImagePuller(step Step) *ImagePuller {
-	r := &ImagePuller{runner: step.Runner()}
-	r.runner.SetCommand(getContainerExecutable(), []string{"pull", step.ImageName()})
-	return r
-}
-
-func (r *ImagePuller) Exec() error {
-	return r.runner.Exec()
-}
-
-// Run image using wharfer or docker
-type ImageRunner struct {
-	runner Runner
-}
-
-func NewImageRunner(step Step) *ImageRunner {
-	r := &ImageRunner{runner: step.Runner()}
-	args := []string{"run", "--name", step.ContainerName()}
-	if step.Detach {
-		args = append(args, "-d")
-	} else {
-		args = append(args, "--rm")
+func NewContainerRunner(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		args := []string{"run", "--name", step.ContainerName()}
+		if step.Detach {
+			args = append(args, "-d")
+		} else {
+			args = append(args, "--rm")
+		}
+		for _, port := range step.Ports {
+			args = append(args, "-p", port)
+		}
+		for _, volume := range step.Volumes {
+			args = append(args, "-v", volume)
+		}
+		for _, envvar := range step.Environment {
+			args = append(args, "-e", envvar)
+		}
+		// Override entrypoint with step.Command
+		callerArgs := step.Args
+		if step.Command != "" {
+			tokens, _ := shlex.Split(step.Command)
+			args = append(args, "--entrypoint", tokens[0])
+			callerArgs = tokens[1:]
+		}
+		args = append(args, step.ImageName())
+		args = append(args, callerArgs...)
+		r.SetCommand(getContainerExecutable(), args)
+		return r.Exec()
 	}
-	for _, port := range step.Ports {
-		args = append(args, "-p", port)
-	}
-	for _, volume := range step.Volumes {
-		args = append(args, "-v", volume)
-	}
-	for _, envvar := range step.Environment {
-		args = append(args, "-e", envvar)
-	}
-	// Override entrypoint with step.Command
-	callerArgs := step.Args
-	if step.Command != "" {
-		tokens, _ := shlex.Split(step.Command)
-		args = append(args, "--entrypoint", tokens[0])
-		callerArgs = tokens[1:]
-	}
-	args = append(args, step.ImageName())
-	args = append(args, callerArgs...)
-	r.runner.SetCommand(getContainerExecutable(), args)
-	return r
 }
 
-func (r *ImageRunner) Exec() error {
-	return r.runner.Exec()
+func NewContainerKiller(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
+		out, err := r.Output()
+		if err != nil {
+			return err
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(out))
+		scanner.Split(bufio.ScanWords)
+		for scanner.Scan() {
+			k := step.Runner()
+			k.SetCommand(getContainerExecutable(), []string{"kill", scanner.Text()})
+			if err := k.Exec(); err != nil {
+				return err
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func NewImageExistenceChecker(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
+		out, err := r.Output()
+		if err != nil {
+			return err
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(out))
+		scanner.Split(bufio.ScanWords)
+		count := 0
+		for scanner.Scan() {
+			count++
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		if count == 0 {
+			return fmt.Errorf("Image not found '%s'", step.ImageName())
+		}
+		return nil
+	}
+}
+
+func NewOldContainerRemover(step Step) func() error {
+	return func() error {
+		r := step.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
+		out, err := r.Output()
+		if err != nil {
+			return err
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(out))
+		scanner.Split(bufio.ScanWords)
+		for scanner.Scan() {
+			k := step.Runner()
+			k.SetCommand(getContainerExecutable(), []string{"rm", scanner.Text()})
+			if err := k.Exec(); err != nil {
+				return err
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		return nil
+	}
 }

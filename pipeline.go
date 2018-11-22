@@ -126,21 +126,18 @@ func (p Pipeline) PrepareImages() error {
 	}
 	for _, step := range steplist.All() {
 		fmt.Printf("\n Prepare Image: %s\n", step.Name)
-		existence := NewImageExistenceChecker(step)
-		err := existence.Exec()
+		err := NewImageExistenceChecker(step)()
 		if err == nil {
 			continue
 		}
 
 		if step.Image != "" {
-			r := NewImagePuller(step)
-			err := r.Exec()
+			err := NewImagePuller(step)()
 			if err == nil {
 				continue
 			}
 		}
-		r := NewImageBuilder(step)
-		err = r.Exec()
+		err = NewImageBuilder(step)()
 		if err != nil {
 			return err
 		}
@@ -156,8 +153,9 @@ func (p Pipeline) ExecuteSteps() error {
 	for _, steps := range *steplist {
 		for _, step := range steps {
 			fmt.Printf("\n Starting: %s\n", step.Name)
-			r := NewImageRunner(step)
-			err := r.Exec()
+			NewContainerKiller(step)()
+			NewOldContainerRemover(step)()
+			err := NewContainerRunner(step)()
 			if err != nil {
 				return err
 			}
