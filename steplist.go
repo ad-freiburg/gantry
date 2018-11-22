@@ -170,7 +170,10 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 	}
 	for name, step := range serviceStorage {
 		step.Name = name
-		stepStorage[name] = Step{Service: step}
+		stepStorage[name] = Step{
+			Service: step,
+			Detach:  true,
+		}
 	}
 
 	// Determine components and topological order

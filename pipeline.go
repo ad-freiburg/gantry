@@ -151,10 +151,10 @@ type Service struct {
 
 type Step struct {
 	Service
-	Role    string    `json:"role"`
-	Args    []string  `json:"args"`
-	After   StringSet `json:"after"`
-	Detache bool      `json:"detach"`
+	Role   string    `json:"role"`
+	Args   []string  `json:"args"`
+	After  StringSet `json:"after"`
+	Detach bool      `json:"detach"`
 }
 
 func (s Step) Dependencies() (StringSet, error) {
