@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+
+	"github.com/google/shlex"
 )
 
 func getContainerExecutable() string {
@@ -179,10 +181,15 @@ func NewImageRunner(step Step) *ImageRunner {
 	for _, envvar := range step.Environment {
 		args = append(args, "-e", envvar)
 	}
-	args = append(args, step.ImageName())
-	if len(step.Args) > 0 {
-		args = append(args, step.Args...)
+	// Override entrypoint with step.Command
+	callerArgs := step.Args
+	if step.Command != "" {
+		tokens, _ := shlex.Split(step.Command)
+		args = append(args, "--entrypoint", tokens[0])
+		callerArgs = tokens[1:]
 	}
+	args = append(args, step.ImageName())
+	args = append(args, callerArgs...)
 	r.runner.SetCommand(getContainerExecutable(), args)
 	return r
 }

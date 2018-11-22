@@ -112,6 +112,9 @@ func (p Pipeline) Check() error {
 		if step.Image == "" && step.BuildInfo.Context == "" {
 			return fmt.Errorf("No container information for '%s'", step.Name)
 		}
+		if step.Command != "" && len(step.Args) > 0 {
+			return fmt.Errorf("Only command or args allowed for '%s'", step.Name)
+		}
 	}
 	return nil
 }
