@@ -26,6 +26,7 @@ func (p PipelineDefinition) StepList() (*StepList, error) {
 			if val, ok := steps[step.Name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
+			steps[step.Name] = step
 		}
 	}
 	for _, pipeline := range p.Services {
@@ -33,8 +34,10 @@ func (p PipelineDefinition) StepList() (*StepList, error) {
 			if val, ok := steps[step.Name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
+			steps[step.Name] = step
 		}
 	}
+
 	t, err := NewTarjan(steps)
 	if err != nil {
 		return nil, err
