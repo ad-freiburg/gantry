@@ -122,7 +122,7 @@ func (p Pipeline) PrepareImages() error {
 		return err
 	}
 	for _, step := range steplist.All() {
-		fmt.Printf("\n Prepare step: %s\n", step.Name)
+		fmt.Printf("\n Prepare Image: %s\n", step.Name)
 		existence := NewImageExistenceChecker(step)
 		err := existence.Exec()
 		if err == nil {
@@ -152,7 +152,7 @@ func (p Pipeline) ExecuteSteps() error {
 	}
 	for _, steps := range *steplist {
 		for _, step := range steps {
-			fmt.Printf("\n Running step: %s\n", step.Name)
+			fmt.Printf("\n Starting: %s\n", step.Name)
 			r := NewImageRunner(step)
 			err := r.Exec()
 			if err != nil {
@@ -182,6 +182,7 @@ type BuildInfo struct {
 
 type Service struct {
 	BuildInfo   BuildInfo `json:"build"`
+	Command     string    `json:"command"`
 	Image       string    `json:"image"`
 	Ports       []string  `json:"ports"`
 	Volumes     []string  `json:"volumes"`
@@ -206,6 +207,10 @@ func (s Step) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
+	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+}
+
+func (s Step) ContainerName() string {
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
