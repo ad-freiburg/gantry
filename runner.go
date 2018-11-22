@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/shlex"
 )
@@ -125,7 +127,14 @@ func NewContainerRunner(step Step) func() error {
 			args = append(args, "-p", port)
 		}
 		for _, volume := range step.Volumes {
-			args = append(args, "-v", volume)
+			// Resolve relative paths
+			var err error
+			parts := strings.SplitN(volume, ":", 2)
+			parts[0], err = filepath.Abs(parts[0])
+			if err != nil {
+				return err
+			}
+			args = append(args, "-v", strings.Join(parts, ":"))
 		}
 		for _, envvar := range step.Environment {
 			args = append(args, "-e", envvar)
