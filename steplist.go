@@ -7,11 +7,15 @@ import (
 
 // Adapted version of https://github.com/looplab/tarjan/blob/master/tarjan.go
 
+type tarjanData struct {
+	tarjan
+	nodes []tarjanNode
+	stack []Step
+	index map[string]int
+}
+
 type tarjan struct {
 	graph  map[string]Step
-	nodes  []tarjanNode
-	stack  []Step
-	index  map[string]int
 	output [][]Step
 }
 
@@ -20,27 +24,31 @@ type tarjanNode struct {
 	stacked bool
 }
 
-func (tarjan *tarjan) strongConnect(v string) (*tarjanNode, error) {
-	index := len(tarjan.nodes)
-	tarjan.index[v] = index
-	tarjan.stack = append(tarjan.stack, tarjan.graph[v])
-	tarjan.nodes = append(tarjan.nodes, tarjanNode{lowlink: index, stacked: true})
-	node := &tarjan.nodes[index]
+func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
+	index := len(td.nodes)
+	td.index[v] = index
+	td.stack = append(td.stack, td.graph[v])
+	td.nodes = append(td.nodes, tarjanNode{lowlink: index, stacked: true})
+	node := &td.nodes[index]
 
-	for w, _ := range tarjan.graph[v].After {
-		if _, ok := tarjan.graph[w]; !ok {
+	deps, err := td.graph[v].Dependencies()
+	if err != nil {
+		return nil, err
+	}
+	for w, _ := range deps {
+		if _, ok := td.graph[w]; !ok {
 			return nil, fmt.Errorf("Unknown dependency '%s' for step '%s'", w, v)
 		}
-		i, seen := tarjan.index[w]
+		i, seen := td.index[w]
 		if !seen {
-			n, err := tarjan.strongConnect(w)
+			n, err := td.strongConnect(w)
 			if err != nil {
 				return nil, err
 			}
 			if n.lowlink < node.lowlink {
 				node.lowlink = n.lowlink
 			}
-		} else if tarjan.nodes[i].stacked {
+		} else if td.nodes[i].stacked {
 			if i < node.lowlink {
 				node.lowlink = i
 			}
@@ -49,68 +57,50 @@ func (tarjan *tarjan) strongConnect(v string) (*tarjanNode, error) {
 
 	if node.lowlink == index {
 		var vertices []Step
-		i := len(tarjan.stack) - 1
+		i := len(td.stack) - 1
 		for {
-			w := tarjan.stack[i]
-			stackIndex := tarjan.index[w.Name]
-			tarjan.nodes[stackIndex].stacked = false
+			w := td.stack[i]
+			stackIndex := td.index[w.Name]
+			td.nodes[stackIndex].stacked = false
 			vertices = append(vertices, w)
 			if stackIndex == index {
 				break
 			}
 			i--
 		}
-		tarjan.stack = tarjan.stack[:i]
-		tarjan.output = append(tarjan.output, vertices)
+		td.stack = td.stack[:i]
+		td.output = append(td.output, vertices)
 	}
 	return node, nil
 }
 
-type StepList [][]Step
-
-func (l StepList) All() []Step {
-	result := make([]Step, 0)
-	for _, steps := range l {
-		result = append(result, steps...)
-	}
-	return result
-}
-
-func (l *StepList) UnmarshalJSON(data []byte) error {
-	result := make([][]Step, 0)
-
-	storage := make(map[string]Step, 0)
-	err := json.Unmarshal(data, &storage)
-	if err != nil {
-		return err
-	}
-	for name, step := range storage {
-		step.Name = name
-		storage[name] = step
-	}
-
+func NewTarjan(steps map[string]Step) (*tarjan, error) {
 	// Determine components and topological order
-	t := &tarjan{
-		graph: storage,
-		nodes: make([]tarjanNode, 0, len(storage)),
-		index: make(map[string]int, len(storage)),
+	t := &tarjanData{
+		nodes: make([]tarjanNode, 0, len(steps)),
+		index: make(map[string]int, len(steps)),
 	}
+	t.graph = steps
 	for v := range t.graph {
 		if _, ok := t.index[v]; !ok {
 			_, err := t.strongConnect(v)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
+	return &t.tarjan, nil
+}
 
+func (t *tarjan) Parse() ([][]Step, error) {
+	result := make([][]Step, 0)
 	// walk reverse order, if all requirements are found the next step is a new component
 	resultIndex := 0
 	requirements := make(map[string]bool, 0)
 	for i := len(t.output) - 1; i >= 0; i-- {
 		steps := t.output[i]
 		if len(steps) > 1 {
-			return fmt.Errorf("cyclic component found in pipeline: '%#v'", steps)
+			return result, fmt.Errorf("cyclic component found in pipeline: '%#v'", steps)
 		}
 		var step = steps[0]
 		for r, _ := range step.After {
@@ -125,8 +115,71 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 			resultIndex++
 		}
 	}
+	return result, nil
+}
+
+type StepList [][]Step
+
+func (l StepList) All() []Step {
+	result := make([]Step, 0)
+	for _, steps := range l {
+		result = append(result, steps...)
+	}
+	return result
+}
+
+func (l *StepList) UnmarshalJSON(data []byte) error {
+
+	storage := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &storage)
+	if err != nil {
+		return err
+	}
+	for name, step := range storage {
+		step.Name = name
+		storage[name] = step
+	}
+
+	// Determine components and topological order
+	t, err := NewTarjan(storage)
+	if err != nil {
+		return err
+	}
 
 	// write result
-	*l = result
-	return nil
+	*l, err = t.Parse()
+	return err
+}
+
+type ServiceList [][]Step
+
+func (l ServiceList) All() []Step {
+	result := make([]Step, 0)
+	for _, steps := range l {
+		result = append(result, steps...)
+	}
+	return result
+}
+
+func (l *ServiceList) UnmarshalJSON(data []byte) error {
+	serviceStorage := make(map[string]Service, 0)
+	stepStorage := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &serviceStorage)
+	if err != nil {
+		return err
+	}
+	for name, step := range serviceStorage {
+		step.Name = name
+		stepStorage[name] = Step{Service: step}
+	}
+
+	// Determine components and topological order
+	t, err := NewTarjan(stepStorage)
+	if err != nil {
+		return err
+	}
+
+	// write result
+	*l, err = t.Parse()
+	return err
 }

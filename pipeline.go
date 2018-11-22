@@ -15,7 +15,8 @@ type Pipeline struct {
 }
 
 type PipelineDefinition struct {
-	Steps StepList `json:"steps"`
+	Steps    StepList    `json:"steps"`
+	Services ServiceList `json:"services"`
 }
 
 type PipelineEnvironment struct {
@@ -63,7 +64,7 @@ func (p *Pipeline) setPipelineEnvironment(path string) error {
 	return yaml.Unmarshal(data, &p.Environment)
 }
 
-func (p *Pipeline) Check() error {
+func (p Pipeline) Check() error {
 	roleProvider := make(map[string][]Machine)
 	for _, machine := range p.Environment.Machines {
 		for role, _ := range machine.Roles {
@@ -82,7 +83,7 @@ func (p *Pipeline) Check() error {
 	return nil
 }
 
-func (p *Pipeline) PrepareImages() error {
+func (p Pipeline) PrepareImages() error {
 	for _, step := range p.Definition.Steps.All() {
 		fmt.Printf("\n Prepare step: %s\n", step.Name)
 		existence := NewImageExistenceChecker(step)
@@ -107,7 +108,7 @@ func (p *Pipeline) PrepareImages() error {
 	return nil
 }
 
-func (p *Pipeline) ExecuteSteps() error {
+func (p Pipeline) ExecuteSteps() error {
 	for _, steps := range p.Definition.Steps {
 		for _, step := range steps {
 			fmt.Printf("\n Running step: %s\n", step.Name)
@@ -138,27 +139,36 @@ type BuildInfo struct {
 	Dockerfile string `json:"Dockerfile"`
 }
 
-type Step struct {
-	Name        string    `json:"name"`
-	Role        string    `json:"role"`
+type Service struct {
 	BuildInfo   BuildInfo `json:"build"`
 	Image       string    `json:"image"`
 	Ports       []string  `json:"ports"`
 	Volumes     []string  `json:"volumes"`
 	Environment []string  `json:"environment"`
-	Args        []string  `json:"args"`
-	After       StringSet `json:"after"`
-	machine     *Machine
+	DependsOn   StringSet `json:"depends_on"`
+	Name        string
 }
 
-func (s *Step) ImageName() string {
+type Step struct {
+	Service
+	Role    string    `json:"role"`
+	Args    []string  `json:"args"`
+	After   StringSet `json:"after"`
+	Detache bool      `json:"detach"`
+}
+
+func (s Step) Dependencies() (StringSet, error) {
+	return StringSet{}, nil
+}
+
+func (s Step) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
-func (s *Step) Runner() Runner {
+func (s Step) Runner() Runner {
 	r := NewLocalRunner()
 	return r
 }
