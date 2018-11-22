@@ -92,7 +92,7 @@ func NewTarjan(steps map[string]Step) (*tarjan, error) {
 	return &t.tarjan, nil
 }
 
-func (t *tarjan) Parse() ([][]Step, error) {
+func (t *tarjan) Parse() (*[][]Step, error) {
 	result := make([][]Step, 0)
 	// walk reverse order, if all requirements are found the next step is a new component
 	resultIndex := 0
@@ -100,7 +100,7 @@ func (t *tarjan) Parse() ([][]Step, error) {
 	for i := len(t.output) - 1; i >= 0; i-- {
 		steps := t.output[i]
 		if len(steps) > 1 {
-			return result, fmt.Errorf("cyclic component found in pipeline: '%#v'", steps)
+			return nil, fmt.Errorf("cyclic component found in pipeline: '%#v'", steps)
 		}
 		var step = steps[0]
 		for r, _ := range step.After {
@@ -115,7 +115,7 @@ func (t *tarjan) Parse() ([][]Step, error) {
 			resultIndex++
 		}
 	}
-	return result, nil
+	return &result, nil
 }
 
 type StepList [][]Step
@@ -147,19 +147,12 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 	}
 
 	// write result
-	*l, err = t.Parse()
+	result, err := t.Parse()
+	*l = *result
 	return err
 }
 
 type ServiceList [][]Step
-
-func (l ServiceList) All() []Step {
-	result := make([]Step, 0)
-	for _, steps := range l {
-		result = append(result, steps...)
-	}
-	return result
-}
 
 func (l *ServiceList) UnmarshalJSON(data []byte) error {
 	serviceStorage := make(map[string]Service, 0)
@@ -183,6 +176,7 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 	}
 
 	// write result
-	*l, err = t.Parse()
+	result, err := t.Parse()
+	*l = *result
 	return err
 }

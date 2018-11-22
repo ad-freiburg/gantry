@@ -19,6 +19,32 @@ type PipelineDefinition struct {
 	Services ServiceList `json:"services"`
 }
 
+func (p PipelineDefinition) StepList() (*StepList, error) {
+	steps := make(map[string]Step, 0)
+	for _, pipeline := range p.Steps {
+		for _, step := range pipeline {
+			if val, ok := steps[step.Name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+		}
+	}
+	for _, pipeline := range p.Services {
+		for _, step := range pipeline {
+			if val, ok := steps[step.Name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+		}
+	}
+	t, err := NewTarjan(steps)
+	if err != nil {
+		return nil, err
+	}
+	res, err := t.Parse()
+	result := &StepList{}
+	*result = *res
+	return result, err
+}
+
 type PipelineEnvironment struct {
 	Machines []Machine `json:"machines"`
 }
@@ -72,7 +98,11 @@ func (p Pipeline) Check() error {
 		}
 	}
 
-	for _, step := range p.Definition.Steps.All() {
+	steplist, err := p.Definition.StepList()
+	if err != nil {
+		return err
+	}
+	for _, step := range steplist.All() {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
 			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
 		}
@@ -84,7 +114,11 @@ func (p Pipeline) Check() error {
 }
 
 func (p Pipeline) PrepareImages() error {
-	for _, step := range p.Definition.Steps.All() {
+	steplist, err := p.Definition.StepList()
+	if err != nil {
+		return err
+	}
+	for _, step := range steplist.All() {
 		fmt.Printf("\n Prepare step: %s\n", step.Name)
 		existence := NewImageExistenceChecker(step)
 		err := existence.Exec()
@@ -109,7 +143,11 @@ func (p Pipeline) PrepareImages() error {
 }
 
 func (p Pipeline) ExecuteSteps() error {
-	for _, steps := range p.Definition.Steps {
+	steplist, err := p.Definition.StepList()
+	if err != nil {
+		return err
+	}
+	for _, steps := range *steplist {
 		for _, step := range steps {
 			fmt.Printf("\n Running step: %s\n", step.Name)
 			r := NewImageRunner(step)
