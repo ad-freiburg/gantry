@@ -58,9 +58,12 @@ func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = p.setPipelineEnvironment(environmentPath)
-	if err != nil {
-		return nil, err
+	// Environment is only needed for steps
+	if len(p.Definition.Steps) > 0 {
+		err = p.setPipelineEnvironment(environmentPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return p, nil
 }
