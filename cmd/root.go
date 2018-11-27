@@ -42,10 +42,8 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	defFile   string
-	envFile   string
-	gantrydef string
-	gantryenv string
+	defFile string
+	envFile string
 )
 
 func init() {
@@ -53,8 +51,8 @@ func init() {
 	envFileUsage := fmt.Sprintf("Explicit %s to use", gantry.GantryEnv)
 	rootCmd.PersistentFlags().StringVar(&defFile, "file", "", defFileUsage)
 	rootCmd.PersistentFlags().StringVar(&defFile, "f", "", defFileUsage+" (shorthand)")
-	rootCmd.PersistentFlags().StringVar(&envFile, "env", gantryenv, envFileUsage)
-	rootCmd.PersistentFlags().StringVar(&envFile, "e", gantryenv, envFileUsage+" (shorthand)")
+	rootCmd.PersistentFlags().StringVar(&envFile, "env", "", envFileUsage)
+	rootCmd.PersistentFlags().StringVar(&envFile, "e", "", envFileUsage+" (shorthand)")
 }
 
 func Execute() {

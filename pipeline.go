@@ -83,6 +83,12 @@ func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
 }
 
 func (p *Pipeline) loadPipelineDefinition(path string) error {
+	if _, err := os.Stat(GantryDef); path == "" && !os.IsNotExist(err) {
+		path = GantryDef
+	}
+	if _, err := os.Stat(DockerCompose); path == "" && !os.IsNotExist(err) {
+		path = DockerCompose
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -97,6 +103,9 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 }
 
 func (p *Pipeline) setPipelineEnvironment(path string) error {
+	if _, err := os.Stat(GantryEnv); path == "" && !os.IsNotExist(err) {
+		path = GantryEnv
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return err
