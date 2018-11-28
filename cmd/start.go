@@ -1,6 +1,8 @@
 package cmd // import "github.com/ad-freiburg/gantry/cmd"
 
 import (
+	"log"
+
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +14,9 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Starts containers",
 	Run: func(cmd *cobra.Command, args []string) {
+		if verbose {
+			log.Print("Start container\n")
+		}
 		pipeline.ExecuteSteps()
 	},
 }

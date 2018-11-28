@@ -20,7 +20,9 @@ var rootCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		// Check for obvious errors
-		log.Print("Check pipeline\n")
+		if verbose {
+			log.Print("Check pipeline\n")
+		}
 		if err = pipeline.Check(); err != nil {
 			log.Fatal(err)
 		}
