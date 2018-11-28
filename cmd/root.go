@@ -13,37 +13,30 @@ var rootCmd = &cobra.Command{
 	Use:   "gantry",
 	Short: "gantry is a docker-compose like pipeline tool",
 	Long:  `Tool for running pipelines and docker-compose deployments.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		log.Print("Load pipeline\n")
-		p, err := gantry.NewPipeline(defFile, envFile)
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		var err error
+		pipeline, err = gantry.NewPipeline(defFile, envFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		// Check for obvious errors
 		log.Print("Check pipeline\n")
-		if err = p.Check(); err != nil {
+		if err = pipeline.Check(); err != nil {
 			log.Fatal(err)
 		}
-
-		// Build images
-		log.Print("Prepare steps\n")
-		if err = p.PrepareImages(); err != nil {
-			log.Fatal(err)
-		}
-
-		// Execute step after step
-		log.Print("Exec steps\n")
-		if err = p.ExecuteSteps(); err != nil {
-			log.Fatal(err)
-		}
-
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		killCmd.Run(cmd, args)
+		rmCmd.Run(cmd, args)
+		upCmd.Run(cmd, args)
 	},
 }
 
 var (
-	defFile string
-	envFile string
+	defFile  string
+	envFile  string
+	verbose  bool
+	pipeline *gantry.Pipeline
 )
 
 func init() {
@@ -53,6 +46,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&defFile, "f", "", defFileUsage+" (shorthand)")
 	rootCmd.PersistentFlags().StringVar(&envFile, "env", "", envFileUsage)
 	rootCmd.PersistentFlags().StringVar(&envFile, "e", "", envFileUsage+" (shorthand)")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Verbose output")
 }
 
 func Execute() {

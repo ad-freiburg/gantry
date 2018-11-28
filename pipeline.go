@@ -171,6 +171,32 @@ func (p Pipeline) PrepareImages() error {
 	return nil
 }
 
+func (p Pipeline) KillContainers() error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			NewContainerKiller(step)()
+		}
+	}
+	return nil
+}
+
+func (p Pipeline) RemoveContainers() error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			NewOldContainerRemover(step)()
+		}
+	}
+	return nil
+}
+
 func (p Pipeline) ExecuteSteps() error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
@@ -179,8 +205,6 @@ func (p Pipeline) ExecuteSteps() error {
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			fmt.Printf("\n Starting: %s\n", step.Name)
-			NewContainerKiller(step)()
-			NewOldContainerRemover(step)()
 			err := NewContainerRunner(step)()
 			if err != nil {
 				return err
