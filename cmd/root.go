@@ -30,6 +30,7 @@ var rootCmd = &cobra.Command{
 		rmCmd.Run(cmd, args)
 		upCmd.Run(cmd, args)
 	},
+	Version: gantry.Version,
 }
 
 var (
