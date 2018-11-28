@@ -145,7 +145,7 @@ func (p Pipeline) Check() error {
 	return nil
 }
 
-func (p Pipeline) PrepareImages() error {
+func (p Pipeline) PrepareImages(force bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
@@ -153,19 +153,19 @@ func (p Pipeline) PrepareImages() error {
 	for _, step := range pipelines.AllSteps() {
 		fmt.Printf("\n Prepare Image: %s\n", step.Name)
 		err := NewImageExistenceChecker(step)()
-		if err == nil {
-			continue
-		}
+		exists := err == nil
 
+		var f func() error
 		if step.Image != "" {
-			err := NewImagePuller(step)()
-			if err == nil {
-				continue
-			}
+			f = NewImagePuller(step)
+		} else {
+			f = NewImageBuilder(step)
 		}
-		err = NewImageBuilder(step)()
-		if err != nil {
-			return err
+		if !exists || force {
+			err := f()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
