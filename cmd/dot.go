@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -36,12 +37,14 @@ var dotCmd = &cobra.Command{
 		w := bufio.NewWriter(f)
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
+			sName := strings.Replace(step.Name, "-", "_", -1)
+			w.WriteString(fmt.Sprintf("%s [label=\"%s\"]\n", sName, step.Name))
 			dependencies, err := step.Dependencies()
 			if err != nil {
 				panic(err)
 			}
 			for name, _ := range *dependencies {
-				w.WriteString(fmt.Sprintf("%s -> %s\n", step.Name, name))
+				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.Replace(name, "-", "_", -1)))
 			}
 		}
 		w.WriteString("}\n")
