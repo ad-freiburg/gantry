@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 )
@@ -91,6 +92,7 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 	}
 	file, err := os.Open(path)
 	if err != nil {
+		fmt.Println("Could not open pipeline definition.")
 		return err
 	}
 	defer file.Close()
@@ -202,16 +204,35 @@ func (p Pipeline) ExecuteSteps() error {
 	if err != nil {
 		return err
 	}
+	steps := 0
+	start := time.Now()
+	durations := make(map[string]time.Duration)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			fmt.Printf("\n Starting: %s\n", step.Name)
-			err := NewContainerRunner(step)()
+			duration, err := executeStep(step)
 			if err != nil {
 				return err
 			}
+			durations[step.Name] = duration
+			steps++
 		}
 	}
+	fmt.Printf("\n\nExecuted %d steps in %s\n", steps, time.Since(start))
+	var totalElapsedTime time.Duration = 0
+	for _, duration := range durations {
+		totalElapsedTime += duration
+	}
+	fmt.Printf("Total time spend inside steps: %s\n", totalElapsedTime)
 	return nil
+}
+
+func executeStep(step Step) (time.Duration, error) {
+	start := time.Now()
+	fmt.Printf("\n Starting: %s\n", step.Name)
+	err := NewContainerRunner(step)()
+	elapsed := time.Since(start)
+	fmt.Printf(" Finished %s after %s\n", step.Name, elapsed)
+	return elapsed, err
 }
 
 type Machine struct {
