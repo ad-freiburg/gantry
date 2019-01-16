@@ -3,6 +3,7 @@ package gantry // import "github.com/ad-freiburg/gantry"
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -92,7 +93,7 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Println("Could not open pipeline definition.")
+		log.Println("Could not open pipeline definition.")
 		return err
 	}
 	defer file.Close()
@@ -152,9 +153,14 @@ func (p Pipeline) PrepareImages(force bool) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Prepare Images:")
+	images := 0
+	start := time.Now()
+	durations := make(map[string]time.Duration)
+
 	for _, step := range pipelines.AllSteps() {
-		fmt.Printf("\n Prepare Image: %s\n", step.Name)
-		err := NewImageExistenceChecker(step)()
+		log.Printf("- %s", step.Name)
+		duration, err := executeF(NewImageExistenceChecker(step))
 		exists := err == nil
 
 		var f func() error
@@ -165,11 +171,22 @@ func (p Pipeline) PrepareImages(force bool) error {
 		}
 		if !exists || force {
 			err := f()
+			duration2, err := executeF(f)
 			if err != nil {
 				return err
 			}
+			duration += duration2
 		}
+		durations[step.Name] = duration
+		images++
 	}
+
+	log.Printf("Prepared %d images in %s", images, time.Since(start))
+	var totalElapsedTime time.Duration = 0
+	for _, duration := range durations {
+		totalElapsedTime += duration
+	}
+	log.Printf("Total time spend preparing images: %s", totalElapsedTime)
 	return nil
 }
 
@@ -209,7 +226,9 @@ func (p Pipeline) ExecuteSteps() error {
 	durations := make(map[string]time.Duration)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			duration, err := executeStep(step)
+			log.Printf("- Starting: %s", step.Name)
+			duration, err := executeF(NewContainerRunner(step))
+			log.Printf("- Finished %s after %s", step.Name, duration)
 			if err != nil {
 				return err
 			}
@@ -217,21 +236,19 @@ func (p Pipeline) ExecuteSteps() error {
 			steps++
 		}
 	}
-	fmt.Printf("\n\nExecuted %d steps in %s\n", steps, time.Since(start))
+	log.Printf("Executed %d steps in %s", steps, time.Since(start))
 	var totalElapsedTime time.Duration = 0
 	for _, duration := range durations {
 		totalElapsedTime += duration
 	}
-	fmt.Printf("Total time spend inside steps: %s\n", totalElapsedTime)
+	log.Printf("Total time spend inside steps: %s", totalElapsedTime)
 	return nil
 }
 
-func executeStep(step Step) (time.Duration, error) {
+func executeF(f func() error) (time.Duration, error) {
 	start := time.Now()
-	fmt.Printf("\n Starting: %s\n", step.Name)
-	err := NewContainerRunner(step)()
+	err := f()
 	elapsed := time.Since(start)
-	fmt.Printf(" Finished %s after %s\n", step.Name, elapsed)
 	return elapsed, err
 }
 

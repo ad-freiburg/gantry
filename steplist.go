@@ -105,7 +105,7 @@ func (t *tarjan) Parse() (*[][]Step, error) {
 			for i, step := range steps {
 				names[i] = step.Name
 			}
-			return nil, fmt.Errorf("cyclic component found in /sub)pipeline: '%s'", strings.Join(names, ", "))
+			return nil, fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
 		for r, _ := range step.After {

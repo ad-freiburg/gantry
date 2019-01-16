@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -148,6 +149,7 @@ func NewContainerRunner(step Step) func() error {
 		}
 		args = append(args, step.ImageName())
 		args = append(args, callerArgs...)
+		log.Printf("%s", strings.Join(args, " "))
 		r.SetCommand(getContainerExecutable(), args)
 		return r.Exec()
 	}
