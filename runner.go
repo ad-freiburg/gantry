@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -68,14 +67,14 @@ type Executable interface {
 
 type PrefixedLog struct {
 	prefix string
-	typ    string
+	target io.Writer
 	buf    *bytes.Buffer
 }
 
-func NewPrefixedLog(prefix string, typ string) *PrefixedLog {
+func NewPrefixedLog(prefix string, target io.Writer) *PrefixedLog {
 	return &PrefixedLog{
 		prefix: prefix,
-		typ:    typ,
+		target: target,
 		buf:    bytes.NewBuffer([]byte("")),
 	}
 }
@@ -99,12 +98,7 @@ func (l *PrefixedLog) Output() error {
 		if err != nil {
 			return err
 		}
-		if l.typ == "stdout" {
-			fmt.Fprintf(os.Stdout, format, l.prefix, line)
-		}
-		if l.typ == "stderr" {
-			fmt.Fprintf(os.Stderr, format, l.prefix, line)
-		}
+		fmt.Fprintf(l.target, format, l.prefix, line)
 	}
 	return nil
 }
@@ -119,19 +113,23 @@ type LocalRunner struct {
 	name   string
 	args   []string
 	prefix string
+	stdout io.Writer
+	stderr io.Writer
 }
 
-func NewLocalRunner(prefix string) *LocalRunner {
+func NewLocalRunner(prefix string, stdout io.Writer, stderr io.Writer) *LocalRunner {
 	r := &LocalRunner{
 		prefix: prefix,
+		stdout: stdout,
+		stderr: stderr,
 	}
 	return r
 }
 
 func (r *LocalRunner) Exec() error {
 	cmd := exec.Command(r.name, r.args...)
-	stdout := NewPrefixedLog(r.prefix, "stdout")
-	stderr := NewPrefixedLog(r.prefix, "stderr")
+	stdout := NewPrefixedLog(r.prefix, r.stdout)
+	stderr := NewPrefixedLog(r.prefix, r.stderr)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()

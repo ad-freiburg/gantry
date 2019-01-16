@@ -311,6 +311,6 @@ func (s Step) ContainerName() string {
 }
 
 func (s Step) Runner() Runner {
-	r := NewLocalRunner(s.ContainerName())
+	r := NewLocalRunner(s.ContainerName(), os.Stdout, os.Stderr)
 	return r
 }
