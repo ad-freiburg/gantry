@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -66,6 +67,48 @@ type Executable interface {
 	Output() ([]byte, error)
 }
 
+type PrefixedLog struct {
+	prefix string
+	typ    string
+	buf    *bytes.Buffer
+}
+
+func NewPrefixedLog(prefix string, typ string) *PrefixedLog {
+	return &PrefixedLog{
+		prefix: prefix,
+		typ:    typ,
+		buf:    bytes.NewBuffer([]byte("")),
+	}
+}
+
+func (l *PrefixedLog) Write(p []byte) (int, error) {
+	n, err := l.buf.Write(p)
+	if err != nil {
+		return n, err
+	}
+	err = l.Output()
+	return n, err
+}
+
+func (l *PrefixedLog) Output() error {
+	for {
+		line, err := l.buf.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if l.typ == "stdout" {
+			fmt.Fprintf(os.Stdout, "%s %s", l.prefix, line)
+		}
+		if l.typ == "stderr" {
+			fmt.Fprintf(os.Stderr, "%s %s", l.prefix, line)
+		}
+	}
+	return nil
+}
+
 type Runner interface {
 	Executable
 	SetCommand(name string, args []string)
@@ -73,19 +116,24 @@ type Runner interface {
 
 // Local host
 type LocalRunner struct {
-	name string
-	args []string
+	name   string
+	args   []string
+	prefix string
 }
 
-func NewLocalRunner() *LocalRunner {
-	r := &LocalRunner{}
+func NewLocalRunner(prefix string) *LocalRunner {
+	r := &LocalRunner{
+		prefix: prefix,
+	}
 	return r
 }
 
 func (r *LocalRunner) Exec() error {
 	cmd := exec.Command(r.name, r.args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	stdout := NewPrefixedLog(r.prefix, "stdout")
+	stderr := NewPrefixedLog(r.prefix, "stderr")
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	return cmd.Run()
 }
 
