@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -91,6 +90,7 @@ func (l *PrefixedLog) Write(p []byte) (int, error) {
 }
 
 func (l *PrefixedLog) Output() error {
+	const format string = "\u001b[1m%s\u001b[0m %s\u001b[0m"
 	for {
 		line, err := l.buf.ReadString('\n')
 		if err == io.EOF {
@@ -100,10 +100,10 @@ func (l *PrefixedLog) Output() error {
 			return err
 		}
 		if l.typ == "stdout" {
-			fmt.Fprintf(os.Stdout, "%s %s", l.prefix, line)
+			fmt.Fprintf(os.Stdout, format, l.prefix, line)
 		}
 		if l.typ == "stderr" {
-			fmt.Fprintf(os.Stderr, "%s %s", l.prefix, line)
+			fmt.Fprintf(os.Stderr, format, l.prefix, line)
 		}
 	}
 	return nil
@@ -197,7 +197,6 @@ func NewContainerRunner(step Step) func() error {
 		}
 		args = append(args, step.ImageName())
 		args = append(args, callerArgs...)
-		log.Printf("%s", strings.Join(args, " "))
 		r.SetCommand(getContainerExecutable(), args)
 		return r.Exec()
 	}
