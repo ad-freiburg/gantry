@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -216,25 +217,48 @@ func (p Pipeline) RemoveContainers() error {
 	return nil
 }
 
+func runParallelStep(step Step, durations map[string]time.Duration, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
+	defer wg.Done()
+	for x := range p {
+		<-p[x]
+	}
+	log.Printf("- Starting: %s", step.Name)
+	duration, err := executeF(NewContainerRunner(step))
+	log.Printf("- Finished %s after %s", step.Name, duration)
+	if err != nil {
+		log.Println(err)
+	}
+	durations[step.Name] = duration
+	close(o)
+}
+
 func (p Pipeline) ExecuteSteps() error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
+	wgs := make([]sync.WaitGroup, len(*pipelines))
 	steps := 0
-	start := time.Now()
 	durations := make(map[string]time.Duration)
-	for _, pipeline := range *pipelines {
+	runChannel := make(chan struct{})
+	channels := make(map[string]chan struct{})
+	for pi, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			log.Printf("- Starting: %s", step.Name)
-			duration, err := executeF(NewContainerRunner(step))
-			log.Printf("- Finished %s after %s", step.Name, duration)
-			if err != nil {
-				return err
+			channels[step.Name] = make(chan struct{})
+			preChannels := make([]chan struct{}, 0)
+			preChannels = append(preChannels, runChannel)
+			for pre, _ := range step.After {
+				preChannels = append(preChannels, channels[pre])
 			}
-			durations[step.Name] = duration
+			wgs[pi].Add(1)
+			go runParallelStep(step, durations, &wgs[pi], preChannels, channels[step.Name])
 			steps++
 		}
+	}
+	start := time.Now()
+	close(runChannel)
+	for pi, _ := range *pipelines {
+		wgs[pi].Wait()
 	}
 	log.Printf("Executed %d steps in %s", steps, time.Since(start))
 	var totalElapsedTime time.Duration = 0
