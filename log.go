@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 )
 
 const prefixedWriterFormat string = "%s\u001b[0m %s\u001b[0m"
@@ -35,10 +36,12 @@ const FG_COLOR_LIGHT_CYAN int = 96
 const FG_COLOR_WHITE int = 97
 
 var (
-	currentFriendlyColorIndex int = 0
-	friendlyColors                = [...]int{FG_COLOR_CYAN, FG_COLOR_YELLOW, FG_COLOR_MAGENTA, FG_COLOR_BLUE,
-		FG_COLOR_LIGHT_CYAN, FG_COLOR_LIGHT_YELLOW, FG_COLOR_LIGHT_MAGENTA, FG_COLOR_LIGHT_BLUE}
+	friendlyColors *ColorStore
 )
+
+func init() {
+	friendlyColors = NewColorStore([]int{FG_COLOR_CYAN, FG_COLOR_YELLOW, FG_COLOR_MAGENTA, FG_COLOR_BLUE, FG_COLOR_LIGHT_CYAN, FG_COLOR_LIGHT_YELLOW, FG_COLOR_LIGHT_MAGENTA, FG_COLOR_LIGHT_BLUE})
+}
 
 func ApplyStyle(text string, style ...int) string {
 	return fmt.Sprintf(genericStringFormat, BuildPrefixStyle(style...), text)
@@ -49,11 +52,29 @@ func BuildPrefixStyle(parts ...int) string {
 }
 
 func GetNextFriendlyColor() int {
-	currentFriendlyColorIndex++
-	if currentFriendlyColorIndex >= len(friendlyColors) {
-		currentFriendlyColorIndex = 0
+	return friendlyColors.NextColor()
+}
+
+type ColorStore struct {
+	index  int
+	colors []int
+	m      sync.Mutex
+}
+
+func NewColorStore(colors []int) *ColorStore {
+	return &ColorStore{
+		colors: colors,
 	}
-	return friendlyColors[currentFriendlyColorIndex]
+}
+
+func (c *ColorStore) NextColor() int {
+	defer c.m.Unlock()
+	c.m.Lock()
+	c.index++
+	if c.index >= len(c.colors) {
+		c.index = 0
+	}
+	return c.colors[c.index]
 }
 
 type PrefixedWriter struct {
