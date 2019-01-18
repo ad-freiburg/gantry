@@ -4,9 +4,57 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
+	"strings"
 )
 
-const prefixedWriterFormat string = "\u001b[1m%s\u001b[0m %s\u001b[0m"
+const prefixedWriterFormat string = "%s\u001b[0m %s\u001b[0m"
+const genericStringFormat string = "\u001b[%sm%s\u001b[0m"
+const STYLE_NORMAL int = 0
+const STYLE_BOLD int = 1
+const STYLE_DIM int = 2
+const STYLE_ITALIC int = 3
+const STYLE_UNDERLINE int = 4
+const STYLE_STRIKETHROUGH int = 9
+
+const FG_COLOR_BLACK int = 30
+const FG_COLOR_RED int = 31
+const FG_COLOR_GREEN int = 32
+const FG_COLOR_YELLOW int = 33
+const FG_COLOR_BLUE int = 34
+const FG_COLOR_MAGENTA int = 35
+const FG_COLOR_CYAN int = 36
+const FG_COLOR_LIGHT_GRAY int = 37
+const FG_COLOR_DARK_GRAY int = 90
+const FG_COLOR_LIGHT_RED int = 91
+const FG_COLOR_LIGHT_GREEN int = 92
+const FG_COLOR_LIGHT_YELLOW int = 93
+const FG_COLOR_LIGHT_BLUE int = 94
+const FG_COLOR_LIGHT_MAGENTA int = 95
+const FG_COLOR_LIGHT_CYAN int = 96
+const FG_COLOR_WHITE int = 97
+
+var (
+	currentFriendlyColorIndex int = 0
+	friendlyColors                = [...]int{FG_COLOR_CYAN, FG_COLOR_YELLOW, FG_COLOR_MAGENTA, FG_COLOR_BLUE,
+		FG_COLOR_LIGHT_CYAN, FG_COLOR_LIGHT_YELLOW, FG_COLOR_LIGHT_MAGENTA, FG_COLOR_LIGHT_BLUE}
+)
+
+func ApplyStyle(text string, style ...int) string {
+	return fmt.Sprintf(genericStringFormat, BuildPrefixStyle(style...), text)
+}
+
+func BuildPrefixStyle(parts ...int) string {
+	return strings.Trim(strings.Replace(fmt.Sprint(parts), " ", ";", -1), "[]")
+}
+
+func GetNextFriendlyColor() int {
+	currentFriendlyColorIndex++
+	if currentFriendlyColorIndex >= len(friendlyColors) {
+		currentFriendlyColorIndex = 0
+	}
+	return friendlyColors[currentFriendlyColorIndex]
+}
 
 type PrefixedWriter struct {
 	prefix string
@@ -43,4 +91,35 @@ func (p *PrefixedWriter) Output() error {
 		fmt.Fprintf(p.target, prefixedWriterFormat, p.prefix, line)
 	}
 	return nil
+}
+
+type PrefixedLogger struct {
+	prefix string
+	logger *log.Logger
+}
+
+func NewPrefixedLogger(prefix string, logger *log.Logger) *PrefixedLogger {
+	return &PrefixedLogger{
+		prefix: prefix,
+		logger: logger,
+	}
+}
+
+func (p *PrefixedLogger) Printf(format string, v ...interface{}) {
+	p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, fmt.Sprintf(format, v...)))
+}
+
+func (p *PrefixedLogger) Println(v ...interface{}) {
+	p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, fmt.Sprintln(v...)))
+}
+
+func (p *PrefixedLogger) Write(b []byte) (int, error) {
+	n := len(b)
+	if n > 0 && b[n-1] == '\n' {
+		b = b[:n-1]
+	}
+	for _, s := range strings.Split(string(b), "\n") {
+		p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, s))
+	}
+	return n, nil
 }

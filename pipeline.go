@@ -13,11 +13,14 @@ import (
 )
 
 var (
-	pipelineLogger *log.Logger
+	pipelineLogger *PrefixedLogger
 )
 
 func init() {
-	pipelineLogger = log.New(os.Stderr, fmt.Sprintf(prefixedWriterFormat, "pipeline", ""), log.LstdFlags)
+	pipelineLogger = NewPrefixedLogger(
+		ApplyStyle("pipeline", STYLE_BOLD, FG_COLOR_RED),
+		log.New(os.Stderr, "", log.LstdFlags),
+	)
 }
 
 type Pipeline struct {
@@ -335,6 +338,7 @@ type Step struct {
 	Args   []string  `json:"args"`
 	After  StringSet `json:"after"`
 	Detach bool      `json:"detach"`
+	prefix string
 }
 
 func (s Step) Dependencies() (*StringSet, error) {
@@ -360,6 +364,9 @@ func (s Step) ContainerName() string {
 }
 
 func (s Step) Runner() Runner {
-	r := NewLocalRunner(s.ContainerName(), os.Stdout, os.Stderr)
+	if s.prefix == "" {
+		s.prefix = ApplyStyle(s.ContainerName(), GetNextFriendlyColor())
+	}
+	r := NewLocalRunner(s.prefix, os.Stdout, os.Stderr)
 	return r
 }

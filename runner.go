@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -90,8 +91,8 @@ func NewLocalRunner(prefix string, stdout io.Writer, stderr io.Writer) *LocalRun
 
 func (r *LocalRunner) Exec() error {
 	cmd := exec.Command(r.name, r.args...)
-	stdout := NewPrefixedWriter(r.prefix, r.stdout)
-	stderr := NewPrefixedWriter(r.prefix, r.stderr)
+	stdout := NewPrefixedLogger(r.prefix, log.New(r.stdout, "", log.LstdFlags))
+	stderr := NewPrefixedLogger(r.prefix, log.New(r.stderr, "", log.LstdFlags))
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()
