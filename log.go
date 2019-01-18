@@ -6,6 +6,8 @@ import (
 	"io"
 )
 
+const prefixedWriterFormat string = "\u001b[1m%s\u001b[0m %s\u001b[0m"
+
 type PrefixedWriter struct {
 	prefix string
 	target io.Writer
@@ -20,26 +22,25 @@ func NewPrefixedWriter(prefix string, target io.Writer) *PrefixedWriter {
 	}
 }
 
-func (l *PrefixedWriter) Write(p []byte) (int, error) {
-	n, err := l.buf.Write(p)
+func (p *PrefixedWriter) Write(b []byte) (int, error) {
+	n, err := p.buf.Write(b)
 	if err != nil {
 		return n, err
 	}
-	err = l.Output()
+	err = p.Output()
 	return n, err
 }
 
-func (l *PrefixedWriter) Output() error {
-	const format string = "\u001b[1m%s\u001b[0m %s\u001b[0m"
+func (p *PrefixedWriter) Output() error {
 	for {
-		line, err := l.buf.ReadString('\n')
+		line, err := p.buf.ReadString('\n')
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(l.target, format, l.prefix, line)
+		fmt.Fprintf(p.target, prefixedWriterFormat, p.prefix, line)
 	}
 	return nil
 }

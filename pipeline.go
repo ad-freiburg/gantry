@@ -12,6 +12,14 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+var (
+	pipelineLogger *log.Logger
+)
+
+func init() {
+	pipelineLogger = log.New(os.Stderr, fmt.Sprintf(prefixedWriterFormat, "pipeline", ""), log.LstdFlags)
+}
+
 type Pipeline struct {
 	Definition  PipelineDefinition
 	Environment PipelineEnvironment
@@ -94,7 +102,7 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		log.Println("Could not open pipeline definition.")
+		pipelineLogger.Println("Could not open pipeline definition.")
 		return err
 	}
 	defer file.Close()
@@ -149,45 +157,60 @@ func (p Pipeline) Check() error {
 	return nil
 }
 
+func runParallelPrepareImage(step Step, force bool, durations map[string]time.Duration, wg *sync.WaitGroup, s chan struct{}) {
+	defer wg.Done()
+	<-s
+
+	pipelineLogger.Printf("- Preparing %s", step.Name)
+	duration, err := executeF(NewImageExistenceChecker(step))
+	exists := err == nil
+
+	var f func() error
+	if step.Image != "" {
+		f = NewImagePuller(step)
+	} else {
+		f = NewImageBuilder(step)
+	}
+	if !exists || force {
+		err := f()
+		duration2, err := executeF(f)
+		if err != nil {
+			pipelineLogger.Println(err)
+		}
+		duration += duration2
+	}
+	durations[step.Name] = duration
+	pipelineLogger.Printf("- Prepared %s after %s", step.Name, duration)
+	durations[step.Name] = duration
+}
+
 func (p Pipeline) PrepareImages(force bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
-	log.Printf("Prepare Images:")
+	runChannel := make(chan struct{})
+	var wg sync.WaitGroup
 	images := 0
-	start := time.Now()
 	durations := make(map[string]time.Duration)
 
 	for _, step := range pipelines.AllSteps() {
-		log.Printf("- %s", step.Name)
-		duration, err := executeF(NewImageExistenceChecker(step))
-		exists := err == nil
-
-		var f func() error
-		if step.Image != "" {
-			f = NewImagePuller(step)
-		} else {
-			f = NewImageBuilder(step)
-		}
-		if !exists || force {
-			err := f()
-			duration2, err := executeF(f)
-			if err != nil {
-				return err
-			}
-			duration += duration2
-		}
-		durations[step.Name] = duration
+		wg.Add(1)
+		go runParallelPrepareImage(step, force, durations, &wg, runChannel)
 		images++
 	}
 
-	log.Printf("Prepared %d images in %s", images, time.Since(start))
+	pipelineLogger.Printf("Prepare Images:")
+	start := time.Now()
+	close(runChannel)
+	wg.Wait()
+
+	pipelineLogger.Printf("Prepared %d images in %s", images, time.Since(start))
 	var totalElapsedTime time.Duration = 0
 	for _, duration := range durations {
 		totalElapsedTime += duration
 	}
-	log.Printf("Total time spend preparing images: %s", totalElapsedTime)
+	pipelineLogger.Printf("Total time spend preparing images: %s", totalElapsedTime)
 	return nil
 }
 
@@ -219,17 +242,17 @@ func (p Pipeline) RemoveContainers() error {
 
 func runParallelStep(step Step, durations map[string]time.Duration, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
 	defer wg.Done()
+	defer close(o)
 	for x := range p {
 		<-p[x]
 	}
-	log.Printf("- Starting: %s", step.Name)
+	pipelineLogger.Printf("- Starting: %s", step.Name)
 	duration, err := executeF(NewContainerRunner(step))
-	log.Printf("- Finished %s after %s", step.Name, duration)
+	pipelineLogger.Printf("- Finished %s after %s", step.Name, duration)
 	if err != nil {
-		log.Println(err)
+		pipelineLogger.Println(err)
 	}
 	durations[step.Name] = duration
-	close(o)
 }
 
 func (p Pipeline) ExecuteSteps() error {
@@ -255,17 +278,19 @@ func (p Pipeline) ExecuteSteps() error {
 			steps++
 		}
 	}
+
+	pipelineLogger.Printf("Execute:")
 	start := time.Now()
 	close(runChannel)
 	for pi, _ := range *pipelines {
 		wgs[pi].Wait()
 	}
-	log.Printf("Executed %d steps in %s", steps, time.Since(start))
+	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
 	var totalElapsedTime time.Duration = 0
 	for _, duration := range durations {
 		totalElapsedTime += duration
 	}
-	log.Printf("Total time spend inside steps: %s", totalElapsedTime)
+	pipelineLogger.Printf("Total time spend inside steps: %s", totalElapsedTime)
 	return nil
 }
 
