@@ -90,8 +90,8 @@ func NewLocalRunner(prefix string, stdout io.Writer, stderr io.Writer) *LocalRun
 
 func (r *LocalRunner) Exec() error {
 	cmd := exec.Command(r.name, r.args...)
-	stdout := NewPrefixedLog(r.prefix, r.stdout)
-	stderr := NewPrefixedLog(r.prefix, r.stderr)
+	stdout := NewPrefixedWriter(r.prefix, r.stdout)
+	stderr := NewPrefixedWriter(r.prefix, r.stderr)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()
