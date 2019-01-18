@@ -18,7 +18,7 @@ var (
 
 func init() {
 	pipelineLogger = NewPrefixedLogger(
-		ApplyStyle("pipeline", STYLE_BOLD, FG_COLOR_RED),
+		ApplyStyle("pipeline", STYLE_BOLD),
 		log.New(os.Stderr, "", log.LstdFlags),
 	)
 }
@@ -160,7 +160,7 @@ func (p Pipeline) Check() error {
 	return nil
 }
 
-func runParallelPrepareImage(step Step, force bool, durations map[string]time.Duration, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
 	defer wg.Done()
 	<-s
 
@@ -182,9 +182,8 @@ func runParallelPrepareImage(step Step, force bool, durations map[string]time.Du
 		}
 		duration += duration2
 	}
-	durations[step.Name] = duration
+	durations.Store(step.Name, duration)
 	pipelineLogger.Printf("- Prepared %s after %s", step.Name, duration)
-	durations[step.Name] = duration
 }
 
 func (p Pipeline) PrepareImages(force bool) error {
@@ -195,7 +194,7 @@ func (p Pipeline) PrepareImages(force bool) error {
 	runChannel := make(chan struct{})
 	var wg sync.WaitGroup
 	images := 0
-	durations := make(map[string]time.Duration)
+	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
 		wg.Add(1)
@@ -210,9 +209,13 @@ func (p Pipeline) PrepareImages(force bool) error {
 
 	pipelineLogger.Printf("Prepared %d images in %s", images, time.Since(start))
 	var totalElapsedTime time.Duration = 0
-	for _, duration := range durations {
-		totalElapsedTime += duration
-	}
+	durations.Range(func(key, value interface{}) bool {
+		duration, ok := value.(time.Duration)
+		if ok {
+			totalElapsedTime += duration
+		}
+		return ok
+	})
 	pipelineLogger.Printf("Total time spend preparing images: %s", totalElapsedTime)
 	return nil
 }
@@ -243,7 +246,7 @@ func (p Pipeline) RemoveContainers() error {
 	return nil
 }
 
-func runParallelStep(step Step, durations map[string]time.Duration, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
+func runParallelStep(step Step, durations *sync.Map, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
 	defer wg.Done()
 	defer close(o)
 	for x := range p {
@@ -255,7 +258,7 @@ func runParallelStep(step Step, durations map[string]time.Duration, wg *sync.Wai
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
-	durations[step.Name] = duration
+	durations.Store(step.Name, duration)
 }
 
 func (p Pipeline) ExecuteSteps() error {
@@ -265,7 +268,7 @@ func (p Pipeline) ExecuteSteps() error {
 	}
 	wgs := make([]sync.WaitGroup, len(*pipelines))
 	steps := 0
-	durations := make(map[string]time.Duration)
+	durations := &sync.Map{}
 	runChannel := make(chan struct{})
 	channels := make(map[string]chan struct{})
 	for pi, pipeline := range *pipelines {
@@ -290,9 +293,13 @@ func (p Pipeline) ExecuteSteps() error {
 	}
 	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
 	var totalElapsedTime time.Duration = 0
-	for _, duration := range durations {
-		totalElapsedTime += duration
-	}
+	durations.Range(func(key, value interface{}) bool {
+		duration, ok := value.(time.Duration)
+		if ok {
+			totalElapsedTime += duration
+		}
+		return ok
+	})
 	pipelineLogger.Printf("Total time spend inside steps: %s", totalElapsedTime)
 	return nil
 }
