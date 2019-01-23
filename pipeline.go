@@ -26,6 +26,7 @@ func init() {
 type Pipeline struct {
 	Definition  PipelineDefinition
 	Environment PipelineEnvironment
+	NetworkName string
 }
 
 type PipelineDefinition struct {
@@ -81,7 +82,7 @@ type PipelineEnvironment struct {
 }
 
 func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
-	p := &Pipeline{}
+	p := &Pipeline{NetworkName: "gantry"}
 	err := p.loadPipelineDefinition(definitionPath)
 	if err != nil {
 		return nil, err
@@ -246,14 +247,29 @@ func (p Pipeline) RemoveContainers() error {
 	return nil
 }
 
-func runParallelStep(step Step, durations *sync.Map, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
+func (p Pipeline) CreateNetwork() error {
+	NewNetworkCreator(p)()
+	return nil
+}
+
+func (p Pipeline) RemoveNetwork() error {
+	NewNetworkRemover(p)()
+	return nil
+}
+
+func (p Pipeline) Runner() Runner {
+	r := NewLocalRunner("local", os.Stdout, os.Stderr)
+	return r
+}
+
+func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
 	defer wg.Done()
 	defer close(o)
 	for x := range p {
 		<-p[x]
 	}
 	pipelineLogger.Printf("- Starting: %s", step.Name)
-	duration, err := executeF(NewContainerRunner(step))
+	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
 	pipelineLogger.Printf("- Finished %s after %s", step.Name, duration)
 	if err != nil {
 		pipelineLogger.Println(err)
@@ -280,7 +296,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, channels[pre])
 			}
 			wgs[pi].Add(1)
-			go runParallelStep(step, durations, &wgs[pi], preChannels, channels[step.Name])
+			go runParallelStep(step, p, durations, &wgs[pi], preChannels, channels[step.Name])
 			steps++
 		}
 	}

@@ -18,5 +18,9 @@ var rmCmd = &cobra.Command{
 			log.Print("Remove container\n")
 		}
 		pipeline.RemoveContainers()
+		if verbose {
+			log.Print("Remove network\n")
+		}
+		pipeline.RemoveNetwork()
 	},
 }

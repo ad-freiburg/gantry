@@ -15,6 +15,7 @@ import (
 )
 
 func getContainerExecutable() string {
+	return "wharfer"
 	if isWharferInstalled() {
 		if isUserRoot() || isUserInDockerGroup() {
 			return "docker"
@@ -124,10 +125,10 @@ func NewImagePuller(step Step) func() error {
 	}
 }
 
-func NewContainerRunner(step Step) func() error {
+func NewContainerRunner(step Step, network string) func() error {
 	return func() error {
 		r := step.Runner()
-		args := []string{"run", "--name", step.ContainerName()}
+		args := []string{"run", "--name", step.ContainerName(), "--network", network}
 		if step.Detach {
 			args = append(args, "-d")
 		} else {
@@ -232,5 +233,21 @@ func NewOldContainerRemover(step Step) func() error {
 			return err
 		}
 		return nil
+	}
+}
+
+func NewNetworkCreator(p Pipeline) func() error {
+	return func() error {
+		r := p.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"network", "create", p.NetworkName})
+		return r.Exec()
+	}
+}
+
+func NewNetworkRemover(p Pipeline) func() error {
+	return func() error {
+		r := p.Runner()
+		r.SetCommand(getContainerExecutable(), []string{"network", "rm", p.NetworkName})
+		return r.Exec()
 	}
 }

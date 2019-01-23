@@ -17,6 +17,7 @@ var startCmd = &cobra.Command{
 		if verbose {
 			log.Print("(Re)create network\n")
 		}
+		pipeline.CreateNetwork()
 		if verbose {
 			log.Print("Start container\n")
 		}
