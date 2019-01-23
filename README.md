@@ -2,7 +2,7 @@
 
 Gantry is a pipeline management tool using containers for all relevant steps.
 It supports a basic `docker-compose` subset allowing `docker-compose` like
-deployments with [wharfer](https://github.com/ad-freiburg/wharfer). If wharfer
+deployments with [wharfer](https://github.com/ad-freiburg/wharfer). If `wharfer`
 is not installed `docker` will be used directly.
 
 ## Build/Download
@@ -12,7 +12,8 @@ then do
     go get github.com/ad-freiburg/gantry
 
 Alternatively you can download binary releases
-[here](https://github.com/ad-freiburg/gantry/releases)
+[here](https://github.com/ad-freiburg/gantry/releases) or even simpler, follow
+the Setup section with detailed commands.
 
 ## Building a Release
 To build a release version first make sure everyhting works, then edit the
@@ -46,3 +47,11 @@ To install gantry into the users ~/go/bin path it is enough to just run
 
     gantry --version
 
+## Differences between `docker-compose` and `gantry`
+
+- Additional `steps` which can be used for pipelines as they are sequentially
+  executed as soon as all required prevous steps are executed instead of all at
+  the same time as `services` in `docker-compose`. Steps and services can depend
+  on one another. This allows steps to use deployed services. To enable this
+  explicit sequentiality the `after` relation is introduced in `steps`.
+- Generating `.dot` file showing dependencies using `gantry dot`.
