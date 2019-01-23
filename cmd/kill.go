@@ -18,5 +18,8 @@ var killCmd = &cobra.Command{
 			log.Print("Kill container\n")
 		}
 		pipeline.KillContainers()
+		if verbose {
+			log.Print("Remove network\n")
+		}
 	},
 }

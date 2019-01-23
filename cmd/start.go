@@ -15,6 +15,9 @@ var startCmd = &cobra.Command{
 	Short: "Starts containers",
 	Run: func(cmd *cobra.Command, args []string) {
 		if verbose {
+			log.Print("(Re)create network\n")
+		}
+		if verbose {
 			log.Print("Start container\n")
 		}
 		pipeline.ExecuteSteps()
