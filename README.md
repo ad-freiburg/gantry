@@ -7,10 +7,10 @@ Gantry is a pipeline management tool using containers for all relevant steps.
 Make sure you have a Go environment [set up](https://golang.org/doc/install)
 then do
 
-    go get github.com/ad-freiburg/wharfer
+    go get github.com/ad-freiburg/gantry
 
 Alternatively you can download binary releases
-[here](https://github.com/ad-freiburg/wharfer/releases)
+[here](https://github.com/ad-freiburg/gantry/releases)
 
 ## Building a Release
 To build a release version first make sure everyhting works, then edit the
