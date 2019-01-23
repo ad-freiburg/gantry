@@ -128,7 +128,12 @@ func NewImagePuller(step Step) func() error {
 func NewContainerRunner(step Step, network string) func() error {
 	return func() error {
 		r := step.Runner()
-		args := []string{"run", "--name", step.ContainerName(), "--network", network}
+		args := []string{
+			"run",
+			"--name", step.ContainerName(),
+			"--network", network,
+			"--network-alias", step.ContainerName(),
+		}
 		if step.Detach {
 			args = append(args, "-d")
 		} else {

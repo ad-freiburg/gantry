@@ -8,10 +8,10 @@ import (
 const DockerCompose string = "docker-compose.yml"
 const GantryDef string = "gantry.def.yml"
 const GantryEnv string = "gantry.env.yml"
-const Version = "0.0.1a1"
 
 var (
 	gantryLogger *PrefixedLogger
+	Version      = "0.0.1a2"
 )
 
 func init() {
