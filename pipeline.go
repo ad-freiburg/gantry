@@ -170,10 +170,10 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 	exists := err == nil
 
 	var f func() error
-	if step.Image != "" {
-		f = NewImagePuller(step)
-	} else {
+	if step.BuildInfo.Context != "" {
 		f = NewImageBuilder(step)
+	} else {
+		f = NewImagePuller(step)
 	}
 	if !exists || force {
 		err := f()

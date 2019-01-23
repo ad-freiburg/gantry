@@ -15,7 +15,6 @@ import (
 )
 
 func getContainerExecutable() string {
-	return "wharfer"
 	if isWharferInstalled() {
 		if isUserRoot() || isUserInDockerGroup() {
 			return "docker"
@@ -111,8 +110,13 @@ func (r *LocalRunner) SetCommand(name string, args []string) {
 
 func NewImageBuilder(step Step) func() error {
 	return func() error {
+		args := []string{"build", "--tag", step.ImageName()}
+		if step.BuildInfo.Dockerfile != "" {
+			args = append(args, "--file", filepath.Join(step.BuildInfo.Context, step.BuildInfo.Dockerfile))
+		}
+		args = append(args, step.BuildInfo.Context)
 		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"build", "--tag", step.ImageName(), step.BuildInfo.Context})
+		r.SetCommand(getContainerExecutable(), args)
 		return r.Exec()
 	}
 }
