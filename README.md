@@ -6,7 +6,6 @@ deployments with [wharfer](https://github.com/ad-freiburg/wharfer). If wharfer
 is not installed `docker` will be used directly.
 
 ## Build/Download
---------------
 Make sure you have a Go environment [set up](https://golang.org/doc/install)
 then do
 
