@@ -1,6 +1,9 @@
 # Gantry (Container Crane)
 
 Gantry is a pipeline management tool using containers for all relevant steps.
+It supports a basic `docker-compose` subset allowing `docker-compose` like
+deployments with [wharfer](https://github.com/ad-freiburg/wharfer). If wharfer
+is not installed `docker` will be used directly.
 
 ## Build/Download
 --------------
