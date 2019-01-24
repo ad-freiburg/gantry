@@ -147,13 +147,13 @@ func (p Pipeline) Check() error {
 	}
 	for _, step := range pipelines.AllSteps() {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name())
+			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.ColoredName())
 		}
 		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
-			return fmt.Errorf("No container information for '%s'", step.Name())
+			return fmt.Errorf("No container information for '%s'", step.ColoredName())
 		}
 		if step.Command != "" && len(step.Args) > 0 {
-			return fmt.Errorf("Only command or args allowed for '%s'", step.Name())
+			return fmt.Errorf("Only command or args allowed for '%s'", step.ColoredName())
 		}
 	}
 	return nil
@@ -181,7 +181,7 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 		}
 		duration += duration2
 	}
-	durations.Store(step.Name(), duration)
+	durations.Store(step.name, duration)
 	pipelineLogger.Printf("- Prepared %s after %s", step.ColoredContainerName(), duration)
 }
 
@@ -278,7 +278,7 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
-	durations.Store(step.Name(), duration)
+	durations.Store(step.name, duration)
 }
 
 func (p Pipeline) ExecuteSteps() error {
@@ -293,18 +293,26 @@ func (p Pipeline) ExecuteSteps() error {
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			channels[step.Name()] = make(chan struct{})
+			channels[step.name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
 			dependencies, _ := step.Dependencies()
 			for pre, _ := range *dependencies {
-				preChannels = append(preChannels, channels[pre])
+				if Verbose {
+					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyStyle(pre, STYLE_BOLD), step.ColoredContainerName())
+				}
+				val, ok := channels[pre]
+				if !ok {
+					log.Fatalf("Unknown precondition: %s", pre)
+				}
+				preChannels = append(preChannels, val)
 			}
 			wg.Add(1)
-			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name()])
+			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.name])
 			steps++
 		}
 	}
+	log.Printf("%#v", channels)
 
 	pipelineLogger.Printf("Execute:")
 	start := time.Now()
