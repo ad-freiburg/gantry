@@ -1,0 +1,69 @@
+version: "0"
+
+steps:
+  download_data:
+    image: busybox
+    volumes:
+      - ./data:/output
+    args:
+      ["wget", "-P", "/output/", "http://filicudi.informatik.uni-freiburg.de/bjoern-data/scientist-collection.zip"]
+  unzip_data:
+    after:
+      - download_data
+    image: busybox
+    volumes:
+      - ./data:/input:ro
+      - ./data:/output
+    args:
+      ["unzip", "-d", "/output", "/input/scientist-collection.zip"]
+  download_tests:
+    image: busybox
+    volumes:
+      - ./tests:/output
+    args:
+      ["wget", "-P", "/output/", "https://raw.githubusercontent.com/ad-freiburg/QLever/master/e2e/scientists_queries.yaml", "https://raw.githubusercontent.com/ad-freiburg/QLever/master/e2e/queryit.py"]
+  build_index:
+    after:
+      - unzip_data
+    image: niklas88/qlever
+    volumes:
+      - ./data/scientist-collection:/input:ro
+      - ./index:/output
+    command: "/app/IndexBuilderMain -a -l -i /output/scientists-index -n /input/scientists.nt -w /input/scientists.wordsfile.tsv -d /input/scientists.docsfile.tsv"
+  wait_for_qlever:
+    after:
+      - qlever
+    image: busybox
+    volumes:
+      - ./wait.sh:/input/wait.sh:ro
+    command: "/bin/sh /input/wait.sh"
+  run_queries:
+    after:
+      - wait_for_qlever
+      - download_tests
+    build:
+      Dockerfile: ./Dockerfile
+    volumes:
+      - ./tests:/input:ro
+    command: "python3 /input/queryit.py /input/scientists_queries.yaml http://qlever:7001"
+  clean:
+    after:
+      - run_queries
+    volumes:
+      - ./data:/data
+      - ./index:/index
+      - ./tests:/tests
+    image: busybox
+    command: "/bin/rm -rf /data/* /index/* /tests/*"
+
+services:
+  qlever:
+    image: niklas88/qlever
+    volumes:
+      - ./index:/index
+    environment:
+      - INDEX_PREFIX=scientists-index
+    depends_on:
+      - build_index
+    args:
+      ["-t", "-a"]
