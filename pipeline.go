@@ -286,12 +286,12 @@ func (p Pipeline) ExecuteSteps() error {
 	if err != nil {
 		return err
 	}
-	wgs := make([]sync.WaitGroup, len(*pipelines))
+	var wg sync.WaitGroup
 	steps := 0
 	durations := &sync.Map{}
 	runChannel := make(chan struct{})
 	channels := make(map[string]chan struct{})
-	for pi, pipeline := range *pipelines {
+	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			channels[step.Name()] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
@@ -300,8 +300,8 @@ func (p Pipeline) ExecuteSteps() error {
 			for pre, _ := range *dependencies {
 				preChannels = append(preChannels, channels[pre])
 			}
-			wgs[pi].Add(1)
-			go runParallelStep(step, p, durations, &wgs[pi], preChannels, channels[step.Name()])
+			wg.Add(1)
+			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name()])
 			steps++
 		}
 	}
@@ -309,9 +309,7 @@ func (p Pipeline) ExecuteSteps() error {
 	pipelineLogger.Printf("Execute:")
 	start := time.Now()
 	close(runChannel)
-	for pi, _ := range *pipelines {
-		wgs[pi].Wait()
-	}
+	wg.Wait()
 	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
 	var totalElapsedTime time.Duration = 0
 	durations.Range(func(key, value interface{}) bool {
