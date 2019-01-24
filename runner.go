@@ -117,6 +117,9 @@ func NewImageBuilder(step Step) func() error {
 		if step.BuildInfo.Dockerfile != "" {
 			args = append(args, "--file", filepath.Join(step.BuildInfo.Context, step.BuildInfo.Dockerfile))
 		}
+		if step.BuildInfo.Context == "" {
+			step.BuildInfo.Context = "."
+		}
 		args = append(args, step.BuildInfo.Context)
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), args)
