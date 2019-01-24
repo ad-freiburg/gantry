@@ -151,7 +151,7 @@ func (p Pipeline) Check() error {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
 			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
 		}
-		if step.Image == "" && step.BuildInfo.Context == "" {
+		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
 			return fmt.Errorf("No container information for '%s'", step.Name)
 		}
 		if step.Command != "" && len(step.Args) > 0 {
@@ -170,7 +170,7 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 	exists := err == nil
 
 	var f func() error
-	if step.BuildInfo.Context != "" {
+	if step.BuildInfo.Context != "" || step.BuildInfo.Dockerfile != "" {
 		f = NewImageBuilder(step)
 	} else {
 		f = NewImagePuller(step)
@@ -217,7 +217,7 @@ func (p Pipeline) PrepareImages(force bool) error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spend preparing images: %s", totalElapsedTime)
+	pipelineLogger.Printf("Total time spent preparing images: %s", totalElapsedTime)
 	return nil
 }
 
@@ -316,7 +316,7 @@ func (p Pipeline) ExecuteSteps() error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spend inside steps: %s", totalElapsedTime)
+	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
 	return nil
 }
 
