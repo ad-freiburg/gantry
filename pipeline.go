@@ -165,7 +165,7 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 	defer wg.Done()
 	<-s
 
-	pipelineLogger.Printf("- Preparing %s", step.Name)
+	pipelineLogger.Printf("- Preparing %s", step.ColoredContainerName())
 	duration, err := executeF(NewImageExistenceChecker(step))
 	exists := err == nil
 
@@ -184,7 +184,7 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 		duration += duration2
 	}
 	durations.Store(step.Name, duration)
-	pipelineLogger.Printf("- Prepared %s after %s", step.Name, duration)
+	pipelineLogger.Printf("- Prepared %s after %s", step.ColoredContainerName(), duration)
 }
 
 func (p Pipeline) PrepareImages(force bool) error {
@@ -268,9 +268,9 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	for x := range p {
 		<-p[x]
 	}
-	pipelineLogger.Printf("- Starting: %s", step.Name)
+	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
-	pipelineLogger.Printf("- Finished %s after %s", step.Name, duration)
+	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
@@ -358,11 +358,11 @@ type Service struct {
 
 type Step struct {
 	Service
-	Role   string    `json:"role"`
-	Args   []string  `json:"args"`
-	After  StringSet `json:"after"`
-	Detach bool      `json:"detach"`
-	prefix string
+	Role        string    `json:"role"`
+	Args        []string  `json:"args"`
+	After       StringSet `json:"after"`
+	Detach      bool      `json:"detach"`
+	coloredName string
 }
 
 func (s Step) Dependencies() (*StringSet, error) {
@@ -387,10 +387,14 @@ func (s Step) ContainerName() string {
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
-func (s Step) Runner() Runner {
-	if s.prefix == "" {
-		s.prefix = ApplyStyle(s.ContainerName(), GetNextFriendlyColor())
+func (s Step) ColoredContainerName() string {
+	if s.coloredName == "" {
+		s.coloredName = ApplyStyle(s.ContainerName(), GetNextFriendlyColor())
 	}
-	r := NewLocalRunner(s.prefix, os.Stdout, os.Stderr)
+	return s.coloredName
+}
+
+func (s Step) Runner() Runner {
+	r := NewLocalRunner(s.ColoredContainerName(), os.Stdout, os.Stderr)
 	return r
 }
