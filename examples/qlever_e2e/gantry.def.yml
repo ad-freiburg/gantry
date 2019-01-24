@@ -54,7 +54,7 @@ steps:
       - ./index:/index
       - ./tests:/tests
     image: busybox
-    command: "/bin/rm -rf /data/* /index/* /tests/*"
+    command: "/bin/find /data/. /index/. /tests/. -not -path '*/\\./\\.*' -delete"
 
 services:
   qlever:
