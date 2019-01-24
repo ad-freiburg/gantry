@@ -294,7 +294,6 @@ func (p Pipeline) ExecuteSteps() error {
 			preChannels = append(preChannels, runChannel)
 			dependencies, _ := step.Dependencies()
 			for pre, _ := range *dependencies {
-				pipelineLogger.Printf("Adding %s as requirement for %s", pre, step.Name)
 				preChannels = append(preChannels, channels[pre])
 			}
 			wgs[pi].Add(1)
