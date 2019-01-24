@@ -264,11 +264,11 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	defer wg.Done()
 	defer close(o)
 	for i, c := range preconditions {
-		if gantry.Verbose {
+		if Verbose {
 			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
 		}
 		<-c
-		if gantry.Verbose {
+		if Verbose {
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
