@@ -37,8 +37,8 @@ var dotCmd = &cobra.Command{
 		w := bufio.NewWriter(f)
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
-			sName := strings.Replace(step.Name, "-", "_", -1)
-			w.WriteString(fmt.Sprintf("%s [label=\"%s\"]\n", sName, step.Name))
+			sName := strings.Replace(step.Name(), "-", "_", -1)
+			w.WriteString(fmt.Sprintf("%s [label=\"%s\"]\n", sName, step.Name()))
 			dependencies, err := step.Dependencies()
 			if err != nil {
 				panic(err)

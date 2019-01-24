@@ -61,7 +61,7 @@ func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
 		i := len(td.stack) - 1
 		for {
 			w := td.stack[i]
-			stackIndex := td.index[w.Name]
+			stackIndex := td.index[w.Name()]
 			td.nodes[stackIndex].stacked = false
 			vertices = append(vertices, w)
 			if stackIndex == index {
@@ -93,8 +93,8 @@ func NewTarjan(steps map[string]Step) (*tarjan, error) {
 	return &t.tarjan, nil
 }
 
-func (t *tarjan) Parse() (*[][]Step, error) {
-	result := make([][]Step, 0)
+func (t *tarjan) Parse() (*pipelines, error) {
+	result := make(pipelines, 0)
 	// walk reverse order, if all requirements are found the next step is a new component
 	resultIndex := 0
 	requirements := make(map[string]bool, 0)
@@ -103,7 +103,7 @@ func (t *tarjan) Parse() (*[][]Step, error) {
 		if len(steps) > 1 {
 			names := make([]string, len(steps))
 			for i, step := range steps {
-				names[i] = step.Name
+				names[i] = step.Name()
 			}
 			return nil, fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
@@ -111,7 +111,7 @@ func (t *tarjan) Parse() (*[][]Step, error) {
 		for r, _ := range step.After {
 			requirements[r] = true
 		}
-		delete(requirements, step.Name)
+		delete(requirements, step.Name())
 		if len(result)-1 < resultIndex {
 			result = append(result, make([]Step, 0))
 		}
@@ -141,7 +141,7 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for name, step := range storage {
-		step.Name = name
+		step.SetName(name)
 		storage[name] = step
 	}
 	*l = storage
@@ -158,7 +158,7 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for name, step := range serviceStorage {
-		step.Name = name
+		step.SetName(name)
 		stepStorage[name] = Step{
 			Service: step,
 			Detach:  true,

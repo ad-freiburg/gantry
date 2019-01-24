@@ -55,12 +55,10 @@ func (p PipelineDefinition) Pipelines() (*pipelines, error) {
 		if err != nil {
 			return nil, err
 		}
-		res, err := t.Parse()
+		p.pipelines, err = t.Parse()
 		if err != nil {
 			return nil, err
 		}
-		result := pipelines(*res)
-		p.pipelines = &result
 	}
 	return p.pipelines, nil
 }
@@ -149,13 +147,13 @@ func (p Pipeline) Check() error {
 	}
 	for _, step := range pipelines.AllSteps() {
 		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name)
+			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.Name())
 		}
 		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
-			return fmt.Errorf("No container information for '%s'", step.Name)
+			return fmt.Errorf("No container information for '%s'", step.Name())
 		}
 		if step.Command != "" && len(step.Args) > 0 {
-			return fmt.Errorf("Only command or args allowed for '%s'", step.Name)
+			return fmt.Errorf("Only command or args allowed for '%s'", step.Name())
 		}
 	}
 	return nil
@@ -183,7 +181,7 @@ func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *syn
 		}
 		duration += duration2
 	}
-	durations.Store(step.Name, duration)
+	durations.Store(step.Name(), duration)
 	pipelineLogger.Printf("- Prepared %s after %s", step.ColoredContainerName(), duration)
 }
 
@@ -274,7 +272,7 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
-	durations.Store(step.Name, duration)
+	durations.Store(step.Name(), duration)
 }
 
 func (p Pipeline) ExecuteSteps() error {
@@ -289,7 +287,7 @@ func (p Pipeline) ExecuteSteps() error {
 	channels := make(map[string]chan struct{})
 	for pi, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			channels[step.Name] = make(chan struct{})
+			channels[step.Name()] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
 			dependencies, _ := step.Dependencies()
@@ -297,7 +295,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, channels[pre])
 			}
 			wgs[pi].Add(1)
-			go runParallelStep(step, p, durations, &wgs[pi], preChannels, channels[step.Name])
+			go runParallelStep(step, p, durations, &wgs[pi], preChannels, channels[step.Name()])
 			steps++
 		}
 	}
@@ -353,16 +351,16 @@ type Service struct {
 	Volumes     []string  `json:"volumes"`
 	Environment []string  `json:"environment"`
 	DependsOn   StringSet `json:"depends_on"`
-	Name        string
+	name        string
+	color       int
 }
 
 type Step struct {
 	Service
-	Role        string    `json:"role"`
-	Args        []string  `json:"args"`
-	After       StringSet `json:"after"`
-	Detach      bool      `json:"detach"`
-	coloredName string
+	Role   string    `json:"role"`
+	Args   []string  `json:"args"`
+	After  StringSet `json:"after"`
+	Detach bool      `json:"detach"`
 }
 
 func (s Step) Dependencies() (*StringSet, error) {
@@ -376,25 +374,35 @@ func (s Step) Dependencies() (*StringSet, error) {
 	return &r, nil
 }
 
-func (s Step) ImageName() string {
+func (s *Service) SetName(name string) {
+	s.name = name
+	s.color = GetNextFriendlyColor()
+}
+
+func (s Service) Name() string {
+	return s.name
+}
+
+func (s Service) ColoredName() string {
+	return ApplyStyle(s.name, s.color)
+}
+
+func (s Service) ColoredContainerName() string {
+	return ApplyStyle(s.ContainerName(), s.color)
+}
+
+func (s Service) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+	return strings.Replace(strings.ToLower(s.name), " ", "_", -1)
 }
 
-func (s Step) ContainerName() string {
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+func (s Service) ContainerName() string {
+	return strings.Replace(strings.ToLower(s.name), " ", "_", -1)
 }
 
-func (s Step) ColoredContainerName() string {
-	if s.coloredName == "" {
-		s.coloredName = ApplyStyle(s.ContainerName(), GetNextFriendlyColor())
-	}
-	return s.coloredName
-}
-
-func (s Step) Runner() Runner {
+func (s Service) Runner() Runner {
 	r := NewLocalRunner(s.ColoredContainerName(), os.Stdout, os.Stderr)
 	return r
 }

@@ -14,6 +14,9 @@ var rootCmd = &cobra.Command{
 	Short: "gantry is a docker-compose like pipeline tool",
 	Long:  `Tool for running pipelines and docker-compose deployments.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if pipeline != nil {
+			return
+		}
 		var err error
 		pipeline, err = gantry.NewPipeline(defFile, envFile)
 		if err != nil {
