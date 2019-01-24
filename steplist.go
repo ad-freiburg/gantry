@@ -108,7 +108,8 @@ func (t *tarjan) Parse() (*pipelines, error) {
 			return nil, fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
-		for r, _ := range step.After {
+		dependencies, _ := step.Dependencies()
+		for r, _ := range *dependencies {
 			requirements[r] = true
 		}
 		delete(requirements, step.Name())

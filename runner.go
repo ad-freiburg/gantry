@@ -139,6 +139,7 @@ func NewContainerRunner(step Step, network string) func() error {
 			"run",
 			"--name", step.ContainerName(),
 			"--network", network,
+			"--network-alias", step.RawContainerName(),
 			"--network-alias", step.ContainerName(),
 		}
 		if step.Detach {

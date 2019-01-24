@@ -312,7 +312,6 @@ func (p Pipeline) ExecuteSteps() error {
 			steps++
 		}
 	}
-	log.Printf("%#v", channels)
 
 	pipelineLogger.Printf("Execute:")
 	start := time.Now()
@@ -407,6 +406,10 @@ func (s Service) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
+	return strings.Replace(strings.ToLower(s.name), " ", "_", -1)
+}
+
+func (s Service) RawContainerName() string {
 	return strings.Replace(strings.ToLower(s.name), " ", "_", -1)
 }
 
