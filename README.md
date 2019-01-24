@@ -5,6 +5,15 @@ It supports a basic `docker-compose` subset allowing `docker-compose` like
 deployments with [wharfer](https://github.com/ad-freiburg/wharfer). If `wharfer`
 is not installed `docker` will be used directly.
 
+## Differences between `docker-compose` and `gantry`
+
+- Additional `steps` which can be used for pipelines as they are sequentially
+  executed as soon as all required prevous steps are executed instead of all at
+  the same time as `services` in `docker-compose`. Steps and services can depend
+  on one another. This allows steps to use deployed services. To enable this
+  explicit sequentiality the `after` relation is introduced in `steps`.
+- Generating `.dot` file showing dependencies using `gantry dot`.
+
 ## Build/Download
 Make sure you have a Go environment [set up](https://golang.org/doc/install)
 then do
@@ -46,12 +55,3 @@ To install gantry into the users ~/go/bin path it is enough to just run
     sudo mv gantry_$(uname -m)/gantry /usr/local/bin/gantry
 
     gantry --version
-
-## Differences between `docker-compose` and `gantry`
-
-- Additional `steps` which can be used for pipelines as they are sequentially
-  executed as soon as all required prevous steps are executed instead of all at
-  the same time as `services` in `docker-compose`. Steps and services can depend
-  on one another. This allows steps to use deployed services. To enable this
-  explicit sequentiality the `after` relation is introduced in `steps`.
-- Generating `.dot` file showing dependencies using `gantry dot`.
