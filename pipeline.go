@@ -80,7 +80,7 @@ type PipelineEnvironment struct {
 }
 
 func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
-	p := &Pipeline{NetworkName: fmt.Sprintf("%s_gantry", ProjectName)}
+	p := &Pipeline{}
 	err := p.loadPipelineDefinition(definitionPath)
 	if err != nil {
 		return nil, err

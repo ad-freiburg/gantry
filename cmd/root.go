@@ -43,6 +43,7 @@ var rootCmd = &cobra.Command{
 			gantry.ProjectName = filepath.Base(cwd)
 		}
 		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
+		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		killCmd.Run(cmd, args)
