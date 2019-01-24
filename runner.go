@@ -15,6 +15,9 @@ import (
 )
 
 func getContainerExecutable() string {
+	if ForceWharfer {
+		return "wharfer"
+	}
 	if isWharferInstalled() {
 		if isUserRoot() || isUserInDockerGroup() {
 			return "docker"

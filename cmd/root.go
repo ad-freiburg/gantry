@@ -23,7 +23,7 @@ var rootCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 		// Check for obvious errors
-		if verbose {
+		if gantry.Verbose {
 			log.Print("Check pipeline\n")
 		}
 		if err = pipeline.Check(); err != nil {
@@ -41,18 +41,21 @@ var rootCmd = &cobra.Command{
 var (
 	defFile  string
 	envFile  string
-	verbose  bool
 	pipeline *gantry.Pipeline
 )
 
 func init() {
 	defFileUsage := fmt.Sprintf("Explicit %s to use", gantry.GantryDef)
 	envFileUsage := fmt.Sprintf("Explicit %s to use", gantry.GantryEnv)
+	projectNameUsage := "Spefify an alternate project name"
 	rootCmd.PersistentFlags().StringVar(&defFile, "file", "", defFileUsage)
 	rootCmd.PersistentFlags().StringVar(&defFile, "f", "", defFileUsage+" (shorthand)")
 	rootCmd.PersistentFlags().StringVar(&envFile, "env", "", envFileUsage)
 	rootCmd.PersistentFlags().StringVar(&envFile, "e", "", envFileUsage+" (shorthand)")
-	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Verbose output")
+	rootCmd.PersistentFlags().StringVar(&gantry.ProjectName, "project-name", "", projectNameUsage)
+	rootCmd.PersistentFlags().StringVar(&gantry.ProjectName, "p", "", projectNameUsage)
+	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
+	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 }
 
 func Execute() {

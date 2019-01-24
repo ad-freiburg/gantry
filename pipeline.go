@@ -260,11 +260,17 @@ func (p Pipeline) Runner() Runner {
 	return r
 }
 
-func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, p []chan struct{}, o chan struct{}) {
+func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}) {
 	defer wg.Done()
 	defer close(o)
-	for x := range p {
-		<-p[x]
+	for i, c := range preconditions {
+		if gantry.Verbose {
+			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
+		}
+		<-c
+		if gantry.Verbose {
+			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
+		}
 	}
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
