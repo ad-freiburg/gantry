@@ -80,7 +80,7 @@ type PipelineEnvironment struct {
 }
 
 func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
-	p := &Pipeline{NetworkName: "gantry"}
+	p := &Pipeline{NetworkName: fmt.Sprintf("%s_gantry", ProjectName)}
 	err := p.loadPipelineDefinition(definitionPath)
 	if err != nil {
 		return nil, err
@@ -405,7 +405,7 @@ func (s Service) ImageName() string {
 }
 
 func (s Service) ContainerName() string {
-	return strings.Replace(strings.ToLower(s.name), " ", "_", -1)
+	return fmt.Sprintf("%s_%s", ProjectName, strings.Replace(strings.ToLower(s.name), " ", "_", -1))
 }
 
 func (s Service) Runner() Runner {

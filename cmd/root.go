@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/ad-freiburg/gantry"
 	"github.com/spf13/cobra"
@@ -29,6 +31,18 @@ var rootCmd = &cobra.Command{
 		if err = pipeline.Check(); err != nil {
 			log.Fatal(err)
 		}
+		if gantry.ProjectName == "" {
+			// If ProjectName was not set, try to calculate it
+			if gantry.Verbose {
+				log.Print("Calculate project-name\n")
+			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				log.Fatal(err)
+			}
+			gantry.ProjectName = filepath.Base(cwd)
+		}
+		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		killCmd.Run(cmd, args)

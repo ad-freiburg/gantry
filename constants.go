@@ -12,6 +12,9 @@ const GantryEnv string = "gantry.env.yml"
 var (
 	gantryLogger *PrefixedLogger
 	Version      = "no-version"
+	Verbose      = false
+	ProjectName  = ""
+	ForceWharfer = false
 )
 
 func init() {
