@@ -1,0 +1,22 @@
+version: "0"
+
+steps:
+  a:
+    image: busybox
+    command: "echo \"Step a\""
+  b:
+    after:
+      - a
+    image: busybox
+    command: "echo \"Step b\""
+  c:
+    after:
+      - a
+    image: busybox
+    command: "echo \"Step c\""
+  d:
+    after:
+      - b
+      - c
+    image: busybox
+    command: "echo \"Step d\""
