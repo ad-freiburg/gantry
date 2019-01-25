@@ -5,7 +5,7 @@ This is a slightly modified
 `docker-compose` supports different markup for environment variables and named
 volumes are not (yet) implemented into `gantry`.
 
-![Pipeline](./pipeline.svg)
+The structure of the example is visualized in [pipeline.svg](./pipeline.svg).
 
 ## Running using docker-compose
     docker-compose up
