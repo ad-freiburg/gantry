@@ -1,4 +1,4 @@
-package gantry // import "github.com/ad-freiburg/gantry"
+package types // import "github.com/ad-freiburg/gantry/types"
 
 import "encoding/json"
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ad-freiburg/gantry/types"
 	"github.com/ghodss/yaml"
 )
 
@@ -151,9 +152,6 @@ func (p Pipeline) Check() error {
 		}
 		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
 			return fmt.Errorf("No container information for '%s'", step.ColoredName())
-		}
-		if step.Command != "" && len(step.Args) > 0 {
-			return fmt.Errorf("Only command or args allowed for '%s'", step.ColoredName())
 		}
 	}
 	return nil
@@ -339,7 +337,7 @@ func executeF(f func() error) (time.Duration, error) {
 
 type Machine struct {
 	Host  string
-	Roles StringSet
+	Roles types.StringSet
 	Paths Paths
 }
 
@@ -355,27 +353,27 @@ type BuildInfo struct {
 }
 
 type Service struct {
-	BuildInfo   BuildInfo `json:"build"`
-	Command     string    `json:"command"`
-	Image       string    `json:"image"`
-	Ports       []string  `json:"ports"`
-	Volumes     []string  `json:"volumes"`
-	Environment []string  `json:"environment"`
-	DependsOn   StringSet `json:"depends_on"`
+	BuildInfo   BuildInfo                 `json:"build"`
+	Command     types.StringOrStringSlice `json:"command"`
+	Entrypoint  types.StringOrStringSlice `json:"entrypoint"`
+	Image       string                    `json:"image"`
+	Ports       []string                  `json:"ports"`
+	Volumes     []string                  `json:"volumes"`
+	Environment []string                  `json:"environment"`
+	DependsOn   types.StringSet           `json:"depends_on"`
 	name        string
 	color       int
 }
 
 type Step struct {
 	Service
-	Role   string    `json:"role"`
-	Args   []string  `json:"args"`
-	After  StringSet `json:"after"`
-	Detach bool      `json:"detach"`
+	Role   string          `json:"role"`
+	After  types.StringSet `json:"after"`
+	Detach bool            `json:"detach"`
 }
 
-func (s Step) Dependencies() (*StringSet, error) {
-	r := StringSet{}
+func (s Step) Dependencies() (*types.StringSet, error) {
+	r := types.StringSet{}
 	for dep, _ := range s.After {
 		r[dep] = true
 	}

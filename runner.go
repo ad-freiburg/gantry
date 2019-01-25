@@ -166,15 +166,31 @@ func NewContainerRunner(step Step, network string) func() error {
 		for _, envvar := range step.Environment {
 			args = append(args, "-e", envvar)
 		}
-		// Override entrypoint with step.Command
-		callerArgs := step.Args
-		if step.Command != "" {
-			tokens, _ := shlex.Split(step.Command)
-			args = append(args, "--entrypoint", tokens[0])
-			callerArgs = tokens[1:]
+		// Determine entrypoint and arguments
+		callerArgs := make([]string, 0)
+		if len(step.Entrypoint) > 0 {
+			if len(step.Entrypoint) > 1 {
+				args = append(args, "--entrypoint", step.Entrypoint[0])
+				callerArgs = append(callerArgs, step.Entrypoint[1:]...)
+			} else {
+				tokens, _ := shlex.Split(step.Entrypoint[0])
+				args = append(args, "--entrypoint", tokens[0])
+				callerArgs = append(callerArgs, tokens[1:]...)
+			}
+		}
+		// Add command
+		if len(step.Command) > 0 {
+			if len(step.Command) > 1 {
+				callerArgs = append(callerArgs, step.Command...)
+			} else {
+				tokens, _ := shlex.Split(step.Command[0])
+				callerArgs = append(callerArgs, tokens...)
+			}
 		}
 		args = append(args, step.ImageName())
-		args = append(args, callerArgs...)
+		if len(callerArgs) > 0 {
+			args = append(args, callerArgs...)
+		}
 		r.SetCommand(getContainerExecutable(), args)
 		return r.Exec()
 	}
