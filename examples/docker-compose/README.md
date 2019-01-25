@@ -5,6 +5,8 @@ This is a slightly modified
 `docker-compose` supports different markup for environment variables and named
 volumes are not (yet) implemented into `gantry`.
 
+![Pipeline](./pipeline.svg)
+
 ## Running using docker-compose
     docker-compose up
 This creates a default network, starts both containers, and attaches to them.
