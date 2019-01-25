@@ -38,7 +38,12 @@ var dotCmd = &cobra.Command{
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
 			sName := strings.Replace(step.Name(), "-", "_", -1)
-			w.WriteString(fmt.Sprintf("%s [label=\"%s\"]\n", sName, step.Name()))
+			// Display services as ellipse, and steps as rectangle
+			shape := "ellipse"
+			if !step.Detach {
+				shape = "rectangle"
+			}
+			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name(), shape))
 			dependencies, err := step.Dependencies()
 			if err != nil {
 				panic(err)
