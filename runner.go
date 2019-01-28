@@ -111,7 +111,7 @@ func (r *LocalRunner) SetCommand(name string, args []string) {
 	r.args = args
 }
 
-func NewImageBuilder(step Step) func() error {
+func NewImageBuilder(step Step, pull bool) func() error {
 	return func() error {
 		args := []string{"build", "--tag", step.ImageName()}
 		if step.BuildInfo.Dockerfile != "" {
@@ -119,6 +119,9 @@ func NewImageBuilder(step Step) func() error {
 		}
 		if step.BuildInfo.Context == "" {
 			step.BuildInfo.Context = "."
+		}
+		if pull {
+			args = append(args, "--pull")
 		}
 		args = append(args, step.BuildInfo.Context)
 		r := step.Runner()

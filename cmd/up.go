@@ -12,6 +12,7 @@ var upCmd = &cobra.Command{
 	Use:   "up",
 	Short: "Builds, (re)creates, and starts containers",
 	Run: func(cmd *cobra.Command, args []string) {
+		pullCmd.Run(cmd, args)
 		buildCmd.Run(cmd, args)
 		startCmd.Run(cmd, args)
 	},

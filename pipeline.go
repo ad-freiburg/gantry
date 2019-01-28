@@ -157,33 +157,18 @@ func (p Pipeline) Check() error {
 	return nil
 }
 
-func runParallelPrepareImage(step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelBuildImage(step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
 	defer wg.Done()
 	<-s
 
-	pipelineLogger.Printf("- Preparing %s", step.ColoredContainerName())
-	duration, err := executeF(NewImageExistenceChecker(step))
-	exists := err == nil
-
-	var f func() error
-	if step.BuildInfo.Context != "" || step.BuildInfo.Dockerfile != "" {
-		f = NewImageBuilder(step)
-	} else {
-		f = NewImagePuller(step)
-	}
-	if !exists || force {
-		err := f()
-		duration2, err := executeF(f)
-		if err != nil {
-			pipelineLogger.Println(err)
-		}
-		duration += duration2
+	duration, err := executeF(NewImageBuilder(step, pull))
+	if err != nil {
+		pipelineLogger.Println(err)
 	}
 	durations.Store(step.name, duration)
-	pipelineLogger.Printf("- Prepared %s after %s", step.ColoredContainerName(), duration)
 }
 
-func (p Pipeline) PrepareImages(force bool) error {
+func (p Pipeline) BuildImages(force bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
@@ -194,17 +179,20 @@ func (p Pipeline) PrepareImages(force bool) error {
 	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
+		if step.BuildInfo.Dockerfile == "" && step.BuildInfo.Context == "" {
+			continue
+		}
 		wg.Add(1)
-		go runParallelPrepareImage(step, force, durations, &wg, runChannel)
+		go runParallelBuildImage(step, force, durations, &wg, runChannel)
 		images++
 	}
 
-	pipelineLogger.Printf("Prepare Images:")
+	pipelineLogger.Printf("Build Images:")
 	start := time.Now()
 	close(runChannel)
 	wg.Wait()
 
-	pipelineLogger.Printf("Prepared %d images in %s", images, time.Since(start))
+	pipelineLogger.Printf("Build %d images in %s", images, time.Since(start))
 	var totalElapsedTime time.Duration = 0
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
@@ -213,7 +201,59 @@ func (p Pipeline) PrepareImages(force bool) error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spent preparing images: %s", totalElapsedTime)
+	pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
+	return nil
+}
+
+func runParallelPullImage(step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+	defer wg.Done()
+	<-s
+
+	duration, err := executeF(NewImageExistenceChecker(step))
+	if err != nil || force {
+		duration2, err := executeF(NewImagePuller(step))
+		if err != nil {
+			pipelineLogger.Println(err)
+		}
+		duration += duration2
+	}
+	durations.Store(step.name, duration)
+}
+
+func (p Pipeline) PullImages(force bool) error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	runChannel := make(chan struct{})
+	var wg sync.WaitGroup
+	images := 0
+	durations := &sync.Map{}
+
+	for _, step := range pipelines.AllSteps() {
+		if step.BuildInfo.Dockerfile != "" || step.BuildInfo.Context != "" {
+			continue
+		}
+		wg.Add(1)
+		go runParallelPullImage(step, force, durations, &wg, runChannel)
+		images++
+	}
+
+	pipelineLogger.Printf("Pull Images:")
+	start := time.Now()
+	close(runChannel)
+	wg.Wait()
+
+	pipelineLogger.Printf("Pulled %d images in %s", images, time.Since(start))
+	var totalElapsedTime time.Duration = 0
+	durations.Range(func(key, value interface{}) bool {
+		duration, ok := value.(time.Duration)
+		if ok {
+			totalElapsedTime += duration
+		}
+		return ok
+	})
+	pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
 	return nil
 }
 

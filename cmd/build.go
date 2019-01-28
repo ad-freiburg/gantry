@@ -9,11 +9,11 @@ import (
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
-	buildCmd.Flags().BoolVar(&forceBuildPull, "force", false, "Always attempt to pull/build a newer version of the image.")
+	buildCmd.Flags().BoolVar(&forcePull, "pull", false, "Always attempt to pull a newer version of the image.")
 }
 
 var (
-	forceBuildPull bool
+	forcePull bool
 )
 
 var buildCmd = &cobra.Command{
@@ -23,6 +23,6 @@ var buildCmd = &cobra.Command{
 		if gantry.Verbose {
 			log.Print("(Re)build images\n")
 		}
-		pipeline.PrepareImages(forceBuildPull)
+		pipeline.BuildImages(forcePull)
 	},
 }
