@@ -60,15 +60,9 @@ var (
 )
 
 func init() {
-	defFileUsage := fmt.Sprintf("Explicit %s to use", gantry.GantryDef)
-	envFileUsage := fmt.Sprintf("Explicit %s to use", gantry.GantryEnv)
-	projectNameUsage := "Spefify an alternate project name"
-	rootCmd.PersistentFlags().StringVar(&defFile, "file", "", defFileUsage)
-	rootCmd.PersistentFlags().StringVar(&defFile, "f", "", defFileUsage+" (shorthand)")
-	rootCmd.PersistentFlags().StringVar(&envFile, "env", "", envFileUsage)
-	rootCmd.PersistentFlags().StringVar(&envFile, "e", "", envFileUsage+" (shorthand)")
-	rootCmd.PersistentFlags().StringVar(&gantry.ProjectName, "project-name", "", projectNameUsage)
-	rootCmd.PersistentFlags().StringVar(&gantry.ProjectName, "p", "", projectNameUsage)
+	rootCmd.PersistentFlags().StringVarP(&defFile, "file", "f", "", fmt.Sprintf("Explicit %s to use", gantry.GantryDef))
+	rootCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", fmt.Sprintf("Explicit %s to use", gantry.GantryEnv))
+	rootCmd.PersistentFlags().StringVarP(&gantry.ProjectName, "project-name", "p", "", "Spefify an alternate project name")
 	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 }
