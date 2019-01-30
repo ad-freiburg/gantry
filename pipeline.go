@@ -54,13 +54,19 @@ func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 			steps[name] = step
 		}
 		for name, step := range p.Services {
+			if _, ignore := p.ignoredSteps[name]; ignore {
+				continue
+			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			for ignored, _ := range p.ignoredSteps {
+				delete(step.After, ignored)
+				delete(step.DependsOn, ignored)
 			}
 			steps[name] = step
 		}
 
-		// TODO: handle ignored steps
 		t, err := NewTarjan(steps)
 		if err != nil {
 			return nil, err
