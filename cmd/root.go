@@ -21,7 +21,11 @@ var rootCmd = &cobra.Command{
 			return
 		}
 		var err error
-		pipeline, err = gantry.NewPipeline(defFile, envFile)
+		ignoredSteps := types.StringSet{}
+		for _, step := range stepsToIgnore {
+			ignoredSteps[step] = true
+		}
+		pipeline, err = gantry.NewPipeline(defFile, envFile, ignoredSteps)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -45,10 +49,6 @@ var rootCmd = &cobra.Command{
 		}
 		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
 		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
-		pipeline.IgnoredSteps = types.StringSet{}
-		for _, step := range stepsToIgnore {
-			pipeline.IgnoredSteps[step] = true
-		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		killCmd.Run(cmd, args)

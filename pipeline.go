@@ -25,24 +25,31 @@ func init() {
 }
 
 type Pipeline struct {
-	Definition   PipelineDefinition
-	Environment  PipelineEnvironment
-	NetworkName  string
-	IgnoredSteps types.StringSet
+	Definition  PipelineDefinition
+	Environment PipelineEnvironment
+	NetworkName string
 }
 
 type PipelineDefinition struct {
-	Steps     StepList    `json:"steps"`
-	Services  ServiceList `json:"services"`
-	pipelines *pipelines
+	Steps        StepList    `json:"steps"`
+	Services     ServiceList `json:"services"`
+	pipelines    *pipelines
+	ignoredSteps types.StringSet
 }
 
 func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
 		for name, step := range p.Steps {
+			if _, ignore := p.ignoredSteps[name]; ignore {
+				continue
+			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			for ignored, _ := range p.ignoredSteps {
+				delete(step.After, ignored)
+				delete(step.DependsOn, ignored)
 			}
 			steps[name] = step
 		}
@@ -82,9 +89,10 @@ type PipelineEnvironment struct {
 	Machines []Machine `json:"machines"`
 }
 
-func NewPipeline(definitionPath, environmentPath string) (*Pipeline, error) {
+func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	err := p.loadPipelineDefinition(definitionPath)
+	p.Definition.ignoredSteps = ignoredSteps
 	if err != nil {
 		return nil, err
 	}
