@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ad-freiburg/gantry"
+	"github.com/ad-freiburg/gantry/types"
 	"github.com/spf13/cobra"
 )
 
@@ -44,6 +45,10 @@ var rootCmd = &cobra.Command{
 		}
 		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
 		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
+		pipeline.IgnoredSteps = types.StringSet{}
+		for _, step := range stepsToIgnore {
+			pipeline.IgnoredSteps[step] = true
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		killCmd.Run(cmd, args)
@@ -54,9 +59,10 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	defFile  string
-	envFile  string
-	pipeline *gantry.Pipeline
+	defFile       string
+	envFile       string
+	pipeline      *gantry.Pipeline
+	stepsToIgnore []string
 )
 
 func init() {
@@ -65,6 +71,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&gantry.ProjectName, "project-name", "p", "", "Spefify an alternate project name")
 	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
+	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
 }
 
 func Execute() {

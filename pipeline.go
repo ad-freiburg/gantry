@@ -25,9 +25,10 @@ func init() {
 }
 
 type Pipeline struct {
-	Definition  PipelineDefinition
-	Environment PipelineEnvironment
-	NetworkName string
+	Definition   PipelineDefinition
+	Environment  PipelineEnvironment
+	NetworkName  string
+	IgnoredSteps types.StringSet
 }
 
 type PipelineDefinition struct {
@@ -36,7 +37,7 @@ type PipelineDefinition struct {
 	pipelines *pipelines
 }
 
-func (p PipelineDefinition) Pipelines() (*pipelines, error) {
+func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
 		for name, step := range p.Steps {
@@ -52,6 +53,7 @@ func (p PipelineDefinition) Pipelines() (*pipelines, error) {
 			steps[name] = step
 		}
 
+		// TODO: handle ignored steps
 		t, err := NewTarjan(steps)
 		if err != nil {
 			return nil, err
@@ -187,12 +189,16 @@ func (p Pipeline) BuildImages(force bool) error {
 		images++
 	}
 
-	pipelineLogger.Printf("Build Images:")
+	if Verbose {
+		pipelineLogger.Printf("Build Images:")
+	}
 	start := time.Now()
 	close(runChannel)
 	wg.Wait()
 
-	pipelineLogger.Printf("Build %d images in %s", images, time.Since(start))
+	if Verbose {
+		pipelineLogger.Printf("Build %d images in %s", images, time.Since(start))
+	}
 	var totalElapsedTime time.Duration = 0
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
@@ -201,7 +207,9 @@ func (p Pipeline) BuildImages(force bool) error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
+	if Verbose {
+		pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
+	}
 	return nil
 }
 
@@ -239,12 +247,16 @@ func (p Pipeline) PullImages(force bool) error {
 		images++
 	}
 
-	pipelineLogger.Printf("Pull Images:")
+	if Verbose {
+		pipelineLogger.Printf("Pull Images:")
+	}
 	start := time.Now()
 	close(runChannel)
 	wg.Wait()
 
-	pipelineLogger.Printf("Pulled %d images in %s", images, time.Since(start))
+	if Verbose {
+		pipelineLogger.Printf("Pulled %d images in %s", images, time.Since(start))
+	}
 	var totalElapsedTime time.Duration = 0
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
@@ -253,7 +265,9 @@ func (p Pipeline) PullImages(force bool) error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
+	if Verbose {
+		pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
+	}
 	return nil
 }
 
