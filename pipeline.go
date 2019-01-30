@@ -388,8 +388,9 @@ type Paths struct {
 }
 
 type BuildInfo struct {
-	Context    string `json:"context"`
-	Dockerfile string `json:"Dockerfile"`
+	Context    string                       `json:"context"`
+	Dockerfile string                       `json:"dockerfile"`
+	Args       types.StringMapOrStringSlice `json:"args"`
 }
 
 type Service struct {

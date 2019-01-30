@@ -123,6 +123,9 @@ func NewImageBuilder(step Step, pull bool) func() error {
 		if pull {
 			args = append(args, "--pull")
 		}
+		for _, arg := range step.BuildInfo.Args {
+			args = append(args, "--build-arg", arg)
+		}
 		args = append(args, step.BuildInfo.Context)
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), args)
