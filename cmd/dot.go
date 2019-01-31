@@ -21,17 +21,17 @@ var (
 var dotCmd = &cobra.Command{
 	Use:   "dot",
 	Short: "Generates a .dot file for graph visualisation",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		f, err := os.Create(dotOutput)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		defer f.Close()
 
 		pipelines, err := pipeline.Definition.Pipelines()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		w := bufio.NewWriter(f)
@@ -54,5 +54,6 @@ var dotCmd = &cobra.Command{
 		}
 		w.WriteString("}\n")
 		w.Flush()
+		return nil
 	},
 }

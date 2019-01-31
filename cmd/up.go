@@ -11,9 +11,15 @@ func init() {
 var upCmd = &cobra.Command{
 	Use:   "up",
 	Short: "Builds, (re)creates, and starts containers",
-	Run: func(cmd *cobra.Command, args []string) {
-		pipeline.PullImages(false)
-		buildCmd.Run(cmd, args)
-		startCmd.Run(cmd, args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := pipeline.PullImages(false)
+		if err != nil {
+			return err
+		}
+		err = buildCmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
+		return startCmd.RunE(cmd, args)
 	},
 }

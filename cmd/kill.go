@@ -14,10 +14,10 @@ func init() {
 var killCmd = &cobra.Command{
 	Use:   "kill",
 	Short: "Force stop containers",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if gantry.Verbose {
 			log.Print("Kill container\n")
 		}
-		pipeline.KillContainers()
+		return pipeline.KillContainers()
 	},
 }

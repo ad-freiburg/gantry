@@ -16,9 +16,9 @@ var rootCmd = &cobra.Command{
 	Use:   "gantry",
 	Short: "gantry is a docker-compose like pipeline tool",
 	Long:  `Tool for running pipelines and docker-compose deployments.`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if pipeline != nil {
-			return
+			return nil
 		}
 		var err error
 		ignoredSteps := types.StringSet{}
@@ -27,7 +27,7 @@ var rootCmd = &cobra.Command{
 		}
 		pipeline, err = gantry.NewPipeline(defFile, envFile, ignoredSteps)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		// Check for obvious errors
 		if gantry.Verbose {
@@ -43,17 +43,24 @@ var rootCmd = &cobra.Command{
 			}
 			cwd, err := os.Getwd()
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			gantry.ProjectName = filepath.Base(cwd)
 		}
 		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
 		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
+		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		killCmd.Run(cmd, args)
-		rmCmd.Run(cmd, args)
-		upCmd.Run(cmd, args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := killCmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
+		err = rmCmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
+		return upCmd.RunE(cmd, args)
 	},
 	Version: gantry.Version,
 }

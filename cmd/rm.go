@@ -14,10 +14,10 @@ func init() {
 var rmCmd = &cobra.Command{
 	Use:   "rm",
 	Short: "Removes stopped containers",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if gantry.Verbose {
 			log.Print("Remove container\n")
 		}
-		pipeline.RemoveContainers()
+		return pipeline.RemoveContainers()
 	},
 }

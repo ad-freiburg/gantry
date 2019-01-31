@@ -14,7 +14,7 @@ func init() {
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Starts containers",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if gantry.Verbose {
 			log.Print("(Re)create network\n")
 		}
@@ -22,6 +22,6 @@ var startCmd = &cobra.Command{
 		if gantry.Verbose {
 			log.Print("Start container\n")
 		}
-		pipeline.ExecuteSteps()
+		return pipeline.ExecuteSteps()
 	},
 }

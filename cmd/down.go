@@ -14,12 +14,18 @@ func init() {
 var downCmd = &cobra.Command{
 	Use:   "down",
 	Short: "Stop and remove containers, and networks created by `up`",
-	Run: func(cmd *cobra.Command, args []string) {
-		killCmd.Run(cmd, args)
-		rmCmd.Run(cmd, args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := killCmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
+		err = rmCmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
 		if gantry.Verbose {
 			log.Print("Remove network\n")
 		}
-		pipeline.RemoveNetwork()
+		return pipeline.RemoveNetwork()
 	},
 }

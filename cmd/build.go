@@ -19,10 +19,10 @@ var (
 var buildCmd = &cobra.Command{
 	Use:   "build",
 	Short: "Builds all pipeline images",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if gantry.Verbose {
 			log.Print("(Re)build images\n")
 		}
-		pipeline.BuildImages(forcePull)
+		return pipeline.BuildImages(forcePull)
 	},
 }

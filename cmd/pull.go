@@ -11,7 +11,7 @@ func init() {
 var pullCmd = &cobra.Command{
 	Use:   "pull",
 	Short: "Pulls images for services/steps defined in a Compose file, but does not start the containers.",
-	Run: func(cmd *cobra.Command, args []string) {
-		pipeline.PullImages(true)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return pipeline.PullImages(true)
 	},
 }
