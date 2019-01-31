@@ -63,6 +63,7 @@ type ColorStore struct {
 
 func NewColorStore(colors []int) *ColorStore {
 	return &ColorStore{
+		index:  -1,
 		colors: colors,
 	}
 }
