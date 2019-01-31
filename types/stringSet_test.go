@@ -1,23 +1,25 @@
-package types // import "github.com/ad-freiburg/gantry/types"
+package types_test
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/ad-freiburg/gantry/types"
 )
 
 func TestStringSetUnmarshalJSON(t *testing.T) {
 	var cases = []struct {
 		json   string
-		result StringSet
+		result types.StringSet
 	}{
-		{"", StringSet{}},
-		{"\"A\"", StringSet{"A": true}},
-		{"[\"A\", \"B\"]", StringSet{"A": true, "B": true}},
-		{"[\"A\", \"B\", \"A\"]", StringSet{"A": true, "B": true}},
+		{"", types.StringSet{}},
+		{"\"A\"", types.StringSet{"A": true}},
+		{"[\"A\", \"B\"]", types.StringSet{"A": true, "B": true}},
+		{"[\"A\", \"B\", \"A\"]", types.StringSet{"A": true, "B": true}},
 	}
 
 	for _, c := range cases {
-		s := StringSet{}
+		s := types.StringSet{}
 		s.UnmarshalJSON([]byte(c.json))
 		if !reflect.DeepEqual(s, c.result) {
 			t.Errorf("Incorrect result for '%s', got: %#v, wanted %#v", c.json, s, c.result)
