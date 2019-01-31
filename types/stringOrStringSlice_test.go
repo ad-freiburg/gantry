@@ -5,19 +5,19 @@ import (
 	"testing"
 )
 
-func TestStringSetUnmarshalJSON(t *testing.T) {
+func TestStringOrStringSliceUnmarshalJSON(t *testing.T) {
 	var cases = []struct {
 		json   string
-		result StringSet
+		result StringOrStringSlice
 	}{
-		{"", StringSet{}},
-		{"\"A\"", StringSet{"A": true}},
-		{"[\"A\", \"B\"]", StringSet{"A": true, "B": true}},
-		{"[\"A\", \"B\", \"A\"]", StringSet{"A": true, "B": true}},
+		{"", StringOrStringSlice{}},
+		{"\"A\"", StringOrStringSlice{"A"}},
+		{"[\"A\", \"B\"]", StringOrStringSlice{"A", "B"}},
+		{"[\"A\", \"B\", \"A\"]", StringOrStringSlice{"A", "B", "A"}},
 	}
 
 	for _, c := range cases {
-		s := StringSet{}
+		s := StringOrStringSlice{}
 		s.UnmarshalJSON([]byte(c.json))
 		if !reflect.DeepEqual(s, c.result) {
 			t.Errorf("Incorrect result for '%s', got: %#v, wanted %#v", c.json, s, c.result)
