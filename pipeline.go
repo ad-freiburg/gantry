@@ -45,7 +45,7 @@ func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 				continue
 			}
 			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name())
 			}
 			for ignored, _ := range p.ignoredSteps {
 				delete(step.After, ignored)
@@ -58,7 +58,7 @@ func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 				continue
 			}
 			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name())
 			}
 			for ignored, _ := range p.ignoredSteps {
 				delete(step.After, ignored)
