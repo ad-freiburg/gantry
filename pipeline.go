@@ -97,13 +97,13 @@ type PipelineEnvironment struct {
 
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
-	err := p.loadPipelineDefinition(definitionPath)
-	p.Definition.ignoredSteps = ignoredSteps
+	requireEnvironement, err := p.loadPipelineDefinition(definitionPath)
 	if err != nil {
 		return nil, err
 	}
-	// Environment is only needed for steps
-	if len(p.Definition.Steps) > 0 {
+	p.Definition.ignoredSteps = ignoredSteps
+	// Load environment if required
+	if requireEnvironement {
 		err = p.setPipelineEnvironment(environmentPath)
 		if err != nil {
 			return nil, err
@@ -112,7 +112,7 @@ func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.Stri
 	return p, nil
 }
 
-func (p *Pipeline) loadPipelineDefinition(path string) error {
+func (p *Pipeline) loadPipelineDefinition(path string) (bool, error) {
 	if _, err := os.Stat(GantryDef); path == "" && !os.IsNotExist(err) {
 		path = GantryDef
 	}
@@ -122,15 +122,18 @@ func (p *Pipeline) loadPipelineDefinition(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		pipelineLogger.Println("Could not open pipeline definition.")
-		return err
+		return false, err
 	}
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return yaml.Unmarshal(data, &p.Definition)
+	err = yaml.Unmarshal(data, &p.Definition)
+	// TODO: Check if env-file is needed
+	requireEnvironement := false
+	return requireEnvironement, err
 }
 
 func (p *Pipeline) setPipelineEnvironment(path string) error {
