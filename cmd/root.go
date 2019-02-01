@@ -62,8 +62,21 @@ var rootCmd = &cobra.Command{
 		}
 		return upCmd.RunE(cmd, args)
 	},
-	Version: gantry.Version,
+	Version:                gantry.Version,
+	BashCompletionFunction: bash_completion_func,
 }
+
+const (
+	bash_completion_func = `__gantry_get_steps()
+{
+    local gantry_output out
+    if gantry_output=$(gantry steps 2>/dev/null); then
+        out=($(echo "${gantry_output}" | awk '{print $1}'))
+        COMPREPLY=( $( compgen -W "${out[*]}" -- "$cur" ) )
+    fi
+}
+`
+)
 
 var (
 	defFile       string
@@ -79,6 +92,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
+	rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
+	rootCmd.PersistentFlags().SetAnnotation("env", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
+	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
 }
 
 func Execute() {
