@@ -2,19 +2,14 @@ package gantry // import "github.com/ad-freiburg/gantry"
 // Adapted version of https://github.com/looplab/tarjan/blob/master/tarjan.go
 import (
 	"fmt"
-	"strings"
 )
 
 type tarjanData struct {
-	tarjan
-	nodes []tarjanNode
-	stack []Step
-	index map[string]int
-}
-
-type tarjan struct {
+	nodes  []tarjanNode
+	stack  []Step
+	index  map[string]int
 	graph  map[string]Step
-	output [][]Step
+	output Pipelines
 }
 
 type tarjanNode struct {
@@ -72,7 +67,7 @@ func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
 	return node, nil
 }
 
-func NewTarjan(steps map[string]Step) (*tarjan, error) {
+func NewTarjan(steps map[string]Step) (*Pipelines, error) {
 	// Determine components and topological order
 	t := &tarjanData{
 		nodes: make([]tarjanNode, 0, len(steps)),
@@ -87,36 +82,5 @@ func NewTarjan(steps map[string]Step) (*tarjan, error) {
 			}
 		}
 	}
-	return &t.tarjan, nil
-}
-
-func (t *tarjan) Parse() (*pipelines, error) {
-	result := make(pipelines, 0)
-	// walk reverse order, if all requirements are found the next step is a new component
-	resultIndex := 0
-	requirements := make(map[string]bool, 0)
-	for i := len(t.output) - 1; i >= 0; i-- {
-		steps := t.output[i]
-		if len(steps) > 1 {
-			names := make([]string, len(steps))
-			for i, step := range steps {
-				names[i] = step.Name()
-			}
-			return nil, fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
-		}
-		var step = steps[0]
-		dependencies, _ := step.Dependencies()
-		for r, _ := range *dependencies {
-			requirements[r] = true
-		}
-		delete(requirements, step.Name())
-		if len(result)-1 < resultIndex {
-			result = append(result, make([]Step, 0))
-		}
-		result[resultIndex] = append([]Step{step}, result[resultIndex]...)
-		if len(requirements) == 0 {
-			resultIndex++
-		}
-	}
-	return &result, nil
+	return &t.output, nil
 }

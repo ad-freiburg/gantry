@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,11 +33,11 @@ type Pipeline struct {
 type PipelineDefinition struct {
 	Steps        StepList    `json:"steps"`
 	Services     ServiceList `json:"services"`
-	pipelines    *pipelines
+	pipelines    *Pipelines
 	ignoredSteps types.StringSet
 }
 
-func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
+func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
 		for name, step := range p.Steps {
@@ -66,21 +67,22 @@ func (p *PipelineDefinition) Pipelines() (*pipelines, error) {
 			steps[name] = step
 		}
 
-		t, err := NewTarjan(steps)
+		pipelines, err := NewTarjan(steps)
 		if err != nil {
 			return nil, err
 		}
-		p.pipelines, err = t.Parse()
+		err = pipelines.ParsePipelines()
 		if err != nil {
 			return nil, err
 		}
+		p.pipelines = pipelines
 	}
 	return p.pipelines, nil
 }
 
-type pipelines [][]Step
+type Pipelines [][]Step
 
-func (p pipelines) AllSteps() []Step {
+func (p Pipelines) AllSteps() []Step {
 	result := make([]Step, 0)
 	for _, pipeline := range p {
 		for _, step := range pipeline {
@@ -88,6 +90,38 @@ func (p pipelines) AllSteps() []Step {
 		}
 	}
 	return result
+}
+
+func (p *Pipelines) ParsePipelines() error {
+	result := make(Pipelines, 0)
+	// walk reverse order, if all requirements are found the next step is a new component
+	resultIndex := 0
+	requirements := make(map[string]bool, 0)
+	for i := len(*p) - 1; i >= 0; i-- {
+		steps := (*p)[i]
+		if len(steps) > 1 {
+			names := make([]string, len(steps))
+			for i, step := range steps {
+				names[i] = step.Name()
+			}
+			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
+		}
+		var step = steps[0]
+		dependencies, _ := step.Dependencies()
+		for r, _ := range *dependencies {
+			requirements[r] = true
+		}
+		delete(requirements, step.Name())
+		if len(result)-1 < resultIndex {
+			result = append(result, make([]Step, 0))
+		}
+		result[resultIndex] = append([]Step{step}, result[resultIndex]...)
+		if len(requirements) == 0 {
+			resultIndex++
+		}
+	}
+	*p = result
+	return nil
 }
 
 type PipelineEnvironment struct {
