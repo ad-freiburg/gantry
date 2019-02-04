@@ -2,6 +2,7 @@ package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -21,6 +22,7 @@ func (l *BuildInfo) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for k, v := range storage {
+		fmt.Printf("%s -> %#v\n", k, v)
 		switch k {
 		case "context":
 			result.Context = v.(string)
