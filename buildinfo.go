@@ -49,11 +49,7 @@ func parseBuildArgs(data interface{}) map[string]string {
 	} else {
 		asMap := data.(map[string]interface{})
 		for k, v := range asMap {
-			if v == nil {
-				result[k] = ""
-			} else {
-				result[k] = v.(string)
-			}
+			result[k] = v.(string)
 		}
 	}
 	return result

@@ -42,3 +42,27 @@ func TestStepDependencies(t *testing.T) {
 		}
 	}
 }
+
+func TestStepImageName(t *testing.T) {
+	stepA := gantry.Step{Service: gantry.Service{}}
+	stepA.SetName("a Step")
+	stepB := gantry.Step{Service: gantry.Service{Image: "b"}}
+	stepC := gantry.Step{Service: gantry.Service{Image: "c"}}
+	stepC.SetName("c Step")
+
+	cases := []struct {
+		step   gantry.Step
+		result string
+	}{
+		{stepA, "a_step"},
+		{stepB, "b"},
+		{stepC, "c"},
+	}
+
+	for _, c := range cases {
+		r := c.step.ImageName()
+		if r != c.result {
+			t.Errorf("Incorrect result for '%v', got: %s, wanted %s", c.step, r, c.result)
+		}
+	}
+}
