@@ -71,7 +71,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = pipelines.ParsePipelines()
+		err = pipelines.Check()
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ func (p Pipelines) AllSteps() []Step {
 	return result
 }
 
-func (p *Pipelines) ParsePipelines() error {
+func (p *Pipelines) Check() error {
 	result := make(Pipelines, 0)
 	// walk reverse order, if all requirements are found the next step is a new component
 	resultIndex := 0
