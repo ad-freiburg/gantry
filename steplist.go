@@ -6,16 +6,7 @@ import (
 
 type StepList map[string]Step
 
-func (l StepList) All() []Step {
-	result := make([]Step, 0)
-	for _, step := range l {
-		result = append(result, step)
-	}
-	return result
-}
-
 func (l *StepList) UnmarshalJSON(data []byte) error {
-
 	storage := make(map[string]Step, 0)
 	err := json.Unmarshal(data, &storage)
 	if err != nil {
