@@ -88,3 +88,15 @@ func TestNewTarjan(t *testing.T) {
 		}
 	}
 }
+
+func TestNewTarjanMissingDependency(t *testing.T) {
+	stepB := gantry.Step{}
+	stepB.SetName("b")
+	stepB.After = map[string]bool{"a": true}
+
+	input := map[string]gantry.Step{"b": stepB}
+	_, err := gantry.NewTarjan(input)
+	if err == nil {
+		t.Errorf("Got no error for: '%#v'", input)
+	}
+}
