@@ -9,8 +9,8 @@ import (
 	"sync"
 )
 
-const prefixedWriterFormat string = "%s\u001b[0m %s\u001b[0m"
-const genericStringFormat string = "\u001b[%sm%s\u001b[0m"
+const PrefixedWriterFormat string = "%s\u001b[0m %s\u001b[0m"
+const GenericStringFormat string = "\u001b[%sm%s\u001b[0m"
 const STYLE_NORMAL int = 0
 const STYLE_BOLD int = 1
 const STYLE_DIM int = 2
@@ -44,7 +44,7 @@ func init() {
 }
 
 func ApplyStyle(text string, style ...int) string {
-	return fmt.Sprintf(genericStringFormat, BuildPrefixStyle(style...), text)
+	return fmt.Sprintf(GenericStringFormat, BuildPrefixStyle(style...), text)
 }
 
 func BuildPrefixStyle(parts ...int) string {
@@ -105,12 +105,13 @@ func (p *PrefixedWriter) Output() error {
 	for {
 		line, err := p.buf.ReadString('\n')
 		if err == io.EOF {
+			fmt.Fprintf(p.target, PrefixedWriterFormat, p.prefix, line)
 			break
 		}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(p.target, prefixedWriterFormat, p.prefix, line)
+		fmt.Fprintf(p.target, PrefixedWriterFormat, p.prefix, line)
 	}
 	return nil
 }
@@ -128,11 +129,11 @@ func NewPrefixedLogger(prefix string, logger *log.Logger) *PrefixedLogger {
 }
 
 func (p *PrefixedLogger) Printf(format string, v ...interface{}) {
-	p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, fmt.Sprintf(format, v...)))
+	p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintf(format, v...)))
 }
 
 func (p *PrefixedLogger) Println(v ...interface{}) {
-	p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, fmt.Sprintln(v...)))
+	p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintln(v...)))
 }
 
 func (p *PrefixedLogger) Write(b []byte) (int, error) {
@@ -141,7 +142,7 @@ func (p *PrefixedLogger) Write(b []byte) (int, error) {
 		b = b[:n-1]
 	}
 	for _, s := range strings.Split(string(b), "\n") {
-		p.logger.Output(2, fmt.Sprintf(prefixedWriterFormat, p.prefix, s))
+		p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, s))
 	}
 	return n, nil
 }
