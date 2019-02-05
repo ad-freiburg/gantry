@@ -66,3 +66,52 @@ func TestStepImageName(t *testing.T) {
 		}
 	}
 }
+
+func TestStepRawContainerName(t *testing.T) {
+	stepA := gantry.Step{Service: gantry.Service{}}
+	stepA.SetName("a Step")
+	stepB := gantry.Step{Service: gantry.Service{Image: "b"}}
+	stepC := gantry.Step{Service: gantry.Service{Image: "c"}}
+	stepC.SetName("c Step")
+
+	cases := []struct {
+		step   gantry.Step
+		result string
+	}{
+		{stepA, "a_step"},
+		{stepB, ""},
+		{stepC, "c_step"},
+	}
+
+	for _, c := range cases {
+		r := c.step.RawContainerName()
+		if r != c.result {
+			t.Errorf("Incorrect result for '%v', got: %s, wanted %s", c.step, r, c.result)
+		}
+	}
+}
+
+func TestStepContainerName(t *testing.T) {
+	stepA := gantry.Step{Service: gantry.Service{}}
+	stepA.SetName("a Step")
+	stepB := gantry.Step{Service: gantry.Service{Image: "b"}}
+	stepC := gantry.Step{Service: gantry.Service{Image: "c"}}
+	stepC.SetName("c Step")
+	gantry.ProjectName = "P"
+
+	cases := []struct {
+		step   gantry.Step
+		result string
+	}{
+		{stepA, "P_a_step"},
+		{stepB, "P_"},
+		{stepC, "P_c_step"},
+	}
+
+	for _, c := range cases {
+		r := c.step.ContainerName()
+		if r != c.result {
+			t.Errorf("Incorrect result for '%v', got: %s, wanted %s", c.step, r, c.result)
+		}
+	}
+}
