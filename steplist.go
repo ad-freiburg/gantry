@@ -4,22 +4,6 @@ import (
 	"encoding/json"
 )
 
-type StepList map[string]Step
-
-func (l *StepList) UnmarshalJSON(data []byte) error {
-	storage := make(map[string]Step, 0)
-	err := json.Unmarshal(data, &storage)
-	if err != nil {
-		return err
-	}
-	for name, step := range storage {
-		step.SetName(name)
-		storage[name] = step
-	}
-	*l = storage
-	return nil
-}
-
 type ServiceList map[string]Step
 
 func (l *ServiceList) UnmarshalJSON(data []byte) error {
@@ -37,5 +21,21 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 		}
 	}
 	*l = stepStorage
+	return nil
+}
+
+type StepList map[string]Step
+
+func (l *StepList) UnmarshalJSON(data []byte) error {
+	storage := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &storage)
+	if err != nil {
+		return err
+	}
+	for name, step := range storage {
+		step.SetName(name)
+		storage[name] = step
+	}
+	*l = storage
 	return nil
 }
