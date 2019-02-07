@@ -33,10 +33,7 @@ func TestStepDependencies(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		r, err := c.step.Dependencies()
-		if err != nil {
-			t.Errorf("%v for %v", err, c.step)
-		}
+		r := c.step.Dependencies()
 		if !reflect.DeepEqual(r, c.result) {
 			t.Errorf("Incorrect result for '%v', got: %#v, wanted %#v", c.step, r, c.result)
 		}

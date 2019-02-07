@@ -24,8 +24,7 @@ func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
 	td.nodes = append(td.nodes, tarjanNode{lowlink: index, stacked: true})
 	node := &td.nodes[index]
 
-	deps := td.graph[v].Dependencies()
-	for w, _ := range *deps {
+	for w, _ := range *td.graph[v].Dependencies() {
 		if _, ok := td.graph[w]; !ok {
 			return nil, fmt.Errorf("Unknown dependency '%s' for step '%s'", w, v)
 		}

@@ -44,11 +44,7 @@ var dotCmd = &cobra.Command{
 				shape = "rectangle"
 			}
 			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name(), shape))
-			dependencies, err := step.Dependencies()
-			if err != nil {
-				panic(err)
-			}
-			for name, _ := range *dependencies {
+			for name, _ := range *step.Dependencies() {
 				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.Replace(name, "-", "_", -1)))
 			}
 		}
