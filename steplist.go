@@ -14,7 +14,8 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for name, step := range serviceStorage {
-		step.SetName(name)
+		step.Name = name
+		step.InitColor()
 		stepStorage[name] = Step{
 			Service: step,
 			Detach:  true,
@@ -33,7 +34,8 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for name, step := range storage {
-		step.SetName(name)
+		step.Name = name
+		step.InitColor()
 		storage[name] = step
 	}
 	*l = storage

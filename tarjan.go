@@ -49,7 +49,7 @@ func (td *tarjanData) strongConnect(v string) (*tarjanNode, error) {
 		i := len(td.stack) - 1
 		for {
 			w := td.stack[i]
-			stackIndex := td.index[w.Name()]
+			stackIndex := td.index[w.Name]
 			td.nodes[stackIndex].stacked = false
 			vertices = append(vertices, w)
 			if stackIndex == index {

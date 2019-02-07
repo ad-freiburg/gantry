@@ -45,7 +45,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 				continue
 			}
 			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name())
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
 			for ignored, _ := range p.ignoredSteps {
 				delete(step.After, ignored)
@@ -58,7 +58,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 				continue
 			}
 			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name())
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
 			for ignored, _ := range p.ignoredSteps {
 				delete(step.After, ignored)
@@ -102,7 +102,7 @@ func (p *Pipelines) Check() error {
 		if len(steps) > 1 {
 			names := make([]string, len(steps))
 			for i, step := range steps {
-				names[i] = step.Name()
+				names[i] = step.Name
 			}
 			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
@@ -110,7 +110,7 @@ func (p *Pipelines) Check() error {
 		for r, _ := range *step.Dependencies() {
 			requirements[r] = true
 		}
-		delete(requirements, step.Name())
+		delete(requirements, step.Name)
 		if len(result)-1 < resultIndex {
 			result = append(result, make([]Step, 0))
 		}
@@ -216,7 +216,7 @@ func runParallelBuildImage(step Step, pull bool, durations *sync.Map, wg *sync.W
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
-	durations.Store(step.name, duration)
+	durations.Store(step.Name, duration)
 }
 
 func (p Pipeline) BuildImages(force bool) error {
@@ -274,7 +274,7 @@ func runParallelPullImage(step Step, force bool, durations *sync.Map, wg *sync.W
 		}
 		duration += duration2
 	}
-	durations.Store(step.name, duration)
+	durations.Store(step.Name, duration)
 }
 
 func (p Pipeline) PullImages(force bool) error {
@@ -379,7 +379,7 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
-	durations.Store(step.name, duration)
+	durations.Store(step.Name, duration)
 }
 
 func (p Pipeline) ExecuteSteps() error {
@@ -394,7 +394,7 @@ func (p Pipeline) ExecuteSteps() error {
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			channels[step.name] = make(chan struct{})
+			channels[step.Name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
 			for pre, _ := range *step.Dependencies() {
@@ -408,7 +408,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, val)
 			}
 			wg.Add(1)
-			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.name])
+			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name])
 			steps++
 		}
 	}

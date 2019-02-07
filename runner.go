@@ -8,10 +8,6 @@ import (
 	"log"
 	"os/exec"
 	"os/user"
-	"path/filepath"
-	"strings"
-
-	"github.com/google/shlex"
 )
 
 func getContainerExecutable() string {
@@ -113,22 +109,8 @@ func (r *LocalRunner) SetCommand(name string, args []string) {
 
 func NewImageBuilder(step Step, pull bool) func() error {
 	return func() error {
-		args := []string{"build", "--tag", step.ImageName()}
-		if step.BuildInfo.Dockerfile != "" {
-			args = append(args, "--file", filepath.Join(step.BuildInfo.Context, step.BuildInfo.Dockerfile))
-		}
-		if step.BuildInfo.Context == "" {
-			step.BuildInfo.Context = "."
-		}
-		if pull {
-			args = append(args, "--pull")
-		}
-		for _, arg := range step.BuildInfo.Args {
-			args = append(args, "--build-arg", arg)
-		}
-		args = append(args, step.BuildInfo.Context)
 		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), args)
+		r.SetCommand(getContainerExecutable(), step.BuildCommand(pull))
 		return r.Exec()
 	}
 }
@@ -136,7 +118,7 @@ func NewImageBuilder(step Step, pull bool) func() error {
 func NewImagePuller(step Step) func() error {
 	return func() error {
 		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"pull", step.ImageName()})
+		r.SetCommand(getContainerExecutable(), step.PullCommand())
 		return r.Exec()
 	}
 }
@@ -144,60 +126,7 @@ func NewImagePuller(step Step) func() error {
 func NewContainerRunner(step Step, network string) func() error {
 	return func() error {
 		r := step.Runner()
-		args := []string{
-			"run",
-			"--name", step.ContainerName(),
-			"--network", network,
-			"--network-alias", step.RawContainerName(),
-			"--network-alias", step.ContainerName(),
-		}
-		if step.Detach {
-			args = append(args, "-d")
-		} else {
-			args = append(args, "--rm")
-		}
-		for _, port := range step.Ports {
-			args = append(args, "-p", port)
-		}
-		for _, volume := range step.Volumes {
-			// Resolve relative paths
-			var err error
-			parts := strings.SplitN(volume, ":", 2)
-			parts[0], err = filepath.Abs(parts[0])
-			if err != nil {
-				return err
-			}
-			args = append(args, "-v", strings.Join(parts, ":"))
-		}
-		for _, envvar := range step.Environment {
-			args = append(args, "-e", envvar)
-		}
-		// Determine entrypoint and arguments
-		callerArgs := make([]string, 0)
-		if len(step.Entrypoint) > 0 {
-			if len(step.Entrypoint) > 1 {
-				args = append(args, "--entrypoint", step.Entrypoint[0])
-				callerArgs = append(callerArgs, step.Entrypoint[1:]...)
-			} else {
-				tokens, _ := shlex.Split(step.Entrypoint[0])
-				args = append(args, "--entrypoint", tokens[0])
-				callerArgs = append(callerArgs, tokens[1:]...)
-			}
-		}
-		// Add command
-		if len(step.Command) > 0 {
-			if len(step.Command) > 1 {
-				callerArgs = append(callerArgs, step.Command...)
-			} else {
-				tokens, _ := shlex.Split(step.Command[0])
-				callerArgs = append(callerArgs, tokens...)
-			}
-		}
-		args = append(args, step.ImageName())
-		if len(callerArgs) > 0 {
-			args = append(args, callerArgs...)
-		}
-		r.SetCommand(getContainerExecutable(), args)
+		r.SetCommand(getContainerExecutable(), step.RunCommand(network))
 		return r.Exec()
 	}
 }

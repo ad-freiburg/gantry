@@ -25,17 +25,10 @@ func TestPipelinesAllSteps(t *testing.T) {
 }
 
 func TestPipelinesCheck(t *testing.T) {
-	stepA := gantry.Step{}
-	stepA.SetName("a")
-	stepA.After = map[string]bool{"b": true}
-	stepB := gantry.Step{}
-	stepB.SetName("b")
-	stepB.After = map[string]bool{"a": true}
-	stepA2 := gantry.Step{}
-	stepA2.SetName("a")
-	stepC := gantry.Step{}
-	stepC.SetName("c")
-	stepC.After = map[string]bool{"b": true, "a": true}
+	stepA := gantry.Step{Service: gantry.Service{Name: "a"}, After: map[string]bool{"b": true}}
+	stepB := gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}
+	stepA2 := gantry.Step{Service: gantry.Service{Name: "a"}}
+	stepC := gantry.Step{Service: gantry.Service{Name: "c"}, After: map[string]bool{"b": true, "a": true}}
 
 	cases := []struct {
 		input  gantry.Pipelines

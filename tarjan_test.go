@@ -8,27 +8,14 @@ import (
 
 func TestNewTarjan(t *testing.T) {
 	// Diamond
-	stepA := gantry.Step{}
-	stepA.SetName("a")
-	stepB := gantry.Step{}
-	stepB.SetName("b")
-	stepB.After = map[string]bool{"a": true}
-	stepC := gantry.Step{}
-	stepC.SetName("c")
-	stepC.After = map[string]bool{"a": true}
-	stepD := gantry.Step{}
-	stepD.SetName("d")
-	stepD.After = map[string]bool{"b": true, "c": true}
+	stepA := gantry.Step{Service: gantry.Service{Name: "a"}}
+	stepB := gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}
+	stepC := gantry.Step{Service: gantry.Service{Name: "c"}, After: map[string]bool{"a": true}}
+	stepD := gantry.Step{Service: gantry.Service{Name: "d"}, After: map[string]bool{"b": true, "c": true}}
 	// Cycle
-	stepE := gantry.Step{}
-	stepE.SetName("e")
-	stepE.After = map[string]bool{"g": true}
-	stepF := gantry.Step{}
-	stepF.SetName("f")
-	stepF.After = map[string]bool{"e": true}
-	stepG := gantry.Step{}
-	stepG.SetName("g")
-	stepG.After = map[string]bool{"f": true}
+	stepE := gantry.Step{Service: gantry.Service{Name: "e"}, After: map[string]bool{"g": true}}
+	stepF := gantry.Step{Service: gantry.Service{Name: "f"}, After: map[string]bool{"e": true}}
+	stepG := gantry.Step{Service: gantry.Service{Name: "g"}, After: map[string]bool{"f": true}}
 
 	cases := []struct {
 		input  map[string]gantry.Step
@@ -111,9 +98,7 @@ func TestNewTarjan(t *testing.T) {
 }
 
 func TestNewTarjanMissingDependency(t *testing.T) {
-	stepB := gantry.Step{}
-	stepB.SetName("b")
-	stepB.After = map[string]bool{"a": true}
+	stepB := gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}
 
 	input := map[string]gantry.Step{"b": stepB}
 	_, err := gantry.NewTarjan(input)

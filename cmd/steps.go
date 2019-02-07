@@ -19,7 +19,7 @@ var stepsCmd = &cobra.Command{
 		}
 
 		for _, step := range pipelines.AllSteps() {
-			fmt.Println(step.Name())
+			fmt.Println(step.Name)
 		}
 		return nil
 	},
