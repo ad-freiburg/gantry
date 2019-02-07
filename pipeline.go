@@ -107,7 +107,7 @@ func (p *Pipelines) Check() error {
 			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
-		dependencies, _ := step.Dependencies()
+		dependencies := step.Dependencies()
 		for r, _ := range *dependencies {
 			requirements[r] = true
 		}
@@ -398,7 +398,7 @@ func (p Pipeline) ExecuteSteps() error {
 			channels[step.name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
-			dependencies, _ := step.Dependencies()
+			dependencies := step.Dependencies()
 			for pre, _ := range *dependencies {
 				if Verbose {
 					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyStyle(pre, STYLE_BOLD), step.ColoredContainerName())

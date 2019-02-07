@@ -31,6 +31,11 @@ func TestPipelinesCheck(t *testing.T) {
 	stepB := gantry.Step{}
 	stepB.SetName("b")
 	stepB.After = map[string]bool{"a": true}
+	stepA2 := gantry.Step{}
+	stepA2.SetName("a")
+	stepC := gantry.Step{}
+	stepC.SetName("c")
+	stepC.After = map[string]bool{"b": true, "a": true}
 
 	cases := []struct {
 		input  gantry.Pipelines
@@ -38,6 +43,7 @@ func TestPipelinesCheck(t *testing.T) {
 	}{
 		{gantry.Pipelines{}, ""},
 		{gantry.Pipelines{[]gantry.Step{stepA, stepB}}, "cyclic component found in (sub)pipeline: '%s'"},
+		{[][]gantry.Step{[]gantry.Step{stepA2}, []gantry.Step{stepB}, []gantry.Step{stepC}}, ""},
 	}
 
 	for _, c := range cases {

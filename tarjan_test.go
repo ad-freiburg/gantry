@@ -7,6 +7,7 @@ import (
 )
 
 func TestNewTarjan(t *testing.T) {
+	// Diamond
 	stepA := gantry.Step{}
 	stepA.SetName("a")
 	stepB := gantry.Step{}
@@ -18,6 +19,17 @@ func TestNewTarjan(t *testing.T) {
 	stepD := gantry.Step{}
 	stepD.SetName("d")
 	stepD.After = map[string]bool{"b": true, "c": true}
+	// Cycle
+	stepE := gantry.Step{}
+	stepE.SetName("e")
+	stepE.After = map[string]bool{"g": true}
+	stepF := gantry.Step{}
+	stepF.SetName("f")
+	stepF.After = map[string]bool{"e": true}
+	stepG := gantry.Step{}
+	stepG.SetName("g")
+	stepG.After = map[string]bool{"f": true}
+
 	cases := []struct {
 		input  map[string]gantry.Step
 		result gantry.Pipelines
@@ -68,6 +80,15 @@ func TestNewTarjan(t *testing.T) {
 				[]gantry.Step{stepB},
 				[]gantry.Step{stepC},
 				[]gantry.Step{stepD},
+			},
+		},
+		{
+			map[string]gantry.Step{
+				"e": stepE,
+				"f": stepF,
+				"g": stepG,
+			}, gantry.Pipelines{
+				[]gantry.Step{stepE, stepF, stepG},
 			},
 		},
 	}

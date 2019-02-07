@@ -28,7 +28,7 @@ type Step struct {
 	Detach bool            `json:"detach"`
 }
 
-func (s Step) Dependencies() (*types.StringSet, error) {
+func (s Step) Dependencies() *types.StringSet {
 	r := types.StringSet{}
 	for dep, _ := range s.After {
 		r[dep] = true
@@ -36,7 +36,7 @@ func (s Step) Dependencies() (*types.StringSet, error) {
 	for dep, _ := range s.DependsOn {
 		r[dep] = true
 	}
-	return &r, nil
+	return &r
 }
 
 func (s *Service) SetName(name string) {
