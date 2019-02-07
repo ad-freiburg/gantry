@@ -17,7 +17,7 @@ type Service struct {
 	Image       string                    `json:"image"`
 	Ports       []string                  `json:"ports"`
 	Volumes     []string                  `json:"volumes"`
-	Environment []string                  `json:"environment"`
+	Environment map[string]string         `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
 	color       int
@@ -113,8 +113,8 @@ func (s Step) RunCommand(network string) []string {
 		parts[0], _ = filepath.Abs(parts[0])
 		args = append(args, "-v", strings.Join(parts, ":"))
 	}
-	for _, envvar := range s.Environment {
-		args = append(args, "-e", envvar)
+	for k, v := range s.Environment {
+		args = append(args, "-e", fmt.Sprintf("%s=%s", k, v))
 	}
 	// Determine entrypoint and arguments
 	callerArgs := make([]string, 0)
