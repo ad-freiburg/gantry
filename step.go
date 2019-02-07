@@ -17,7 +17,7 @@ type Service struct {
 	Image       string                    `json:"image"`
 	Ports       []string                  `json:"ports"`
 	Volumes     []string                  `json:"volumes"`
-	Environment map[string]string         `json:"environment"`
+	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
 	color       int
@@ -85,7 +85,11 @@ func (s Step) BuildCommand(pull bool) []string {
 		args = append(args, "--pull")
 	}
 	for k, v := range s.BuildInfo.Args {
-		args = append(args, "--build-arg", fmt.Sprintf("%s=%s", k, v))
+		if v == nil {
+			t := os.Getenv(k)
+			v = &t
+		}
+		args = append(args, "--build-arg", fmt.Sprintf("%s=%s", k, *v))
 	}
 	args = append(args, s.BuildInfo.Context)
 	return args
@@ -114,7 +118,11 @@ func (s Step) RunCommand(network string) []string {
 		args = append(args, "-v", strings.Join(parts, ":"))
 	}
 	for k, v := range s.Environment {
-		args = append(args, "-e", fmt.Sprintf("%s=%s", k, v))
+		if v == nil {
+			t := os.Getenv(k)
+			v = &t
+		}
+		args = append(args, "-e", fmt.Sprintf("%s=%s", k, *v))
 	}
 	// Determine entrypoint and arguments
 	callerArgs := make([]string, 0)

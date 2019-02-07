@@ -123,6 +123,7 @@ func TestStepContainerName(t *testing.T) {
 }
 
 func TestStepBuildCommand(t *testing.T) {
+	bar := "Bar"
 	cases := []struct {
 		step   gantry.Step
 		pull   bool
@@ -132,7 +133,7 @@ func TestStepBuildCommand(t *testing.T) {
 		{gantry.Step{Service: gantry.Service{Image: "img"}}, true, []string{"build", "--tag", "img", "--pull", "."}},
 		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Dockerfile: "file"}}}, false, []string{"build", "--tag", "img", "--file", "file", "."}},
 		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Context: "./context"}}}, false, []string{"build", "--tag", "img", "./context"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]string{"Foo": "Bar", "Baz": "Baz"}}}}, false, []string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "--build-arg", "Baz=Baz", "."}},
+		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"Foo": &bar, "Baz": &bar}}}}, false, []string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "--build-arg", "Baz=Bar", "."}},
 	}
 
 	for _, c := range cases {
@@ -144,6 +145,7 @@ func TestStepBuildCommand(t *testing.T) {
 }
 
 func TestStepRunCommand(t *testing.T) {
+	bar := "Bar"
 	cases := []struct {
 		step    gantry.Step
 		network string
@@ -152,7 +154,7 @@ func TestStepRunCommand(t *testing.T) {
 		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name"}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img"}},
 		{gantry.Step{Service: gantry.Service{Image: "i", Name: "n"}, Detach: true}, "d", []string{"run", "--name", "T_n", "--network", "d", "--network-alias", "n", "--network-alias", "T_n", "-d", "i"}},
 		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Ports: []string{"8080:5000"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-p", "8080:5000", "img"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]string{"Foo": "Bar"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", "Foo=Bar", "img"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]*string{"Foo": &bar}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", "Foo=Bar", "img"}},
 	}
 
 	gantry.ProjectName = "T"
