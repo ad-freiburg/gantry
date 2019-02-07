@@ -155,6 +155,11 @@ func TestStepRunCommand(t *testing.T) {
 		{gantry.Step{Service: gantry.Service{Image: "i", Name: "n"}, Detach: true}, "d", []string{"run", "--name", "T_n", "--network", "d", "--network-alias", "n", "--network-alias", "T_n", "-d", "i"}},
 		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Ports: []string{"8080:5000"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-p", "8080:5000", "img"}},
 		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]*string{"Foo": &bar}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", "Foo=Bar", "img"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Volumes: []string{"/tmp:/tmp"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-v", "/tmp:/tmp", "img"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do", "nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do", "nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"}},
+		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"}},
 	}
 
 	gantry.ProjectName = "T"
