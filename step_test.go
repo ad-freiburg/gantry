@@ -133,7 +133,7 @@ func TestStepBuildCommand(t *testing.T) {
 		{gantry.Step{Service: gantry.Service{Image: "img"}}, true, []string{"build", "--tag", "img", "--pull", "."}},
 		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Dockerfile: "file"}}}, false, []string{"build", "--tag", "img", "--file", "file", "."}},
 		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Context: "./context"}}}, false, []string{"build", "--tag", "img", "./context"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"Foo": &bar, "Baz": &bar}}}}, false, []string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "--build-arg", "Baz=Bar", "."}},
+		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"Foo": &bar}}}}, false, []string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "."}},
 	}
 
 	for _, c := range cases {
