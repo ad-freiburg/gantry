@@ -1,3 +1,4 @@
+// Package types implements types which can be unmarshaled from json.
 package types // import "github.com/ad-freiburg/gantry/types"
 
 import "encoding/json"
