@@ -2,9 +2,11 @@ package types // import "github.com/ad-freiburg/gantry/types"
 
 import "encoding/json"
 
+// StringSet stores a list of strings as a map of bools.
 type StringSet map[string]bool
 
-func (l *StringSet) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON sets *r to a copy of data.
+func (r *StringSet) UnmarshalJSON(data []byte) error {
 	result := make(map[string]bool, 0)
 
 	var storage []string
@@ -21,6 +23,6 @@ func (l *StringSet) UnmarshalJSON(data []byte) error {
 		}
 		result[value] = true
 	}
-	*l = result
+	*r = result
 	return nil
 }

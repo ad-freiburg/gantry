@@ -2,10 +2,12 @@ package types // import "github.com/ad-freiburg/gantry/types"
 
 import "encoding/json"
 
+// StringOrStringSlice stores a single string or a slice as a slice.
 type StringOrStringSlice []string
 
-func (l *StringOrStringSlice) UnmarshalJSON(data []byte) error {
-	result := make([]string, 0)
+// UnmarshalJSON sets *r to a copy of data.
+func (r *StringOrStringSlice) UnmarshalJSON(data []byte) error {
+	var result []string
 
 	err := json.Unmarshal(data, &result)
 	if err != nil {
@@ -16,6 +18,6 @@ func (l *StringOrStringSlice) UnmarshalJSON(data []byte) error {
 		}
 		result = []string{value}
 	}
-	*l = result
+	*r = result
 	return nil
 }

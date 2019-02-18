@@ -10,6 +10,7 @@ import (
 	"github.com/google/shlex"
 )
 
+// Service provides a service definition from docker-compose.
 type Service struct {
 	BuildInfo   BuildInfo                 `json:"build"`
 	Command     types.StringOrStringSlice `json:"command"`
@@ -23,6 +24,7 @@ type Service struct {
 	color       int
 }
 
+// Step provides an extended service.
 type Step struct {
 	Service
 	Role   string          `json:"role"`
@@ -30,29 +32,35 @@ type Step struct {
 	Detach bool            `json:"detach"`
 }
 
+// Dependencies returns all steps needed for running s.
 func (s Step) Dependencies() *types.StringSet {
 	r := types.StringSet{}
-	for dep, _ := range s.After {
+	for dep := range s.After {
 		r[dep] = true
 	}
-	for dep, _ := range s.DependsOn {
+	for dep := range s.DependsOn {
 		r[dep] = true
 	}
 	return &r
 }
 
+// InitColor initializes the color of s.
 func (s *Service) InitColor() {
 	s.color = GetNextFriendlyColor()
 }
 
+// ColoredName returns the name of s with color applied.
 func (s Service) ColoredName() string {
 	return ApplyStyle(s.Name, s.color)
 }
 
+// ColoredContainerName returns the container name of s with color applied.
 func (s Service) ColoredContainerName() string {
 	return ApplyStyle(s.ContainerName(), s.color)
 }
 
+// ImageName returns the name of the image of s.
+// The name of the step is used if non is specified.
 func (s Service) ImageName() string {
 	if s.Image != "" {
 		return s.Image
@@ -60,19 +68,24 @@ func (s Service) ImageName() string {
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
+// RawContainerName returns the name for a container of s.
 func (s Service) RawContainerName() string {
 	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
 }
 
+// ContainerName returns the name for a container of s prefixed with the
+// current project name.
 func (s Service) ContainerName() string {
 	return fmt.Sprintf("%s_%s", ProjectName, strings.Replace(strings.ToLower(s.Name), " ", "_", -1))
 }
 
+// Runner returns a Runner which can execute s.
 func (s Service) Runner() Runner {
 	r := NewLocalRunner(s.ColoredContainerName(), os.Stdout, os.Stderr)
 	return r
 }
 
+// BuildCommand returns the command to build a new image for s.
 func (s Step) BuildCommand(pull bool) []string {
 	args := []string{"build", "--tag", s.ImageName()}
 	if s.BuildInfo.Dockerfile != "" {
@@ -95,6 +108,7 @@ func (s Step) BuildCommand(pull bool) []string {
 	return args
 }
 
+// RunCommand returns the command to run an instance of step s.
 func (s Step) RunCommand(network string) []string {
 	args := []string{
 		"run",
@@ -152,6 +166,7 @@ func (s Step) RunCommand(network string) []string {
 	return args
 }
 
+// PullCommand returns the command to pull the image for step s.
 func (s Step) PullCommand() []string {
 	return []string{"pull", s.ImageName()}
 }

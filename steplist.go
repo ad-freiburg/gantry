@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 )
 
+// ServiceList stores docker-compose service definitions as steps.
 type ServiceList map[string]Step
 
-func (l *ServiceList) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON sets *r to a copy of data.
+func (r *ServiceList) UnmarshalJSON(data []byte) error {
 	serviceStorage := make(map[string]Service, 0)
 	stepStorage := make(map[string]Step, 0)
 	err := json.Unmarshal(data, &serviceStorage)
@@ -21,13 +23,15 @@ func (l *ServiceList) UnmarshalJSON(data []byte) error {
 			Detach:  true,
 		}
 	}
-	*l = stepStorage
+	*r = stepStorage
 	return nil
 }
 
+// StepList stores gantry steps as steps.
 type StepList map[string]Step
 
-func (l *StepList) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON sets *r to a copy of data.
+func (r *StepList) UnmarshalJSON(data []byte) error {
 	storage := make(map[string]Step, 0)
 	err := json.Unmarshal(data, &storage)
 	if err != nil {
@@ -38,6 +42,6 @@ func (l *StepList) UnmarshalJSON(data []byte) error {
 		step.InitColor()
 		storage[name] = step
 	}
-	*l = storage
+	*r = storage
 	return nil
 }

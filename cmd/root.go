@@ -63,11 +63,11 @@ var rootCmd = &cobra.Command{
 		return upCmd.RunE(cmd, args)
 	},
 	Version:                gantry.Version,
-	BashCompletionFunction: bash_completion_func,
+	BashCompletionFunction: bashCompletionFunc,
 }
 
 const (
-	bash_completion_func = `__gantry_get_steps()
+	bashCompletionFunc = `__gantry_get_steps()
 {
     local gantry_output out
     if gantry_output=$(gantry steps 2>/dev/null); then
@@ -97,6 +97,7 @@ func init() {
 	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
 }
 
+// Execute is the main entrypoint for using gantry commands.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Println(err)

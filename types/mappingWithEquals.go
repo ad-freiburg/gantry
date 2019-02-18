@@ -5,9 +5,11 @@ import (
 	"strings"
 )
 
+// MappingWithEquals stores a list of key=value or key: value as a map.
 type MappingWithEquals map[string]*string
 
-func (t *MappingWithEquals) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON sets *r to a copy of data.
+func (r *MappingWithEquals) UnmarshalJSON(data []byte) error {
 	result := map[string]*string{}
 
 	err := json.Unmarshal(data, &result)
@@ -26,6 +28,6 @@ func (t *MappingWithEquals) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	*t = result
+	*r = result
 	return nil
 }
