@@ -15,14 +15,9 @@ is not installed `docker` will be used directly.
 - Generating `.dot` file showing dependencies using `gantry dot`.
 
 ## Build/Download
-Make sure you have a Go environment [set up](https://golang.org/doc/install)
-then do
-
-    go get github.com/ad-freiburg/gantry
-
-Alternatively you can download binary releases
-[here](https://github.com/ad-freiburg/gantry/releases) or even simpler, follow
-the Setup section with detailed commands.
+Binary releases are provided
+[here](https://github.com/ad-freiburg/gantry/releases). Alternatively you can
+build your own release as described in the *Building a Release* section.
 
 ## Building a Release
 To build a release version first make sure everyhting works, then edit the
