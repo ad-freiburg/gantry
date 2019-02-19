@@ -1,6 +1,7 @@
 # Gantry (Container Crane)
 [![GoDoc](https://godoc.org/github.com/ad-freiburg/gantry?status.svg)](https://godoc.org/github.com/ad-freiburg/gantry)
-[![Build Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://travis-ci.org/ad-freiburg/gantry)
+[![Build Status](https://travis-ci.org/ad-freiburg/gantry.svg?branch=master)](https://travis-ci.org/ad-freiburg/gantry)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ad-freiburg/gantry)](https://goreportcard.com/report/github.com/ad-freiburg/gantry)
 
 Gantry is a pipeline management tool using containers for all relevant steps.
 It supports a basic `docker-compose` subset allowing `docker-compose` like
