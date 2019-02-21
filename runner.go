@@ -148,10 +148,7 @@ func NewContainerKiller(step Step) func() error {
 				return err
 			}
 		}
-		if err := scanner.Err(); err != nil {
-			return err
-		}
-		return nil
+		return scanner.Err()
 	}
 }
 
@@ -196,10 +193,7 @@ func NewOldContainerRemover(step Step) func() error {
 				return err
 			}
 		}
-		if err := scanner.Err(); err != nil {
-			return err
-		}
-		return nil
+		return scanner.Err()
 	}
 }
 
