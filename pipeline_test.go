@@ -15,7 +15,7 @@ func TestPipelinesAllSteps(t *testing.T) {
 		result []gantry.Step
 	}{
 		{gantry.Pipelines{}, []gantry.Step{}},
-		{gantry.Pipelines{[]gantry.Step{gantry.Step{}}}, []gantry.Step{gantry.Step{}}},
+		{gantry.Pipelines{[]gantry.Step{{}}}, []gantry.Step{{}}},
 	}
 
 	for _, c := range cases {
@@ -38,7 +38,7 @@ func TestPipelinesCheck(t *testing.T) {
 	}{
 		{gantry.Pipelines{}, ""},
 		{gantry.Pipelines{[]gantry.Step{stepA, stepB}}, "cyclic component found in (sub)pipeline: '%s'"},
-		{[][]gantry.Step{[]gantry.Step{stepA2}, []gantry.Step{stepB}, []gantry.Step{stepC}}, ""},
+		{[][]gantry.Step{{stepA2}, {stepB}, {stepC}}, ""},
 	}
 
 	for _, c := range cases {
@@ -56,10 +56,10 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		result     gantry.Pipelines
 	}{
 		{gantry.PipelineDefinition{}, "", gantry.Pipelines{}},
-		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{gantry.Step{}}}},
-		{gantry.PipelineDefinition{Services: gantry.ServiceList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{gantry.Step{}}}},
+		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
+		{gantry.PipelineDefinition{Services: gantry.ServiceList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
 		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}, Services: gantry.ServiceList{"a": gantry.Step{}}}, "Redeclaration of step 'a'", gantry.Pipelines{}},
-		{gantry.PipelineDefinition{IgnoredSteps: types.StringSet{"a": true}, Steps: gantry.StepList{"b": gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}}, Services: gantry.ServiceList{"c": gantry.Step{Service: gantry.Service{Name: "c", DependsOn: map[string]bool{"a": true}}}}}, "", [][]gantry.Step{[]gantry.Step{gantry.Step{}}, []gantry.Step{gantry.Step{}}}},
+		{gantry.PipelineDefinition{IgnoredSteps: types.StringSet{"a": true}, Steps: gantry.StepList{"b": gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}}, Services: gantry.ServiceList{"c": gantry.Step{Service: gantry.Service{Name: "c", DependsOn: map[string]bool{"a": true}}}}}, "", [][]gantry.Step{{{}}, {{}}}},
 	}
 
 	for _, c := range cases {

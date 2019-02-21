@@ -47,7 +47,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored, _ := range p.IgnoredSteps {
+			for ignored := range p.IgnoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -60,7 +60,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored, _ := range p.IgnoredSteps {
+			for ignored := range p.IgnoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -107,7 +107,7 @@ func (p *Pipelines) Check() error {
 			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
-		for r, _ := range *step.Dependencies() {
+		for r := range *step.Dependencies() {
 			requirements[r] = true
 		}
 		delete(requirements, step.Name)
@@ -188,7 +188,7 @@ func (p *Pipeline) setPipelineEnvironment(path string) error {
 func (p Pipeline) Check() error {
 	roleProvider := make(map[string][]Machine)
 	for _, machine := range p.Environment.Machines {
-		for role, _ := range machine.Roles {
+		for role := range machine.Roles {
 			roleProvider[role] = append(roleProvider[role], machine)
 		}
 	}
@@ -397,7 +397,7 @@ func (p Pipeline) ExecuteSteps() error {
 			channels[step.Name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
-			for pre, _ := range *step.Dependencies() {
+			for pre := range *step.Dependencies() {
 				if Verbose {
 					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyStyle(pre, STYLE_BOLD), step.ColoredContainerName())
 				}

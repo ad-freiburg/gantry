@@ -88,7 +88,7 @@ func TestNewTarjan(t *testing.T) {
 		if len(result) != len(c.result) {
 			t.Errorf("Incorrect length for '%d', got %d, wanted %d", ci, len(result), len(c.result))
 		}
-		for i, _ := range result {
+		for i := range result {
 			if len(result[i]) != len(c.result[i]) {
 				t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
 			}
