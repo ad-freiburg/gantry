@@ -248,7 +248,7 @@ func (p Pipeline) BuildImages(force bool) error {
 	if Verbose {
 		pipelineLogger.Printf("Build %d images in %s", images, time.Since(start))
 	}
-	var totalElapsedTime time.Duration = 0
+	var totalElapsedTime time.Duration
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
 		if ok {
@@ -306,7 +306,7 @@ func (p Pipeline) PullImages(force bool) error {
 	if Verbose {
 		pipelineLogger.Printf("Pulled %d images in %s", images, time.Since(start))
 	}
-	var totalElapsedTime time.Duration = 0
+	var totalElapsedTime time.Duration
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
 		if ok {
@@ -418,7 +418,7 @@ func (p Pipeline) ExecuteSteps() error {
 	close(runChannel)
 	wg.Wait()
 	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
-	var totalElapsedTime time.Duration = 0
+	var totalElapsedTime time.Duration
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
 		if ok {
