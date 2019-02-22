@@ -9,58 +9,112 @@ import (
 	"sync"
 )
 
+// PrefixedWriterFormat provides formatting for to space separated strings
+// resetting ANSI formatting after each string.
 const PrefixedWriterFormat string = "%s\u001b[0m %s\u001b[0m"
-const GenericStringFormat string = "\u001b[%sm%s\u001b[0m"
-const STYLE_NORMAL int = 0
-const STYLE_BOLD int = 1
-const STYLE_DIM int = 2
-const STYLE_ITALIC int = 3
-const STYLE_UNDERLINE int = 4
-const STYLE_STRIKETHROUGH int = 9
 
-const FG_COLOR_BLACK int = 30
-const FG_COLOR_RED int = 31
-const FG_COLOR_GREEN int = 32
-const FG_COLOR_YELLOW int = 33
-const FG_COLOR_BLUE int = 34
-const FG_COLOR_MAGENTA int = 35
-const FG_COLOR_CYAN int = 36
-const FG_COLOR_LIGHT_GRAY int = 37
-const FG_COLOR_DARK_GRAY int = 90
-const FG_COLOR_LIGHT_RED int = 91
-const FG_COLOR_LIGHT_GREEN int = 92
-const FG_COLOR_LIGHT_YELLOW int = 93
-const FG_COLOR_LIGHT_BLUE int = 94
-const FG_COLOR_LIGHT_MAGENTA int = 95
-const FG_COLOR_LIGHT_CYAN int = 96
-const FG_COLOR_WHITE int = 97
+// GenericStringFormat provides formatting for a single string enclodes in
+// ANSI formatting tags.
+const GenericStringFormat string = "\u001b[%sm%s\u001b[0m"
+
+// AnsiStyleNormal stores int value for normal style
+const AnsiStyleNormal int = 0
+
+// AnsiStyleBold stores int value for bold style
+const AnsiStyleBold int = 1
+
+// AnsiStyleDim stores int value for dim style
+const AnsiStyleDim int = 2
+
+// AnsiStyleItalic stores int value for italic style
+const AnsiStyleItalic int = 3
+
+// AnsiStyleUnderline stores int value for underline style
+const AnsiStyleUnderline int = 4
+
+// AnsiStyleStrikethrough stores int value for strikethrough style
+const AnsiStyleStrikethrough int = 9
+
+// AnsiForegroundColorBlack stores int value for black foreground
+const AnsiForegroundColorBlack int = 30
+
+// AnsiForegroundColorRed stores int value for red foreground
+const AnsiForegroundColorRed int = 31
+
+// AnsiForegroundColorGreen stores int value for green foreground
+const AnsiForegroundColorGreen int = 32
+
+// AnsiForegroundColorYellow stores int value for yellow foreground
+const AnsiForegroundColorYellow int = 33
+
+// AnsiForegroundColorBlue stores int value for blue foreground
+const AnsiForegroundColorBlue int = 34
+
+// AnsiForegroundColorMagenta stores int value for magenta foreground
+const AnsiForegroundColorMagenta int = 35
+
+// AnsiForegroundColorCyan stores int value for cyan foreground
+const AnsiForegroundColorCyan int = 36
+
+// AnsiForegroundColorLightGray stores int value for light gray foreground
+const AnsiForegroundColorLightGray int = 37
+
+// AnsiForegroundColorDarkGray stores int value for dark gray foreground
+const AnsiForegroundColorDarkGray int = 90
+
+// AnsiForegroundColorLightRed stores int value for light red foreground
+const AnsiForegroundColorLightRed int = 91
+
+// AnsiForegroundColorLightGreen stores int value for light green foreground
+const AnsiForegroundColorLightGreen int = 92
+
+// AnsiForegroundColorLightYellow stores int value for light yellow foreground
+const AnsiForegroundColorLightYellow int = 93
+
+// AnsiForegroundColorLightBlue stores int value for light blue foreground
+const AnsiForegroundColorLightBlue int = 94
+
+// AnsiForegroundColorLightMagenta stores int value for light magenta foreground
+const AnsiForegroundColorLightMagenta int = 95
+
+// AnsiForegroundColorLightCyan stores int value for light cyan foreground
+const AnsiForegroundColorLightCyan int = 96
+
+// AnsiForegroundColorWhite stores int value for white foreground
+const AnsiForegroundColorWhite int = 97
 
 var (
 	friendlyColors *ColorStore
 )
 
 func init() {
-	friendlyColors = NewColorStore([]int{FG_COLOR_CYAN, FG_COLOR_YELLOW, FG_COLOR_MAGENTA, FG_COLOR_BLUE, FG_COLOR_LIGHT_CYAN, FG_COLOR_LIGHT_YELLOW, FG_COLOR_LIGHT_MAGENTA, FG_COLOR_LIGHT_BLUE})
+	friendlyColors = NewColorStore([]int{AnsiForegroundColorCyan, AnsiForegroundColorYellow, AnsiForegroundColorMagenta, AnsiForegroundColorBlue, AnsiForegroundColorLightCyan, AnsiForegroundColorLightYellow, AnsiForegroundColorLightMagenta, AnsiForegroundColorLightBlue})
 }
 
-func ApplyStyle(text string, style ...int) string {
-	return fmt.Sprintf(GenericStringFormat, BuildPrefixStyle(style...), text)
+// ApplyAnsiStyle applies ansi integer styles to text
+func ApplyAnsiStyle(text string, style ...int) string {
+	return fmt.Sprintf(GenericStringFormat, BuildAnsiStyle(style...), text)
 }
 
-func BuildPrefixStyle(parts ...int) string {
+// BuildAnsiStyle combines style integers with ;
+func BuildAnsiStyle(parts ...int) string {
 	return strings.Trim(strings.Replace(fmt.Sprint(parts), " ", ";", -1), "[]")
 }
 
+// GetNextFriendlyColor returns the next friendly color from the global
+// friendlyColors store.
 func GetNextFriendlyColor() int {
 	return friendlyColors.NextColor()
 }
 
+// ColorStore provides a synced looping stylelist.
 type ColorStore struct {
 	index  int
 	colors []int
 	m      sync.Mutex
 }
 
+// NewColorStore creates a ColorStore for the provided list of styles.
 func NewColorStore(colors []int) *ColorStore {
 	return &ColorStore{
 		index:  -1,
@@ -68,6 +122,7 @@ func NewColorStore(colors []int) *ColorStore {
 	}
 }
 
+// NextColor returns the next color. Loops if list is exhausted.
 func (c *ColorStore) NextColor() int {
 	defer c.m.Unlock()
 	c.m.Lock()

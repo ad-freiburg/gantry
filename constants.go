@@ -29,7 +29,7 @@ var (
 
 func init() {
 	pipelineLogger = NewPrefixedLogger(
-		ApplyStyle("gantry", STYLE_BOLD),
+		ApplyAnsiStyle("gantry", AnsiStyleBold),
 		log.New(os.Stderr, "", log.LstdFlags),
 	)
 }

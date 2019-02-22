@@ -51,12 +51,12 @@ func (s *Service) InitColor() {
 
 // ColoredName returns the name of s with color applied.
 func (s Service) ColoredName() string {
-	return ApplyStyle(s.Name, s.color)
+	return ApplyAnsiStyle(s.Name, s.color)
 }
 
 // ColoredContainerName returns the container name of s with color applied.
 func (s Service) ColoredContainerName() string {
-	return ApplyStyle(s.ContainerName(), s.color)
+	return ApplyAnsiStyle(s.ContainerName(), s.color)
 }
 
 // ImageName returns the name of the image of s.
