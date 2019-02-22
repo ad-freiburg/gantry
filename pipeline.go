@@ -24,12 +24,14 @@ func init() {
 	)
 }
 
+// Pipeline stores all definitions and settings regarding a deployment.
 type Pipeline struct {
 	Definition  PipelineDefinition
 	Environment PipelineEnvironment
 	NetworkName string
 }
 
+// PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
 	Steps        StepList    `json:"steps"`
 	Services     ServiceList `json:"services"`
@@ -37,9 +39,12 @@ type PipelineDefinition struct {
 	IgnoredSteps types.StringSet
 }
 
+// Pipelines calculates and verifies dependencies and ordering for steps
+// defined in the PipelineDefinition p.
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
+		// Verfiy steps
 		for name, step := range p.Steps {
 			if _, ignore := p.IgnoredSteps[name]; ignore {
 				continue
@@ -53,6 +58,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			}
 			steps[name] = step
 		}
+		// Verify services
 		for name, step := range p.Services {
 			if _, ignore := p.IgnoredSteps[name]; ignore {
 				continue
@@ -67,10 +73,12 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			steps[name] = step
 		}
 
+		// Calculate order and indepenence
 		pipelines, err := NewTarjan(steps)
 		if err != nil {
 			return nil, err
 		}
+		// Verify pipelines
 		err = pipelines.Check()
 		if err != nil {
 			return nil, err
@@ -80,8 +88,10 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	return p.pipelines, nil
 }
 
+// Pipelines stores parallel and dependent steps/services.
 type Pipelines [][]Step
 
+// AllSteps returns all in p defined steps without ordering information.
 func (p Pipelines) AllSteps() []Step {
 	result := make([]Step, 0)
 	for _, pipeline := range p {
@@ -92,9 +102,11 @@ func (p Pipelines) AllSteps() []Step {
 	return result
 }
 
+// Check performs checks for cyclic dependencies and requirements fulfillment.
 func (p *Pipelines) Check() error {
 	result := make(Pipelines, 0)
-	// walk reverse order, if all requirements are found the next step is a new component
+	// walk reverse order, if all requirements are found the next step is a new
+	// component
 	resultIndex := 0
 	requirements := make(map[string]bool, 0)
 	for i := len(*p) - 1; i >= 0; i-- {
@@ -123,10 +135,13 @@ func (p *Pipelines) Check() error {
 	return nil
 }
 
+// PipelineEnvironment stores additional data for pipelines.
 type PipelineEnvironment struct {
 	Machines []Machine `json:"machines"`
 }
 
+// NewPipeline creates a new Pipeline from given files which ignores the
+// existence of steps with names provided in ignoreSteps.
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	err := p.loadPipelineDefinition(definitionPath)
@@ -185,6 +200,7 @@ func (p *Pipeline) setPipelineEnvironment(path string) error {
 	return yaml.Unmarshal(data, &p.Environment)
 }
 
+// Check validates Pipeline p, checks if all required information is present.
 func (p Pipeline) Check() error {
 	roleProvider := make(map[string][]Machine)
 	for _, machine := range p.Environment.Machines {
@@ -219,6 +235,7 @@ func runParallelBuildImage(step Step, pull bool, durations *sync.Map, wg *sync.W
 	durations.Store(step.Name, duration)
 }
 
+// BuildImages builds all buildable images of Pipeline p in parallel.
 func (p Pipeline) BuildImages(force bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
@@ -277,6 +294,7 @@ func runParallelPullImage(step Step, force bool, durations *sync.Map, wg *sync.W
 	durations.Store(step.Name, duration)
 }
 
+// PullImages pulls all pullable images of Pipeline p in parallel.
 func (p Pipeline) PullImages(force bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
@@ -320,6 +338,7 @@ func (p Pipeline) PullImages(force bool) error {
 	return nil
 }
 
+// KillContainers kills all running containers of Pipeline p.
 func (p Pipeline) KillContainers() error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
@@ -333,6 +352,7 @@ func (p Pipeline) KillContainers() error {
 	return nil
 }
 
+// RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers() error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
@@ -346,16 +366,19 @@ func (p Pipeline) RemoveContainers() error {
 	return nil
 }
 
+// CreateNetwork creates a network using the NetworkName of the Pipeline p.
 func (p Pipeline) CreateNetwork() error {
 	NewNetworkCreator(p)()
 	return nil
 }
 
+// RemoveNetwork removes the network of Pipeline p.
 func (p Pipeline) RemoveNetwork() error {
 	NewNetworkRemover(p)()
 	return nil
 }
 
+// Runner returns a runner for the pipeline itself. Currently only localhost.
 func (p Pipeline) Runner() Runner {
 	r := NewLocalRunner("local", os.Stdout, os.Stderr)
 	return r
@@ -382,6 +405,8 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	durations.Store(step.Name, duration)
 }
 
+// ExecuteSteps runs all not ignored steps/services in the order defined by
+// there dependencies. Each step/service is run as soon as possible.
 func (p Pipeline) ExecuteSteps() error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
