@@ -19,7 +19,7 @@ var (
 
 func init() {
 	pipelineLogger = NewPrefixedLogger(
-		ApplyStyle("pipeline", STYLE_BOLD),
+		ApplyAnsiStyle("pipeline", AnsiStyleBold),
 		log.New(os.Stderr, "", log.LstdFlags),
 	)
 }
@@ -424,7 +424,7 @@ func (p Pipeline) ExecuteSteps() error {
 			preChannels = append(preChannels, runChannel)
 			for pre := range *step.Dependencies() {
 				if Verbose {
-					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyStyle(pre, STYLE_BOLD), step.ColoredContainerName())
+					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
 				}
 				val, ok := channels[pre]
 				if !ok {
