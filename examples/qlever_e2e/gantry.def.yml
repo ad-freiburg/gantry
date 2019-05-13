@@ -9,7 +9,7 @@ services:
       - INDEX_PREFIX=scientists-index
     depends_on:
       - build_index
-    command: "-t -a"
+    command: "-t"
 
 steps:
   download_input:
@@ -17,7 +17,7 @@ steps:
     volumes:
       - ./input:/input
     command:
-      "wget -P /input/ http://filicudi.informatik.uni-freiburg.de/bjoern-data/scientist-collection.zip"
+      "wget -P /input/ http://qlever.cs.uni-freiburg.de/data/scientist-collection.zip"
 
   unzip_input:
     after:
@@ -36,7 +36,7 @@ steps:
       - ./input/scientist-collection:/input:ro
       - ./index:/index
     entrypoint: "IndexBuilderMain"
-    command: "-a -l -i /index/scientists-index -n /input/scientists.nt -w /input/scientists.wordsfile.tsv -d /input/scientists.docsfile.tsv"
+    command: "-l -i /index/scientists-index -f /input/scientists.nt -w /input/scientists.wordsfile.tsv -d /input/scientists.docsfile.tsv"
 
   wait_for_qlever:
     after:
