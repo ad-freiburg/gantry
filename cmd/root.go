@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ad-freiburg/gantry"
 	"github.com/ad-freiburg/gantry/types"
@@ -62,6 +64,9 @@ var rootCmd = &cobra.Command{
 		}
 		return upCmd.RunE(cmd, args)
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		pipeline.CleanUp(syscall.Signal(0))
+	},
 	Version:                gantry.Version,
 	BashCompletionFunction: bashCompletionFunc,
 }
@@ -95,6 +100,25 @@ func init() {
 	rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
 	rootCmd.PersistentFlags().SetAnnotation("env", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
 	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
+	go signalHandler()
+}
+
+func signalHandler() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c)
+	for s := range c {
+		switch s {
+		case syscall.SIGINT:
+			pipeline.CleanUp(s)
+			os.Exit(1)
+		case syscall.SIGKILL:
+			pipeline.CleanUp(s)
+			os.Exit(1)
+		case syscall.SIGCHLD:
+		default:
+			log.Printf("%q\n", s)
+		}
+	}
 }
 
 // Execute is the main entrypoint for using gantry commands.

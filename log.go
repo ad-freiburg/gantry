@@ -91,6 +91,9 @@ func init() {
 	friendlyColors = NewColorStore([]int{AnsiForegroundColorCyan, AnsiForegroundColorYellow, AnsiForegroundColorMagenta, AnsiForegroundColorBlue, AnsiForegroundColorLightCyan, AnsiForegroundColorLightYellow, AnsiForegroundColorLightMagenta, AnsiForegroundColorLightBlue})
 }
 
+type LogSettings struct {
+}
+
 // ApplyAnsiStyle applies ansi integer styles to text
 func ApplyAnsiStyle(text string, style ...int) string {
 	return fmt.Sprintf(GenericStringFormat, BuildAnsiStyle(style...), text)
