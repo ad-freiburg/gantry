@@ -4,7 +4,7 @@ services:
   qlever:
     image: niklas88/qlever
     volumes:
-      - "{{TempDir \"index\"}}:/index"
+      - "{{EnvDir \"QLEVER_INDEX\" \"index\"}}:/index"
     environment:
       - INDEX_PREFIX=scientists-index
     depends_on:
@@ -34,7 +34,7 @@ steps:
     image: niklas88/qlever
     volumes:
       - "{{TempDir \"input\"}}/scientist-collection:/input:ro"
-      - "{{TempDir \"index\"}}:/index"
+      - "{{EnvDir \"QLEVER_INDEX\" \"index\"}}:/index"
     entrypoint: "IndexBuilderMain"
     command: "-l -i /index/scientists-index -f /input/scientists.nt -w /input/scientists.wordsfile.tsv -d /input/scientists.docsfile.tsv"
 

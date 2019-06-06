@@ -3,6 +3,7 @@ package gantry
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,6 +28,7 @@ type PipelineEnvironment struct {
 func NewPipelineEnvironment() *PipelineEnvironment {
 	e := &PipelineEnvironment{}
 	e.tempPaths = make(map[string]string, 0)
+	e.importCurrentEnv()
 	return e
 }
 
@@ -44,7 +46,26 @@ func (e *PipelineEnvironment) Load(path string) error {
 	if err != nil {
 		return err
 	}
-	return yaml.Unmarshal(data, e)
+	err = yaml.Unmarshal(data, e)
+	if err != nil {
+		return err
+	}
+	e.importCurrentEnv()
+	return nil
+}
+
+func (e *PipelineEnvironment) importCurrentEnv() {
+	// Import current environment
+	if e.Environment == nil {
+		e.Environment = types.MappingWithEquals{}
+	}
+	for _, pair := range os.Environ() {
+		parts := strings.SplitN(pair, "=", 2)
+		if old, exists := e.Environment[parts[0]]; exists && *old != parts[1] {
+			log.Printf("Replacing Environment '%s': '%s' with '%s'", parts[0], old, parts[1])
+		}
+		e.Environment[parts[0]] = &parts[1]
+	}
 }
 
 func (e *PipelineEnvironment) exportEnvironment(path string) error {
@@ -59,6 +80,27 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
 	for k, v := range e.Environment {
 		fm[k] = func() string { return *v }
+	}
+	fm["EnvDir"] = func(args ...interface{}) (string, error) {
+		if len(args) < 1 {
+			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
+		}
+		if len(args) > 2 {
+			return "", errors.New(fmt.Sprintf("EnvDir: too many arguments. Got %d want <=2", len(args)))
+		}
+		parts := make([]string, len(args))
+		for i, v := range args {
+			parts[i] = fmt.Sprint(v)
+		}
+		val, ok := e.Environment[parts[0]]
+		if !ok {
+			if len(parts) < 2 {
+				return "", errors.New(fmt.Sprintf("EnvDir '%s' not defined, no fallback provided", parts[0]))
+			}
+			log.Printf("EnvDir '%s' not found, using fallback '%s'", parts[0], parts[1])
+			return parts[1], nil
+		}
+		return *val, nil
 	}
 	fm["TempDir"] = func(args ...interface{}) (string, error) {
 		parts := make([]string, len(args))
