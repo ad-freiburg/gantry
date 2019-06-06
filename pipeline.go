@@ -35,27 +35,16 @@ type Pipeline struct {
 // existence of steps with names provided in ignoreSteps.
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
-	def, err := NewPipelineDefinition(definitionPath)
+	def, err := NewPipelineDefinition(definitionPath, ignoredSteps)
 	if err != nil {
 		return nil, err
 	}
-	def.IgnoredSteps = ignoredSteps
 	p.Definition = def
 	p.Environment = NewPipelineEnvironment()
-	if p.checkRequireEnvironment() {
-		err := p.Environment.Load(environmentPath)
-		if err != nil {
-			return nil, err
-		}
-	}
 	if err = p.Environment.ApplyTo(def); err != nil {
 		return nil, err
 	}
 	return p, nil
-}
-
-func (p *Pipeline) checkRequireEnvironment() bool {
-	return false
 }
 
 // CleanUp removes temporarie data.
@@ -144,14 +133,14 @@ type PipelineDefinition struct {
 	Steps        StepList    `json:"steps"`
 	Services     ServiceList `json:"services"`
 	pipelines    *Pipelines
-	IgnoredSteps types.StringSet
+	ignoredSteps types.StringSet
 }
 
-func NewPipelineDefinition(path string) (*PipelineDefinition, error) {
-	if _, err := os.Stat(GantryDef); path == "" && !os.IsNotExist(err) {
+func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
+	if _, err := os.Stat(GantryDef); path == "" && os.IsExist(err) {
 		path = GantryDef
 	}
-	if _, err := os.Stat(DockerCompose); path == "" && !os.IsNotExist(err) {
+	if _, err := os.Stat(DockerCompose); path == "" && os.IsExist(err) {
 		path = DockerCompose
 	}
 	file, err := os.Open(path)
@@ -167,6 +156,7 @@ func NewPipelineDefinition(path string) (*PipelineDefinition, error) {
 	}
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
+	d.ignoredSteps = ignoredSteps
 	return d, err
 }
 
@@ -181,13 +171,13 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		steps := make(map[string]Step, 0)
 		// Verfiy steps
 		for name, step := range p.Steps {
-			if _, ignore := p.IgnoredSteps[name]; ignore {
+			if _, ignore := p.ignoredSteps[name]; ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.IgnoredSteps {
+			for ignored := range p.ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -195,13 +185,13 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		}
 		// Verify services
 		for name, step := range p.Services {
-			if _, ignore := p.IgnoredSteps[name]; ignore {
+			if _, ignore := p.ignoredSteps[name]; ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.IgnoredSteps {
+			for ignored := range p.ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}

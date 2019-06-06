@@ -65,25 +65,24 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		for i, v := range args {
 			parts[i] = fmt.Sprint(v)
 		}
-		return e.GetOrCreateTempDir(strings.Join(parts, "_"))
+		return e.getOrCreateTempDir(strings.Join(parts, "_"))
 	}
-	t := template.New("template").Funcs(fm)
-	return t
+	return template.New("PipelineEnvironment").Funcs(fm)
 }
 
 func (e *PipelineEnvironment) ApplyTo(def *PipelineDefinition) error {
-	if err := e.applyVolumes(def); err != nil {
+	templateParser := e.createTemplateParser()
+	if err := e.applyToVolumes(def, templateParser); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *PipelineEnvironment) applyVolumes(def *PipelineDefinition) error {
+func (e *PipelineEnvironment) applyToVolumes(def *PipelineDefinition, tp *template.Template) error {
 	pipelines, err := def.Pipelines()
 	if err != nil {
 		return err
 	}
-	tp := e.createTemplateParser()
 	for _, s := range pipelines.AllSteps() {
 		for i, volumePath := range s.Volumes {
 			var b bytes.Buffer
@@ -116,15 +115,15 @@ func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
 	}
 }
 
-func (e *PipelineEnvironment) GetOrCreateTempDir(prefix string) (string, error) {
+func (e *PipelineEnvironment) getOrCreateTempDir(prefix string) (string, error) {
 	val, ok := e.tempPaths[prefix]
 	if ok {
 		return val, nil
 	}
-	return e.TempDir(prefix)
+	return e.tempDir(prefix)
 }
 
-func (e *PipelineEnvironment) TempDir(prefix string) (string, error) {
+func (e *PipelineEnvironment) tempDir(prefix string) (string, error) {
 	path, err := ioutil.TempDir(e.TempDirPath, prefix)
 	if err == nil {
 		e.tempPaths[prefix] = path
