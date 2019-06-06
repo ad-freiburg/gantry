@@ -35,15 +35,12 @@ type Pipeline struct {
 // existence of steps with names provided in ignoreSteps.
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
-	def, err := NewPipelineDefinition(definitionPath, ignoredSteps)
+	p.Environment = NewPipelineEnvironment(environmentPath)
+	def, err := NewPipelineDefinition(definitionPath, p.Environment, ignoredSteps)
 	if err != nil {
 		return nil, err
 	}
 	p.Definition = def
-	p.Environment = NewPipelineEnvironment()
-	if err = p.Environment.ApplyTo(def); err != nil {
-		return nil, err
-	}
 	return p, nil
 }
 
@@ -136,7 +133,7 @@ type PipelineDefinition struct {
 	ignoredSteps types.StringSet
 }
 
-func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
+func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
 	if _, err := os.Stat(GantryDef); path == "" && os.IsExist(err) {
 		path = GantryDef
 	}
@@ -151,6 +148,10 @@ func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*Pipeline
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	data, err = env.ApplyTo(data)
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -17,22 +18,26 @@ import (
 
 // PipelineEnvironment stores additional data for pipelines.
 type PipelineEnvironment struct {
-	Machines    []Machine               `json:"machines"`
-	LogSettings LogSettings             `json:"log"`
-	Environment types.MappingWithEquals `json:"environment"`
-	TempDirPath string                  `json:"tempdir"`
-	tempFiles   []string
-	tempPaths   map[string]string
+	Machines      []Machine               `json:"machines"`
+	LogSettings   LogSettings             `json:"log"`
+	Environment   types.MappingWithEquals `json:"environment"`
+	TempDirPath   string                  `json:"tempdir"`
+	tempFiles     []string
+	tempPaths     map[string]string
+	envFilePath   string
+	envFileLoaded bool
 }
 
-func NewPipelineEnvironment() *PipelineEnvironment {
-	e := &PipelineEnvironment{}
-	e.tempPaths = make(map[string]string, 0)
+func NewPipelineEnvironment(path string) *PipelineEnvironment {
+	e := &PipelineEnvironment{
+		tempPaths:   make(map[string]string, 0),
+		envFilePath: path,
+	}
 	e.importCurrentEnv()
 	return e
 }
 
-func (e *PipelineEnvironment) Load(path string) error {
+func (e *PipelineEnvironment) load(path string) error {
 	if _, err := os.Stat(GantryEnv); path == "" && os.IsExist(err) {
 		path = GantryEnv
 	}
@@ -50,6 +55,7 @@ func (e *PipelineEnvironment) Load(path string) error {
 	if err != nil {
 		return err
 	}
+	e.envFileLoaded = true
 	e.importCurrentEnv()
 	return nil
 }
@@ -92,15 +98,17 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		for i, v := range args {
 			parts[i] = fmt.Sprint(v)
 		}
+		var path string
 		val, ok := e.Environment[parts[0]]
-		if !ok {
+		if ok {
+			path = *val
+		} else {
 			if len(parts) < 2 {
 				return "", errors.New(fmt.Sprintf("EnvDir '%s' not defined, no fallback provided", parts[0]))
 			}
-			log.Printf("EnvDir '%s' not found, using fallback '%s'", parts[0], parts[1])
-			return parts[1], nil
+			path = parts[1]
 		}
-		return *val, nil
+		return filepath.Abs(path)
 	}
 	fm["TempDir"] = func(args ...interface{}) (string, error) {
 		parts := make([]string, len(args))
@@ -112,36 +120,21 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	return template.New("PipelineEnvironment").Funcs(fm)
 }
 
-func (e *PipelineEnvironment) ApplyTo(def *PipelineDefinition) error {
-	templateParser := e.createTemplateParser()
-	if err := e.applyToVolumes(def, templateParser); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *PipelineEnvironment) applyToVolumes(def *PipelineDefinition, tp *template.Template) error {
-	pipelines, err := def.Pipelines()
+func (e *PipelineEnvironment) ApplyTo(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+	bw := bufio.NewWriter(&b)
+	t, err := e.createTemplateParser().Parse(string(data))
 	if err != nil {
-		return err
+		return []byte(""), err
 	}
-	for _, s := range pipelines.AllSteps() {
-		for i, volumePath := range s.Volumes {
-			var b bytes.Buffer
-			bw := bufio.NewWriter(&b)
-			t, err := tp.Parse(volumePath)
-			if err != nil {
-				return err
-			}
-			err = t.Execute(bw, nil)
-			if err != nil {
-				return err
-			}
-			bw.Flush()
-			s.Volumes[i] = b.String()
+	err = t.Execute(bw, e)
+	bw.Flush()
+	if err != nil && !e.envFileLoaded {
+		if e.load(e.envFilePath) == nil {
+			return e.ApplyTo(data)
 		}
 	}
-	return nil
+	return b.Bytes(), err
 }
 
 func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
