@@ -1,12 +1,10 @@
 package gantry_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
-	"github.com/ad-freiburg/gantry/types"
 )
 
 func TestPipelinesAllSteps(t *testing.T) {
@@ -59,7 +57,6 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
 		{gantry.PipelineDefinition{Services: gantry.ServiceList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
 		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}, Services: gantry.ServiceList{"a": gantry.Step{}}}, "Redeclaration of step 'a'", gantry.Pipelines{}},
-		{gantry.PipelineDefinition{IgnoredSteps: types.StringSet{"a": true}, Steps: gantry.StepList{"b": gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}}, Services: gantry.ServiceList{"c": gantry.Step{Service: gantry.Service{Name: "c", DependsOn: map[string]bool{"a": true}}}}}, "", [][]gantry.Step{{{}}, {{}}}},
 	}
 
 	for _, c := range cases {
@@ -70,7 +67,6 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		fmt.Printf("%#v\n", *r)
 		for i, ri := range *r {
 			if len(ri) != len(c.result[i]) {
 				t.Errorf("Incorrect length for '%v'@'%d', got: '%d', wanted: '%d'", c.definition, i, len(ri), len(c.result[i]))
