@@ -31,7 +31,7 @@ func NewPipelineEnvironment() *PipelineEnvironment {
 }
 
 func (e *PipelineEnvironment) Load(path string) error {
-	if _, err := os.Stat(GantryEnv); path == "" && !os.IsNotExist(err) {
+	if _, err := os.Stat(GantryEnv); path == "" && os.IsExist(err) {
 		path = GantryEnv
 	}
 	file, err := os.Open(path)
