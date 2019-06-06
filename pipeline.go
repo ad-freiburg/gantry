@@ -26,66 +26,59 @@ func init() {
 
 // Pipeline stores all definitions and settings regarding a deployment.
 type Pipeline struct {
-	Definition  PipelineDefinition
-	Environment PipelineEnvironment
+	Definition  *PipelineDefinition
+	Environment *PipelineEnvironment
 	NetworkName string
 }
 
-// PipelineDefinition stores docker-compose services and gantry steps.
-type PipelineDefinition struct {
-	Steps        StepList    `json:"steps"`
-	Services     ServiceList `json:"services"`
-	pipelines    *Pipelines
-	IgnoredSteps types.StringSet
+// NewPipeline creates a new Pipeline from given files which ignores the
+// existence of steps with names provided in ignoreSteps.
+func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
+	p := &Pipeline{}
+	def, err := NewPipelineDefinition(definitionPath, ignoredSteps)
+	if err != nil {
+		return nil, err
+	}
+	p.Definition = def
+	p.Environment = NewPipelineEnvironment()
+	if err = p.Environment.ApplyTo(def); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
-// Pipelines calculates and verifies dependencies and ordering for steps
-// defined in the PipelineDefinition p.
-func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
-	if p.pipelines == nil {
-		steps := make(map[string]Step, 0)
-		// Verfiy steps
-		for name, step := range p.Steps {
-			if _, ignore := p.IgnoredSteps[name]; ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range p.IgnoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
-			steps[name] = step
-		}
-		// Verify services
-		for name, step := range p.Services {
-			if _, ignore := p.IgnoredSteps[name]; ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range p.IgnoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
-			steps[name] = step
-		}
-
-		// Calculate order and indepenence
-		pipelines, err := NewTarjan(steps)
-		if err != nil {
-			return nil, err
-		}
-		// Verify pipelines
-		err = pipelines.Check()
-		if err != nil {
-			return nil, err
-		}
-		p.pipelines = pipelines
+// CleanUp removes temporarie data.
+func (p *Pipeline) CleanUp(signal os.Signal) {
+	p.Definition.CleanUp(signal)
+	if p.Environment != nil {
+		p.Environment.CleanUp(signal)
 	}
-	return p.pipelines, nil
+}
+
+// Check validates Pipeline p, checks if all required information is present.
+func (p Pipeline) Check() error {
+	roleProvider := make(map[string][]Machine)
+	if p.Environment != nil {
+		for _, machine := range p.Environment.Machines {
+			for role := range machine.Roles {
+				roleProvider[role] = append(roleProvider[role], machine)
+			}
+		}
+	}
+
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	for _, step := range pipelines.AllSteps() {
+		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
+			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.ColoredName())
+		}
+		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
+			return fmt.Errorf("No container information for '%s'", step.ColoredName())
+		}
+	}
+	return nil
 }
 
 // Pipelines stores parallel and dependent steps/services.
@@ -135,93 +128,89 @@ func (p *Pipelines) Check() error {
 	return nil
 }
 
-// PipelineEnvironment stores additional data for pipelines.
-type PipelineEnvironment struct {
-	Machines []Machine `json:"machines"`
+// PipelineDefinition stores docker-compose services and gantry steps.
+type PipelineDefinition struct {
+	Steps        StepList    `json:"steps"`
+	Services     ServiceList `json:"services"`
+	pipelines    *Pipelines
+	ignoredSteps types.StringSet
 }
 
-// NewPipeline creates a new Pipeline from given files which ignores the
-// existence of steps with names provided in ignoreSteps.
-func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
-	p := &Pipeline{}
-	err := p.loadPipelineDefinition(definitionPath)
-	if err != nil {
-		return nil, err
-	}
-	p.Definition.IgnoredSteps = ignoredSteps
-	if p.checkRequireEnvironment() {
-		err = p.setPipelineEnvironment(environmentPath)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return p, nil
-}
-
-func (p *Pipeline) loadPipelineDefinition(path string) error {
-	if _, err := os.Stat(GantryDef); path == "" && !os.IsNotExist(err) {
+func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
+	if _, err := os.Stat(GantryDef); path == "" && os.IsExist(err) {
 		path = GantryDef
 	}
-	if _, err := os.Stat(DockerCompose); path == "" && !os.IsNotExist(err) {
+	if _, err := os.Stat(DockerCompose); path == "" && os.IsExist(err) {
 		path = DockerCompose
 	}
 	file, err := os.Open(path)
 	if err != nil {
 		pipelineLogger.Println("Could not open pipeline definition.")
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return yaml.Unmarshal(data, &p.Definition)
+	d := &PipelineDefinition{}
+	err = yaml.Unmarshal(data, d)
+	d.ignoredSteps = ignoredSteps
+	return d, err
 }
 
-func (p *Pipeline) checkRequireEnvironment() bool {
-	return false
+// CleanUp removes temporarie data.
+func (p *PipelineDefinition) CleanUp(signal os.Signal) {
 }
 
-func (p *Pipeline) setPipelineEnvironment(path string) error {
-	if _, err := os.Stat(GantryEnv); path == "" && !os.IsNotExist(err) {
-		path = GantryEnv
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(data, &p.Environment)
-}
-
-// Check validates Pipeline p, checks if all required information is present.
-func (p Pipeline) Check() error {
-	roleProvider := make(map[string][]Machine)
-	for _, machine := range p.Environment.Machines {
-		for role := range machine.Roles {
-			roleProvider[role] = append(roleProvider[role], machine)
+// Pipelines calculates and verifies dependencies and ordering for steps
+// defined in the PipelineDefinition p.
+func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
+	if p.pipelines == nil {
+		steps := make(map[string]Step, 0)
+		// Verfiy steps
+		for name, step := range p.Steps {
+			if _, ignore := p.ignoredSteps[name]; ignore {
+				continue
+			}
+			if val, ok := steps[name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			for ignored := range p.ignoredSteps {
+				delete(step.After, ignored)
+				delete(step.DependsOn, ignored)
+			}
+			steps[name] = step
 		}
-	}
+		// Verify services
+		for name, step := range p.Services {
+			if _, ignore := p.ignoredSteps[name]; ignore {
+				continue
+			}
+			if val, ok := steps[name]; ok {
+				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
+			}
+			for ignored := range p.ignoredSteps {
+				delete(step.After, ignored)
+				delete(step.DependsOn, ignored)
+			}
+			steps[name] = step
+		}
 
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	for _, step := range pipelines.AllSteps() {
-		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.ColoredName())
+		// Calculate order and indepenence
+		pipelines, err := NewTarjan(steps)
+		if err != nil {
+			return nil, err
 		}
-		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
-			return fmt.Errorf("No container information for '%s'", step.ColoredName())
+		// Verify pipelines
+		err = pipelines.Check()
+		if err != nil {
+			return nil, err
 		}
+		p.pipelines = pipelines
 	}
-	return nil
+	return p.pipelines, nil
 }
 
 func runParallelBuildImage(step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
