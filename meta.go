@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,48 +15,52 @@ const (
 	KeepAlive_Yes
 	KeepAlive_Replace
 
-	Log_Stdout ServiceLogDestination = iota
+	Log_Stdout ServiceLogHandler = iota
 	Log_File
 	Log_Both
 	Log_Discard
 )
 
-type ServiceMetaList map[string]ServiceMeta
+type ServiceMetaList map[string]*ServiceMeta
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
-	storage := make(map[string]ServiceMeta, 0)
-	err := json.Unmarshal(data, &storage)
+	reader := make(map[string]ServiceMeta, 0)
+	err := json.Unmarshal(data, &reader)
 	if err != nil {
 		return err
 	}
-	for name, meta := range storage {
-		err := meta.Check()
+	storage := make(map[string]*ServiceMeta, 0)
+	for name, meta := range reader {
+		err := meta.Init()
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error in '%s': %s", name, err))
 		}
+		storage[name] = &meta
 	}
 	*r = storage
 	return nil
 }
 
 type ServiceMeta struct {
-	KeepRunning   ServiceKeepAlive      `json:"keep-running"`
-	Log           ServiceLogDestination `json:"log"`
-	LogFileStderr string                `json:"log-file-stderr"`
-	LogFileStdout string                `json:"log-file-stdout"`
+	KeepRunning ServiceKeepAlive `json:"keep-running"`
+	Stdout      ServiceLog       `json:"stdout"`
+	Stderr      ServiceLog       `json:"stderr"`
 }
 
-func (m ServiceMeta) Check() error {
-	if m.Log != Log_Stdout && m.Log != Log_Discard {
-		if m.LogFileStderr == "" {
-			return errors.New("Missing 'log-file-stderr'")
-		}
-		if m.LogFileStdout == "" {
-			return errors.New("Missing 'log-file-stdout'")
-		}
+func (m *ServiceMeta) Init() error {
+	if err := m.Stdout.Init(os.Stdout); err != nil {
+		return err
+	}
+	if err := m.Stderr.Init(os.Stderr); err != nil {
+		return err
 	}
 	return nil
+}
+
+func (m *ServiceMeta) Close() {
+	m.Stdout.Close()
+	m.Stderr.Close()
 }
 
 type ServiceKeepAlive int
@@ -74,9 +81,9 @@ func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type ServiceLogDestination int
+type ServiceLogHandler int
 
-func (d *ServiceLogDestination) UnmarshalJSON(b []byte) error {
+func (d *ServiceLogHandler) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
@@ -92,4 +99,57 @@ func (d *ServiceLogDestination) UnmarshalJSON(b []byte) error {
 		*d = Log_Discard
 	}
 	return nil
+}
+
+type ServiceLog struct {
+	Handler ServiceLogHandler `json:"handler"`
+	Path    string            `json:"path"`
+	std     *os.File
+	file    *os.File
+}
+
+func (l *ServiceLog) Init(std *os.File) error {
+	l.std = std
+	if l.Handler == 0 {
+		l.Handler = Log_Stdout
+	}
+	if l.Handler != Log_Stdout && l.Handler != Log_Discard {
+		if l.Path == "" {
+			return errors.New("Missing 'path'")
+		}
+		p, err := filepath.Abs(l.Path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		f, err := os.Create(p)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l.file = f
+	}
+	return nil
+}
+
+func (l ServiceLog) Write(p []byte) (int, error) {
+	var n1, n2 int
+	var err1, err2 error
+	if l.Handler == Log_Stdout || l.Handler == Log_Both {
+		n1, err1 = l.std.Write(p)
+	}
+	if l.Handler == Log_File || l.Handler == Log_Both {
+		n2, err2 = l.file.Write(p)
+	}
+	if err1 != nil {
+		return n1, err1
+	}
+	if err2 != nil {
+		return n2, err2
+	}
+	return len(p), nil
+}
+
+func (l *ServiceLog) Close() {
+	if l.file != nil {
+		l.file.Close()
+	}
 }

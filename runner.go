@@ -112,7 +112,10 @@ func NewImageBuilder(step Step, pull bool) func() error {
 		if Verbose {
 			log.Printf("Build image for '%s'", step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), step.BuildCommand(pull))
 		return r.Exec()
 	}
@@ -123,7 +126,10 @@ func NewImagePuller(step Step) func() error {
 		if Verbose {
 			log.Printf("Pull image for '%s'", step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), step.PullCommand())
 		return r.Exec()
 	}
@@ -134,7 +140,10 @@ func NewContainerRunner(step Step, network string) func() error {
 		if Verbose {
 			log.Printf("Run container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), step.RunCommand(network))
 		return r.Exec()
 	}
@@ -145,7 +154,10 @@ func NewContainerKiller(step Step) func() error {
 		if Verbose {
 			log.Printf("Kill container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), []string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		out, err := r.Output()
 		if err != nil {
@@ -154,7 +166,10 @@ func NewContainerKiller(step Step) func() error {
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
-			k := step.Runner()
+			k, err := step.Runner()
+			if err != nil {
+				return err
+			}
 			k.SetCommand(getContainerExecutable(), []string{"kill", scanner.Text()})
 			if err := k.Exec(); err != nil {
 				return err
@@ -169,7 +184,10 @@ func NewImageExistenceChecker(step Step) func() error {
 		if Verbose {
 			log.Printf("Check image ('%s') existence for '%s'", step.ImageName(), step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
 		out, err := r.Output()
 		if err != nil {
@@ -196,7 +214,10 @@ func NewOldContainerRemover(step Step) func() error {
 		if Verbose {
 			log.Printf("Remove container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
+		r, err := step.Runner()
+		if err != nil {
+			return err
+		}
 		r.SetCommand(getContainerExecutable(), []string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
 		out, err := r.Output()
 		if err != nil {
@@ -205,7 +226,10 @@ func NewOldContainerRemover(step Step) func() error {
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
-			k := step.Runner()
+			k, err := step.Runner()
+			if err != nil {
+				return err
+			}
 			k.SetCommand(getContainerExecutable(), []string{"rm", scanner.Text()})
 			if err := k.Exec(); err != nil {
 				return err

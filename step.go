@@ -2,7 +2,6 @@ package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +21,7 @@ type Service struct {
 	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
-	Meta        ServiceMeta
+	Meta        *ServiceMeta
 	color       int
 }
 
@@ -82,19 +81,9 @@ func (s Service) ContainerName() string {
 }
 
 // Runner returns a Runner which can execute s.
-func (s Service) Runner() Runner {
-	stdouts := make([]io.Writer, 0)
-	stderrs := make([]io.Writer, 0)
-	if s.Meta.Log == Log_Stdout || s.Meta.Log == Log_Both {
-		stdouts = append(stdouts, os.Stdout)
-		stderrs = append(stderrs, os.Stderr)
-	}
-	if s.Meta.Log == Log_File || s.Meta.Log == Log_Both {
-		stdouts = append(stdouts, os.Stdout)
-		stderrs = append(stderrs, os.Stderr)
-	}
-	r := NewLocalRunner(s.ColoredContainerName(), io.MultiWriter(stdouts...), io.MultiWriter(stderrs...))
-	return r
+func (s Service) Runner() (Runner, error) {
+	r := NewLocalRunner(s.ColoredContainerName(), s.Meta.Stdout, s.Meta.Stderr)
+	return r, nil
 }
 
 // BuildCommand returns the command to build a new image for s.
@@ -181,8 +170,4 @@ func (s Step) RunCommand(network string) []string {
 // PullCommand returns the command to pull the image for step s.
 func (s Step) PullCommand() []string {
 	return []string{"pull", s.ImageName()}
-}
-
-func (s Step) HasNetwork() bool {
-	return len(s.Ports) > 0
 }

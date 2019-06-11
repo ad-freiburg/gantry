@@ -60,14 +60,14 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			meta, ok := p.Environment.Services[step.Name]
-			if !ok || meta.KeepRunning == KeepAlive_No {
+			if step.Meta.KeepRunning == KeepAlive_No {
 				// Check for network
 				NewContainerKiller(step)()
 				NewOldContainerRemover(step)()
 			} else {
 				keepNetworkAlive = true
 			}
+			step.Meta.Close()
 		}
 	}
 	// Remove network if not needed anymore
@@ -185,10 +185,21 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	err = yaml.Unmarshal(data, d)
 	d.ignoredSteps = ignoredSteps
 	// Add meta to services and steps
+	for name, s := range d.Services {
+		s.Meta = &ServiceMeta{}
+		s.Meta.Init()
+		d.Services[name] = s
+	}
+	for name, s := range d.Steps {
+		s.Meta = &ServiceMeta{}
+		s.Meta.Init()
+		d.Steps[name] = s
+	}
 	for name, meta := range env.Services {
 		s, ok := d.Services[name]
 		if ok {
 			s.Meta = meta
+			d.Services[name] = s
 		} else {
 			log.Printf("Metadata: unknown service '%s'", name)
 		}
@@ -197,6 +208,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 		s, ok := d.Steps[name]
 		if ok {
 			s.Meta = meta
+			d.Steps[name] = s
 		} else {
 			log.Printf("Metadata: unknown step '%s'", name)
 		}
