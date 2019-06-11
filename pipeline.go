@@ -35,8 +35,14 @@ type Pipeline struct {
 // existence of steps with names provided in ignoreSteps.
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
-	p.Environment = NewPipelineEnvironment(environmentPath)
-	def, err := NewPipelineDefinition(definitionPath, p.Environment, ignoredSteps)
+	// Load environment
+	env, err := NewPipelineEnvironment(environmentPath)
+	if err != nil {
+		return nil, err
+	}
+	p.Environment = env
+	// Load definition
+	def, err := NewPipelineDefinition(definitionPath, env, ignoredSteps)
 	if err != nil {
 		return nil, err
 	}
@@ -44,12 +50,31 @@ func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.Stri
 	return p, nil
 }
 
-// CleanUp removes temporarie data.
+// CleanUp removes containers and temporary data.
 func (p *Pipeline) CleanUp(signal os.Signal) {
-	p.Definition.CleanUp(signal)
-	if p.Environment != nil {
-		p.Environment.CleanUp(signal)
+	var keepNetworkAlive bool
+	// Stop all services which are not marked as keep-running
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		log.Fatal(err)
 	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			meta, ok := p.Environment.Services[step.Name]
+			if !ok || meta.KeepRunning == KeepAlive_No {
+				// Check for network
+				NewContainerKiller(step)()
+				NewOldContainerRemover(step)()
+			} else {
+				keepNetworkAlive = true
+			}
+		}
+	}
+	// Remove network if not needed anymore
+	if !keepNetworkAlive {
+		p.RemoveNetwork()
+	}
+	p.Environment.CleanUp(signal)
 }
 
 // Check validates Pipeline p, checks if all required information is present.
@@ -159,10 +184,6 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	err = yaml.Unmarshal(data, d)
 	d.ignoredSteps = ignoredSteps
 	return d, err
-}
-
-// CleanUp removes temporarie data.
-func (p *PipelineDefinition) CleanUp(signal os.Signal) {
 }
 
 // Pipelines calculates and verifies dependencies and ordering for steps
@@ -342,6 +363,24 @@ func (p Pipeline) KillContainers() error {
 	return nil
 }
 
+// PreRunKillContainers kills all containers which are not marked as replace
+func (p Pipeline) PreRunKillContainers() error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			meta, ok := p.Environment.Services[step.Name]
+			if ok && meta.KeepRunning == KeepAlive_Replace {
+				continue
+			}
+			NewContainerKiller(step)()
+		}
+	}
+	return nil
+}
+
 // RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers() error {
 	pipelines, err := p.Definition.Pipelines()
@@ -386,6 +425,8 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
+	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
+	NewContainerKiller(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
 	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)

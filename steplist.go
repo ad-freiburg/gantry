@@ -2,7 +2,32 @@ package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
 	"encoding/json"
+	"strings"
 )
+
+type ServiceKeepAlive int
+
+const (
+	KeepAlive_No ServiceKeepAlive = iota
+	KeepAlive_Yes
+	KeepAlive_Replace
+)
+
+func (k *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	switch strings.ToLower(s) {
+	default:
+		*k = KeepAlive_No
+	case "yes":
+		*k = KeepAlive_Yes
+	case "replace":
+		*k = KeepAlive_Replace
+	}
+	return nil
+}
 
 // ServiceList stores docker-compose service definitions as steps.
 type ServiceList map[string]Step
@@ -44,4 +69,21 @@ func (r *StepList) UnmarshalJSON(data []byte) error {
 	}
 	*r = storage
 	return nil
+}
+
+type ServiceMetaList map[string]ServiceMeta
+
+// UnmarshalJSON sets *r to a copy of data.
+func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
+	storage := make(map[string]ServiceMeta, 0)
+	err := json.Unmarshal(data, &storage)
+	if err != nil {
+		return err
+	}
+	*r = storage
+	return nil
+}
+
+type ServiceMeta struct {
+	KeepRunning ServiceKeepAlive `json:"keep-running"`
 }

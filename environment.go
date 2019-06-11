@@ -18,46 +18,41 @@ import (
 
 // PipelineEnvironment stores additional data for pipelines.
 type PipelineEnvironment struct {
-	Machines      []Machine               `json:"machines"`
-	LogSettings   LogSettings             `json:"log"`
-	Environment   types.MappingWithEquals `json:"environment"`
-	TempDirPath   string                  `json:"tempdir"`
-	tempFiles     []string
-	tempPaths     map[string]string
-	envFilePath   string
-	envFileLoaded bool
+	Machines    []Machine               `json:"machines"`
+	LogSettings LogSettings             `json:"log"`
+	Environment types.MappingWithEquals `json:"environment"`
+	TempDirPath string                  `json:"tempdir"`
+	Services    ServiceMetaList         `json:"services"`
+	tempFiles   []string
+	tempPaths   map[string]string
+	envFilePath string
 }
 
-func NewPipelineEnvironment(path string) *PipelineEnvironment {
+func NewPipelineEnvironment(path string) (*PipelineEnvironment, error) {
 	e := &PipelineEnvironment{
 		tempPaths:   make(map[string]string, 0),
 		envFilePath: path,
 	}
 	e.importCurrentEnv()
-	return e
-}
-
-func (e *PipelineEnvironment) load(path string) error {
 	if _, err := os.Stat(GantryEnv); path == "" && os.IsExist(err) {
 		path = GantryEnv
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return e, err
 	}
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return err
+		return e, err
 	}
 	err = yaml.Unmarshal(data, e)
 	if err != nil {
-		return err
+		return e, err
 	}
-	e.envFileLoaded = true
 	e.importCurrentEnv()
-	return nil
+	return e, nil
 }
 
 func (e *PipelineEnvironment) importCurrentEnv() {
@@ -84,8 +79,26 @@ func (e *PipelineEnvironment) exportEnvironment(path string) error {
 
 func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
-	for k, v := range e.Environment {
-		fm[k] = func() string { return *v }
+	fm["Env"] = func(args ...interface{}) (string, error) {
+		if len(args) < 1 {
+			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
+		}
+		if len(args) > 2 {
+			return "", errors.New(fmt.Sprintf("Env: too many arguments. Got %d want <=2", len(args)))
+		}
+		parts := make([]string, len(args))
+		for i, v := range args {
+			parts[i] = fmt.Sprint(v)
+		}
+		val, ok := e.Environment[parts[0]]
+		if !ok {
+			if len(parts) < 2 {
+				return "", errors.New(fmt.Sprintf("Env '%s' not defined, no fallback provided", parts[0]))
+			}
+			return parts[1], nil
+		}
+		return *val, nil
+
 	}
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
@@ -129,11 +142,6 @@ func (e *PipelineEnvironment) ApplyTo(data []byte) ([]byte, error) {
 	}
 	err = t.Execute(bw, e)
 	bw.Flush()
-	if err != nil && !e.envFileLoaded {
-		if e.load(e.envFilePath) == nil {
-			return e.ApplyTo(data)
-		}
-	}
 	return b.Bytes(), err
 }
 

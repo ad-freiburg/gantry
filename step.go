@@ -170,3 +170,7 @@ func (s Step) RunCommand(network string) []string {
 func (s Step) PullCommand() []string {
 	return []string{"pull", s.ImageName()}
 }
+
+func (s Step) HasNetwork() bool {
+	return len(s.Ports) > 0
+}

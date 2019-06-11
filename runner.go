@@ -109,6 +109,9 @@ func (r *LocalRunner) SetCommand(name string, args []string) {
 
 func NewImageBuilder(step Step, pull bool) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Build image for '%s'", step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), step.BuildCommand(pull))
 		return r.Exec()
@@ -117,6 +120,9 @@ func NewImageBuilder(step Step, pull bool) func() error {
 
 func NewImagePuller(step Step) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Pull image for '%s'", step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), step.PullCommand())
 		return r.Exec()
@@ -125,6 +131,9 @@ func NewImagePuller(step Step) func() error {
 
 func NewContainerRunner(step Step, network string) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Run container '%s'", step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), step.RunCommand(network))
 		return r.Exec()
@@ -133,6 +142,9 @@ func NewContainerRunner(step Step, network string) func() error {
 
 func NewContainerKiller(step Step) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Kill container '%s'", step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), []string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		out, err := r.Output()
@@ -154,6 +166,9 @@ func NewContainerKiller(step Step) func() error {
 
 func NewImageExistenceChecker(step Step) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Check image ('%s') existence for '%s'", step.ImageName(), step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
 		out, err := r.Output()
@@ -178,6 +193,9 @@ func NewImageExistenceChecker(step Step) func() error {
 
 func NewOldContainerRemover(step Step) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Remove container '%s'", step.ContainerName())
+		}
 		r := step.Runner()
 		r.SetCommand(getContainerExecutable(), []string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
 		out, err := r.Output()
@@ -199,6 +217,9 @@ func NewOldContainerRemover(step Step) func() error {
 
 func NewNetworkCreator(p Pipeline) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Create network '%s'", p.NetworkName)
+		}
 		r := p.Runner()
 		r.SetCommand(getContainerExecutable(), []string{"network", "create", p.NetworkName})
 		return r.Exec()
@@ -207,6 +228,9 @@ func NewNetworkCreator(p Pipeline) func() error {
 
 func NewNetworkRemover(p Pipeline) func() error {
 	return func() error {
+		if Verbose {
+			log.Printf("Remove network '%s'", p.NetworkName)
+		}
 		r := p.Runner()
 		r.SetCommand(getContainerExecutable(), []string{"network", "rm", p.NetworkName})
 		return r.Exec()
