@@ -23,6 +23,7 @@ type PipelineEnvironment struct {
 	Environment types.MappingWithEquals `json:"environment"`
 	TempDirPath string                  `json:"tempdir"`
 	Services    ServiceMetaList         `json:"services"`
+	Steps       ServiceMetaList         `json:"steps"`
 	tempFiles   []string
 	tempPaths   map[string]string
 	envFilePath string

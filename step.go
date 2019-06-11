@@ -2,6 +2,7 @@ package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,7 @@ type Service struct {
 	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
+	Meta        ServiceMeta
 	color       int
 }
 
@@ -81,7 +83,17 @@ func (s Service) ContainerName() string {
 
 // Runner returns a Runner which can execute s.
 func (s Service) Runner() Runner {
-	r := NewLocalRunner(s.ColoredContainerName(), os.Stdout, os.Stderr)
+	stdouts := make([]io.Writer, 0)
+	stderrs := make([]io.Writer, 0)
+	if s.Meta.Log == Log_Stdout || s.Meta.Log == Log_Both {
+		stdouts = append(stdouts, os.Stdout)
+		stderrs = append(stderrs, os.Stderr)
+	}
+	if s.Meta.Log == Log_File || s.Meta.Log == Log_Both {
+		stdouts = append(stdouts, os.Stdout)
+		stderrs = append(stderrs, os.Stderr)
+	}
+	r := NewLocalRunner(s.ColoredContainerName(), io.MultiWriter(stdouts...), io.MultiWriter(stderrs...))
 	return r
 }
 

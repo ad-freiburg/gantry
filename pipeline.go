@@ -176,6 +176,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	if err != nil {
 		return nil, err
 	}
+	// Apply environment to yaml
 	data, err = env.ApplyTo(data)
 	if err != nil {
 		return nil, err
@@ -183,6 +184,23 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
 	d.ignoredSteps = ignoredSteps
+	// Add meta to services and steps
+	for name, meta := range env.Services {
+		s, ok := d.Services[name]
+		if ok {
+			s.Meta = meta
+		} else {
+			log.Printf("Metadata: unknown service '%s'", name)
+		}
+	}
+	for name, meta := range env.Steps {
+		s, ok := d.Steps[name]
+		if ok {
+			s.Meta = meta
+		} else {
+			log.Printf("Metadata: unknown step '%s'", name)
+		}
+	}
 	return d, err
 }
 
