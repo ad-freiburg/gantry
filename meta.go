@@ -21,22 +21,21 @@ const (
 	Log_Discard
 )
 
-type ServiceMetaList map[string]*ServiceMeta
+type ServiceMetaList map[string]ServiceMeta
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
-	reader := make(map[string]ServiceMeta, 0)
-	err := json.Unmarshal(data, &reader)
+	storage := make(map[string]ServiceMeta, 0)
+	err := json.Unmarshal(data, &storage)
 	if err != nil {
 		return err
 	}
-	storage := make(map[string]*ServiceMeta, 0)
-	for name, meta := range reader {
+	for name, meta := range storage {
 		err := meta.Init()
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error in '%s': %s", name, err))
 		}
-		storage[name] = &meta
+		storage[name] = meta
 	}
 	*r = storage
 	return nil

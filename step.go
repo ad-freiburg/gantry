@@ -21,7 +21,7 @@ type Service struct {
 	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
-	Meta        *ServiceMeta
+	Meta        ServiceMeta
 	color       int
 }
 

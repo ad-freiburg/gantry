@@ -184,17 +184,16 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
 	d.ignoredSteps = ignoredSteps
-	// Add meta to services and steps
+	// Add default meta to services and steps
 	for name, s := range d.Services {
-		s.Meta = &ServiceMeta{}
 		s.Meta.Init()
 		d.Services[name] = s
 	}
 	for name, s := range d.Steps {
-		s.Meta = &ServiceMeta{}
 		s.Meta.Init()
 		d.Steps[name] = s
 	}
+	// Update with specific meta if defined
 	for name, meta := range env.Services {
 		s, ok := d.Services[name]
 		if ok {
