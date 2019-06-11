@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	KeepAlive_No ServiceKeepAlive = iota
-	KeepAlive_Yes
+	KeepAlive_Yes ServiceKeepAlive = iota
+	KeepAlive_No
 	KeepAlive_Replace
 
 	Log_Stdout ServiceLogHandler = iota
@@ -48,6 +48,9 @@ type ServiceMeta struct {
 }
 
 func (m *ServiceMeta) Init() error {
+	if m.KeepRunning == 0 {
+		m.KeepRunning = KeepAlive_Yes
+	}
 	if err := m.Stdout.Init(os.Stdout); err != nil {
 		return err
 	}
@@ -71,9 +74,9 @@ func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	}
 	switch strings.ToLower(s) {
 	default:
-		*d = KeepAlive_No
-	case "yes":
 		*d = KeepAlive_Yes
+	case "no":
+		*d = KeepAlive_No
 	case "replace":
 		*d = KeepAlive_Replace
 	}

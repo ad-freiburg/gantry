@@ -35,8 +35,13 @@ func NewPipelineEnvironment(path string) (*PipelineEnvironment, error) {
 		envFilePath: path,
 	}
 	e.importCurrentEnv()
-	if _, err := os.Stat(GantryEnv); path == "" && os.IsExist(err) {
-		path = GantryEnv
+	dir, err := os.Getwd()
+	if err != nil {
+		return e, err
+	}
+	defaultPath := filepath.Join(dir, GantryEnv)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
 	}
 	file, err := os.Open(path)
 	if err != nil {

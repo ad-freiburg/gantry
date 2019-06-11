@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -36,10 +37,7 @@ type Pipeline struct {
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	// Load environment
-	env, err := NewPipelineEnvironment(environmentPath)
-	if err != nil {
-		return nil, err
-	}
+	env, _ := NewPipelineEnvironment(environmentPath)
 	p.Environment = env
 	// Load definition
 	def, err := NewPipelineDefinition(definitionPath, env, ignoredSteps)
@@ -61,7 +59,6 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			if step.Meta.KeepRunning == KeepAlive_No {
-				// Check for network
 				NewContainerKiller(step)()
 				NewOldContainerRemover(step)()
 			} else {
@@ -159,11 +156,17 @@ type PipelineDefinition struct {
 }
 
 func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
-	if _, err := os.Stat(GantryDef); path == "" && os.IsExist(err) {
-		path = GantryDef
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
-	if _, err := os.Stat(DockerCompose); path == "" && os.IsExist(err) {
-		path = DockerCompose
+	defaultPath := filepath.Join(dir, GantryDef)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
+	}
+	defaultPath = filepath.Join(dir, DockerCompose)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -400,8 +403,7 @@ func (p Pipeline) PreRunKillContainers() error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			meta, ok := p.Environment.Services[step.Name]
-			if ok && meta.KeepRunning == KeepAlive_Replace {
+			if step.Meta.KeepRunning == KeepAlive_Replace {
 				continue
 			}
 			NewContainerKiller(step)()
