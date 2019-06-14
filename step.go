@@ -81,9 +81,8 @@ func (s Service) ContainerName() string {
 }
 
 // Runner returns a Runner which can execute s.
-func (s Service) Runner() (Runner, error) {
-	r := NewLocalRunner(s.ColoredContainerName(), s.Meta.Stdout, s.Meta.Stderr)
-	return r, nil
+func (s Service) Runner() Runner {
+	return NewLocalRunner(s.ColoredContainerName(), s.Meta.Stdout, s.Meta.Stderr)
 }
 
 // BuildCommand returns the command to build a new image for s.
