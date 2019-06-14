@@ -15,9 +15,9 @@ steps:
   download_input:
     image: busybox
     volumes:
-      - {{TempDir "input"}}:/input
+      - {{TempDir "input"}}:/output
     command:
-      "wget -P /input/ http://qlever.cs.uni-freiburg.de/data/scientist-collection.zip"
+      "wget -P /output/ http://qlever.cs.uni-freiburg.de/data/scientist-collection.zip"
 
   unzip_input:
     after:

@@ -1,10 +1,15 @@
 package gantry_test
 
 import (
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
+	"github.com/ad-freiburg/gantry/types"
 )
 
 func TestPipelinesAllSteps(t *testing.T) {
@@ -70,6 +75,84 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		for i, ri := range *r {
 			if len(ri) != len(c.result[i]) {
 				t.Errorf("Incorrect length for '%v'@'%d', got: '%d', wanted: '%d'", c.definition, i, len(ri), len(c.result[i]))
+			}
+		}
+	}
+}
+
+func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmpEnvWithoutIgnore, err := ioutil.TempFile("", "envWithoutIgnore")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpEnvWithoutIgnore.Name())
+	err = ioutil.WriteFile(tmpEnvWithoutIgnore.Name(), []byte(`steps:
+  b:
+    stdout:
+      handler: discard
+`), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmpEnvWithIgnore, err := ioutil.TempFile("", "envWithIgnore")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpEnvWithIgnore.Name())
+	err = ioutil.WriteFile(tmpEnvWithIgnore.Name(), []byte(`steps:
+  b:
+    stdout:
+      handler: discard
+    ignore: yes
+`), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cases := []struct {
+		def    string
+		env    string
+		ignore types.StringSet
+		err    string
+		result gantry.Pipelines
+	}{
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
+	}
+
+	for _, c := range cases {
+		r, err := gantry.NewPipeline(c.def, c.env, c.ignore)
+		if (err == nil && c.err != "") || (err != nil && c.err == "") {
+			t.Errorf("Incorrect error for '%v','%v','%v', got: '%s', wanted '%s'", c.def, c.env, c.ignore, err, c.err)
+		}
+		if err != nil {
+			continue
+		}
+		pipelines, err := r.Definition.Pipelines()
+		if err != nil {
+			t.Error(err)
+		}
+		if len(*pipelines) != len(c.result) {
+			t.Errorf("Incorrect number of pipelines for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, len(*pipelines), len(c.result))
+		}
+		for i, pipeline := range *pipelines {
+			if len(pipeline) != len(c.result[i]) {
+				t.Errorf("Incorrect number of steps in pipeline '%d' for '%v','%v','%v', got: '%d', wanted '%d'", i, c.def, c.env, c.ignore, len(pipeline), len(c.result[i]))
 			}
 		}
 	}

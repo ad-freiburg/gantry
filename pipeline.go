@@ -37,10 +37,10 @@ type Pipeline struct {
 func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	// Load environment
-	env, _ := NewPipelineEnvironment(environmentPath)
+	env, _ := NewPipelineEnvironment(environmentPath, ignoredSteps)
 	p.Environment = env
 	// Load definition
-	def, err := NewPipelineDefinition(definitionPath, env, ignoredSteps)
+	def, err := NewPipelineDefinition(definitionPath, env)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if step.Meta.KeepRunning == KeepAlive_No {
+			if step.Meta.KeepAlive == KeepAlive_No {
 				NewContainerKiller(step)()
 				NewOldContainerRemover(step)()
 			} else {
@@ -149,13 +149,12 @@ func (p *Pipelines) Check() error {
 
 // PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
-	Steps        StepList    `json:"steps"`
-	Services     ServiceList `json:"services"`
-	pipelines    *Pipelines
-	ignoredSteps types.StringSet
+	Steps     StepList    `json:"steps"`
+	Services  ServiceList `json:"services"`
+	pipelines *Pipelines
 }
 
-func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
+func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefinition, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -186,7 +185,6 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 	}
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
-	d.ignoredSteps = ignoredSteps
 	// Add default meta to services and steps
 	for name, s := range d.Services {
 		s.Meta.Init()
@@ -202,7 +200,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 		if ok {
 			s.Meta = meta
 			d.Services[name] = s
-		} else {
+		} else if !meta.Ignore {
 			log.Printf("Metadata: unknown service '%s'", name)
 		}
 	}
@@ -211,7 +209,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 		if ok {
 			s.Meta = meta
 			d.Steps[name] = s
-		} else {
+		} else if !meta.Ignore {
 			log.Printf("Metadata: unknown step '%s'", name)
 		}
 	}
@@ -223,15 +221,28 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment, ignoredSteps t
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
-		// Verfiy steps
+		// Collect ignored steps names
+		ignoredSteps := types.StringSet{}
 		for name, step := range p.Steps {
-			if _, ignore := p.ignoredSteps[name]; ignore {
+			if step.Meta.Ignore {
+				ignoredSteps[name] = true
+			}
+		}
+		for name, step := range p.Services {
+			if step.Meta.Ignore {
+				ignoredSteps[name] = true
+			}
+		}
+
+		// Verfiy steps and remove ignored from graph
+		for name, step := range p.Steps {
+			if step.Meta.Ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.ignoredSteps {
+			for ignored := range ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -239,13 +250,13 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		}
 		// Verify services
 		for name, step := range p.Services {
-			if _, ignore := p.ignoredSteps[name]; ignore {
+			if step.Meta.Ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.ignoredSteps {
+			for ignored := range ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -403,7 +414,7 @@ func (p Pipeline) PreRunKillContainers() error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if step.Meta.KeepRunning == KeepAlive_Replace {
+			if step.Meta.KeepAlive == KeepAlive_Replace {
 				continue
 			}
 			NewContainerKiller(step)()

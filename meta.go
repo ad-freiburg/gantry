@@ -25,6 +25,7 @@ type ServiceMetaList map[string]ServiceMeta
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
+	fmt.Printf("\n%s\n\n", string(data))
 	storage := make(map[string]ServiceMeta, 0)
 	err := json.Unmarshal(data, &storage)
 	if err != nil {
@@ -42,14 +43,15 @@ func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
 }
 
 type ServiceMeta struct {
-	KeepRunning ServiceKeepAlive `json:"keep-running"`
-	Stdout      ServiceLog       `json:"stdout"`
-	Stderr      ServiceLog       `json:"stderr"`
+	Ignore    bool             `json:"ignore"`
+	KeepAlive ServiceKeepAlive `json:"keep-alive"`
+	Stdout    ServiceLog       `json:"stdout"`
+	Stderr    ServiceLog       `json:"stderr"`
 }
 
 func (m *ServiceMeta) Init() error {
-	if m.KeepRunning == 0 {
-		m.KeepRunning = KeepAlive_Yes
+	if m.KeepAlive == 0 {
+		m.KeepAlive = KeepAlive_Yes
 	}
 	if err := m.Stdout.Init(os.Stdout); err != nil {
 		return err

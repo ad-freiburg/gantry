@@ -26,15 +26,17 @@ type PipelineEnvironment struct {
 	Steps       ServiceMetaList         `json:"steps"`
 	tempFiles   []string
 	tempPaths   map[string]string
-	envFilePath string
 }
 
-func NewPipelineEnvironment(path string) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+	// Set defaults
 	e := &PipelineEnvironment{
-		tempPaths:   make(map[string]string, 0),
-		envFilePath: path,
+		tempPaths: make(map[string]string, 0),
 	}
 	e.importCurrentEnv()
+	e.updateIgnoredSteps(ignoredSteps)
+
+	// Import settings from file
 	dir, err := os.Getwd()
 	if err != nil {
 		return e, err
@@ -53,11 +55,15 @@ func NewPipelineEnvironment(path string) (*PipelineEnvironment, error) {
 	if err != nil {
 		return e, err
 	}
+	e.Services = nil
+	e.Steps = nil
 	err = yaml.Unmarshal(data, e)
 	if err != nil {
 		return e, err
 	}
+	// Reimport defaults
 	e.importCurrentEnv()
+	e.updateIgnoredSteps(ignoredSteps)
 	return e, nil
 }
 
@@ -69,9 +75,40 @@ func (e *PipelineEnvironment) importCurrentEnv() {
 	for _, pair := range os.Environ() {
 		parts := strings.SplitN(pair, "=", 2)
 		if old, exists := e.Environment[parts[0]]; exists && *old != parts[1] {
-			log.Printf("Replacing Environment '%s': '%s' with '%s'", parts[0], old, parts[1])
+			log.Printf("Replacing Environment '%s': '%s' with '%s'", parts[0], *old, parts[1])
 		}
 		e.Environment[parts[0]] = &parts[1]
+	}
+}
+
+func (e *PipelineEnvironment) updateIgnoredSteps(ignoredSteps types.StringSet) {
+	if e.Services == nil {
+		e.Services = ServiceMetaList{}
+	}
+	if e.Steps == nil {
+		e.Steps = ServiceMetaList{}
+	}
+	// Update defined steps and serives
+	for name, stepMeta := range e.Steps {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+			e.Steps[name] = stepMeta
+		}
+	}
+	for name, stepMeta := range e.Services {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+			e.Steps[name] = stepMeta
+		}
+	}
+	for name, val := range ignoredSteps {
+		stepMeta := ServiceMeta{Ignore: val}
+		if _, found := e.Steps[name]; !found {
+			e.Steps[name] = stepMeta
+		}
+		if _, found := e.Services[name]; !found {
+			e.Services[name] = stepMeta
+		}
 	}
 }
 
