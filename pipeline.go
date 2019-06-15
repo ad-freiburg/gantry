@@ -455,7 +455,7 @@ func (p Pipeline) Runner() Runner {
 	return r
 }
 
-func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}) {
+func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}, abort chan struct{}) {
 	defer wg.Done()
 	defer close(o)
 	for i, c := range preconditions {
@@ -467,14 +467,27 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
+	// If an error was encounterd previusly, skip the rest
+	select {
+	case <-abort:
+		pipelineLogger.Printf("- Skipping %s: an error occured previously", step.ColoredContainerName())
+		return
+	default:
+	}
+	// Kill old container if KeepAlive_Replace
 	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
 	NewContainerKiller(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
-	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
 	if err != nil {
-		pipelineLogger.Println(err)
+		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
+		if !step.Meta.IgnoreFailure {
+			close(abort)
+		} else {
+			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
+		}
 	}
+	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
 	durations.Store(step.Name, duration)
 }
 
@@ -488,6 +501,7 @@ func (p Pipeline) ExecuteSteps() error {
 	var wg sync.WaitGroup
 	steps := 0
 	durations := &sync.Map{}
+	abort := make(chan struct{})
 	runChannel := make(chan struct{})
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
@@ -506,7 +520,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, val)
 			}
 			wg.Add(1)
-			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name])
+			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name], abort)
 			steps++
 		}
 	}

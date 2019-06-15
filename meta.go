@@ -43,10 +43,11 @@ func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
 }
 
 type ServiceMeta struct {
-	Ignore    bool             `json:"ignore"`
-	KeepAlive ServiceKeepAlive `json:"keep-alive"`
-	Stdout    ServiceLog       `json:"stdout"`
-	Stderr    ServiceLog       `json:"stderr"`
+	Ignore        bool             `json:"ignore"`
+	IgnoreFailure bool             `json:"ignore-failure"`
+	KeepAlive     ServiceKeepAlive `json:"keep-alive"`
+	Stdout        ServiceLog       `json:"stdout"`
+	Stderr        ServiceLog       `json:"stderr"`
 }
 
 func (m *ServiceMeta) Init() error {

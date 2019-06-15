@@ -1,0 +1,23 @@
+version: "0"
+
+steps:
+  a:
+    image: busybox
+    command: "echo \"Step a\""
+  b:
+    after:
+      - a
+    image: busybox
+    entrypoint: "/bin/sh"
+    command: ["-c", "echo \"Step b\" && exit 1"]
+  c:
+    after:
+      - a
+    image: busybox
+    command: "echo \"Step c\""
+  d:
+    after:
+      - b
+      - c
+    image: busybox
+    command: "echo \"Step d\""
