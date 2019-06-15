@@ -84,11 +84,12 @@ func TestMetaServiceMeta(t *testing.T) {
 		input  string
 		result gantry.ServiceMeta
 	}{
-		{`{}`, gantry.ServiceMeta{Ignore: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"ignore": true}`, gantry.ServiceMeta{Ignore: true, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"keep-alive": "replace"}`, gantry.ServiceMeta{Ignore: false, KeepAlive: gantry.KeepAlive_Replace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"stdout": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"stderr": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}}},
+		{`{}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"ignore": true}`, gantry.ServiceMeta{Ignore: true, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"ignore-failure": true}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: true, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"keep-alive": "replace"}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: gantry.KeepAlive_Replace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"stdout": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"stderr": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}}},
 	}
 
 	for _, c := range cases {
@@ -98,6 +99,9 @@ func TestMetaServiceMeta(t *testing.T) {
 		}
 		if r.Ignore != c.result.Ignore {
 			t.Errorf("Incorrect ServiceMeta.Ignore for '%s', got: '%t', wanted: '%t'", c.input, r.Ignore, c.result.Ignore)
+		}
+		if r.IgnoreFailure != c.result.IgnoreFailure {
+			t.Errorf("Incorrect ServiceMeta.IgnoreFailure for '%s', got: '%t', wanted: '%t'", c.input, r.IgnoreFailure, c.result.IgnoreFailure)
 		}
 		if r.KeepAlive != c.result.KeepAlive {
 			t.Errorf("Incorrect ServiceMeta.KeepAlive for '%s', got: '%d', wanted: '%d'", c.input, r.KeepAlive, c.result.KeepAlive)

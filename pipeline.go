@@ -149,6 +149,7 @@ func (p *Pipelines) Check() error {
 
 // PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
+	Version   string      `json:"version"`
 	Steps     StepList    `json:"steps"`
 	Services  ServiceList `json:"services"`
 	pipelines *Pipelines

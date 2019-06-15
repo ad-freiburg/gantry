@@ -18,6 +18,7 @@ import (
 
 // PipelineEnvironment stores additional data for pipelines.
 type PipelineEnvironment struct {
+	Version     string                  `json:"version"`
 	Machines    []Machine               `json:"machines"`
 	LogSettings LogSettings             `json:"log"`
 	Environment types.MappingWithEquals `json:"environment"`
