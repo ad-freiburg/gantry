@@ -130,9 +130,12 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// {{ Key }}
 	// Required environment value, if not defined it will not be found as function and raise an error
 	for k, v := range e.Environment {
-		fm[k] = func() (string, error) {
-			return *v, nil
-		}
+		// Convert string pointer to static string
+		fm[k] = func(v string) func() (string, error) {
+			return func() (string, error) {
+				return v, nil
+			}
+		}(*v)
 	}
 	// {{ Env "Key" ["Default"] }}
 	// Usable as optional environment variable, can provide default value if not defined
