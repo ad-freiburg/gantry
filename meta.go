@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +49,7 @@ type ServiceMeta struct {
 	Stderr        ServiceLog       `json:"stderr"`
 }
 
+// Init handles initialisation by setting defaults.
 func (m *ServiceMeta) Init() error {
 	if m.KeepAlive == 0 {
 		m.KeepAlive = KeepAlive_Yes
@@ -70,6 +70,7 @@ func (m *ServiceMeta) Close() {
 
 type ServiceKeepAlive int
 
+// UnmarshalJSON sets *r to a copy of data.
 func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -113,6 +114,7 @@ type ServiceLog struct {
 	file    *os.File
 }
 
+// Init handles initialisation by setting defaults and creating files.
 func (l *ServiceLog) Init(std *os.File) error {
 	l.std = std
 	if l.Handler == 0 {
@@ -124,11 +126,11 @@ func (l *ServiceLog) Init(std *os.File) error {
 		}
 		p, err := filepath.Abs(l.Path)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		f, err := os.Create(p)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		l.file = f
 	}

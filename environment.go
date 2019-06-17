@@ -16,7 +16,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-// PipelineEnvironment stores additional data for pipelines.
+// PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
 	Version     string                  `json:"version"`
 	Machines    []Machine               `json:"machines"`
@@ -29,6 +29,9 @@ type PipelineEnvironment struct {
 	tempPaths   map[string]string
 }
 
+// NewPipelineEnvironment builds a new environment merging the current
+// environment, the environment given by path and the user provided steps to
+// ignore.
 func NewPipelineEnvironment(path string, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
@@ -56,6 +59,7 @@ func NewPipelineEnvironment(path string, ignoredSteps types.StringSet) (*Pipelin
 	if err != nil {
 		return e, err
 	}
+	// TODO(lehmann): apply current environment to .env.yml ?
 	e.Services = nil
 	e.Steps = nil
 	err = yaml.Unmarshal(data, e)
@@ -123,6 +127,15 @@ func (e *PipelineEnvironment) exportEnvironment(path string) error {
 
 func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
+	// {{ Key }}
+	// Required environment value, if not defined it will not be found as function and raise an error
+	for k, v := range e.Environment {
+		fm[k] = func() (string, error) {
+			return *v, nil
+		}
+	}
+	// {{ Env "Key" ["Default"] }}
+	// Usable as optional environment variable, can provide default value if not defined
 	fm["Env"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
 			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
@@ -142,8 +155,9 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			return parts[1], nil
 		}
 		return *val, nil
-
 	}
+	// {{ EnvDir "Key" ["Default"] }}
+	// Get Path from environment, converts to absolute path using filepath.Abs
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
 			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
@@ -167,6 +181,8 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		}
 		return filepath.Abs(path)
 	}
+	// {{ TempDir ["optional" ["optional" ... ]] }}
+	// TempDir with the same arguments point to the same directory
 	fm["TempDir"] = func(args ...interface{}) (string, error) {
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -177,6 +193,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	return template.New("PipelineEnvironment").Funcs(fm)
 }
 
+// ApplyTo executes the environment template parser on the provided data.
 func (e *PipelineEnvironment) ApplyTo(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	bw := bufio.NewWriter(&b)
@@ -189,6 +206,7 @@ func (e *PipelineEnvironment) ApplyTo(data []byte) ([]byte, error) {
 	return b.Bytes(), err
 }
 
+// CleanUp tries to remove all managed temporary files and directories.
 func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
 	for _, file := range e.tempFiles {
 		if err := os.Remove(file); err != nil {
@@ -218,7 +236,7 @@ func (e *PipelineEnvironment) tempDir(prefix string) (string, error) {
 	return path, os.Chmod(path, 0777)
 }
 
-func (e *PipelineEnvironment) TempFile(pattern string) (*os.File, error) {
+func (e *PipelineEnvironment) tempFile(pattern string) (*os.File, error) {
 	file, err := ioutil.TempFile(e.TempDirPath, pattern)
 	if err == nil {
 		e.tempFiles = append(e.tempFiles, file.Name())
