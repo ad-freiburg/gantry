@@ -123,22 +123,23 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 	}
 
 	cases := []struct {
-		def    string
-		env    string
-		ignore types.StringSet
-		err    string
-		result gantry.Pipelines
+		def         string
+		env         string
+		environment types.MappingWithEquals
+		ignore      types.StringSet
+		err         string
+		result      gantry.Pipelines
 	}{
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
 	}
 
 	for _, c := range cases {
-		r, err := gantry.NewPipeline(c.def, c.env, c.ignore)
+		r, err := gantry.NewPipeline(c.def, c.env, c.environment, c.ignore)
 		if (err == nil && c.err != "") || (err != nil && c.err == "") {
-			t.Errorf("Incorrect error for '%v','%v','%v', got: '%s', wanted '%s'", c.def, c.env, c.ignore, err, c.err)
+			t.Errorf("Incorrect error for '%v','%v','%v',%v', got: '%s', wanted '%s'", c.def, c.env, c.environment, c.ignore, err, c.err)
 		}
 		if err != nil {
 			continue
