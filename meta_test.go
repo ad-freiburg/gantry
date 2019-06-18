@@ -12,11 +12,11 @@ func TestMetaServiceKeepAlive(t *testing.T) {
 		input  string
 		result gantry.ServiceKeepAlive
 	}{
-		{`""`, gantry.KeepAlive_Yes},
-		{`"yes"`, gantry.KeepAlive_Yes},
-		{`"no"`, gantry.KeepAlive_No},
-		{`"replace"`, gantry.KeepAlive_Replace},
-		{`"iUseTheDefault"`, gantry.KeepAlive_Yes},
+		{`""`, gantry.KeepAliveYes},
+		{`"yes"`, gantry.KeepAliveYes},
+		{`"no"`, gantry.KeepAliveNo},
+		{`"replace"`, gantry.KeepAliveReplace},
+		{`"iUseTheDefault"`, gantry.KeepAliveYes},
 	}
 
 	for _, c := range cases {
@@ -35,11 +35,11 @@ func TestMetaServiceLogHandler(t *testing.T) {
 		input  string
 		result gantry.ServiceLogHandler
 	}{
-		{`""`, gantry.Log_Stdout},
-		{`"file"`, gantry.Log_File},
-		{`"both"`, gantry.Log_Both},
-		{`"discard"`, gantry.Log_Discard},
-		{`"iUseTheDefault"`, gantry.Log_Stdout},
+		{`""`, gantry.LogHandlerStdout},
+		{`"file"`, gantry.LogHandlerFile},
+		{`"both"`, gantry.LogHandlerBoth},
+		{`"discard"`, gantry.LogHandlerDiscard},
+		{`"iUseTheDefault"`, gantry.LogHandlerStdout},
 	}
 
 	for _, c := range cases {
@@ -59,10 +59,10 @@ func TestMetaServiceLog(t *testing.T) {
 		result gantry.ServiceLog
 	}{
 		{`{}`, gantry.ServiceLog{Handler: 0, Path: ""}},
-		{`{"handler": "both", "path": "/some/path"}`, gantry.ServiceLog{Handler: gantry.Log_Both, Path: "/some/path"}},
-		{`{"handler": "discard"}`, gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}},
+		{`{"handler": "both", "path": "/some/path"}`, gantry.ServiceLog{Handler: gantry.LogHandlerBoth, Path: "/some/path"}},
+		{`{"handler": "discard"}`, gantry.ServiceLog{Handler: gantry.LogHandlerDiscard, Path: ""}},
 		{`{"path": "/some/path"}`, gantry.ServiceLog{Handler: 0, Path: "/some/path"}},
-		{`{"handler": "iUseTheDefault"}`, gantry.ServiceLog{Handler: gantry.Log_Stdout, Path: ""}},
+		{`{"handler": "iUseTheDefault"}`, gantry.ServiceLog{Handler: gantry.LogHandlerStdout, Path: ""}},
 	}
 
 	for _, c := range cases {
@@ -87,9 +87,9 @@ func TestMetaServiceMeta(t *testing.T) {
 		{`{}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
 		{`{"ignore": true}`, gantry.ServiceMeta{Ignore: true, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
 		{`{"ignore-failure": true}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: true, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"keep-alive": "replace"}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: gantry.KeepAlive_Replace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"stdout": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"stderr": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: gantry.Log_Discard, Path: ""}}},
+		{`{"keep-alive": "replace"}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: gantry.KeepAliveReplace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"stdout": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: gantry.LogHandlerDiscard, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"stderr": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: gantry.LogHandlerDiscard, Path: ""}}},
 	}
 
 	for _, c := range cases {

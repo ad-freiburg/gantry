@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	KeepAlive_Yes ServiceKeepAlive = iota
-	KeepAlive_No
-	KeepAlive_Replace
-
-	Log_Stdout ServiceLogHandler = iota
-	Log_File
-	Log_Both
-	Log_Discard
+	KeepAliveYes ServiceKeepAlive = iota
+	KeepAliveNo
+	KeepAliveReplace
+)
+const (
+	LogHandlerStdout ServiceLogHandler = iota
+	LogHandlerFile
+	LogHandlerBoth
+	LogHandlerDiscard
 )
 
 type ServiceMetaList map[string]ServiceMeta
@@ -51,9 +52,6 @@ type ServiceMeta struct {
 
 // Init handles initialisation by setting defaults.
 func (m *ServiceMeta) Init() error {
-	if m.KeepAlive == 0 {
-		m.KeepAlive = KeepAlive_Yes
-	}
 	if err := m.Stdout.Init(os.Stdout); err != nil {
 		return err
 	}
@@ -78,11 +76,11 @@ func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	}
 	switch strings.ToLower(s) {
 	default:
-		*d = KeepAlive_Yes
+		*d = KeepAliveYes
 	case "no":
-		*d = KeepAlive_No
+		*d = KeepAliveNo
 	case "replace":
-		*d = KeepAlive_Replace
+		*d = KeepAliveReplace
 	}
 	return nil
 }
@@ -96,13 +94,13 @@ func (d *ServiceLogHandler) UnmarshalJSON(b []byte) error {
 	}
 	switch strings.ToLower(s) {
 	default:
-		*d = Log_Stdout
+		*d = LogHandlerStdout
 	case "file":
-		*d = Log_File
+		*d = LogHandlerFile
 	case "both":
-		*d = Log_Both
+		*d = LogHandlerBoth
 	case "discard":
-		*d = Log_Discard
+		*d = LogHandlerDiscard
 	}
 	return nil
 }
@@ -117,10 +115,7 @@ type ServiceLog struct {
 // Init handles initialisation by setting defaults and creating files.
 func (l *ServiceLog) Init(std *os.File) error {
 	l.std = std
-	if l.Handler == 0 {
-		l.Handler = Log_Stdout
-	}
-	if l.Handler != Log_Stdout && l.Handler != Log_Discard {
+	if l.Handler != LogHandlerStdout && l.Handler != LogHandlerDiscard {
 		if l.Path == "" {
 			return errors.New("Missing 'path'")
 		}
@@ -140,10 +135,10 @@ func (l *ServiceLog) Init(std *os.File) error {
 func (l ServiceLog) Write(p []byte) (int, error) {
 	var n1, n2 int
 	var err1, err2 error
-	if l.Handler == Log_Stdout || l.Handler == Log_Both {
+	if l.Handler == LogHandlerStdout || l.Handler == LogHandlerBoth {
 		n1, err1 = l.std.Write(p)
 	}
-	if l.Handler == Log_File || l.Handler == Log_Both {
+	if l.Handler == LogHandlerFile || l.Handler == LogHandlerBoth {
 		n2, err2 = l.file.Write(p)
 	}
 	if err1 != nil {

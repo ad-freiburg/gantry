@@ -60,7 +60,6 @@ func NewPipelineEnvironment(path string, environment types.MappingWithEquals, ig
 	if err != nil {
 		return e, err
 	}
-	// TODO(lehmann): apply current environment to .env.yml ?
 	e.Services = nil
 	e.Steps = nil
 	err = yaml.Unmarshal(data, e)
@@ -120,18 +119,30 @@ func (e *PipelineEnvironment) exportEnvironment(path string) error {
 
 func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
+
 	// {{ Key }}
-	// Required environment value, if not defined it will not be found as function and raise an error
+	// Required environment value, if not defined it will not be found as
+	// function and raise an error.
 	for k, v := range e.Environment {
-		// Convert string pointer to static string
-		fm[k] = func(v string) func() (string, error) {
-			return func() (string, error) {
-				return v, nil
+		if v == nil {
+			// If no explicit value is set, return the empty string.
+			fm[k] = func() string {
+				return ""
 			}
-		}(*v)
+		} else {
+			// Ensure that each key uses it's own function, as otherwise all
+			// keys would report the last defined value.
+			fm[k] = func(v string) func() string {
+				return func() string {
+					return v
+				}
+			}(*v)
+
+		}
 	}
+
 	// {{ Env "Key" ["Default"] }}
-	// Usable as optional environment variable, can provide default value if not defined
+	// Usable as optional environment variable, can provide default value if not defined.
 	fm["Env"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
 			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
@@ -152,8 +163,9 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		}
 		return *val, nil
 	}
+
 	// {{ EnvDir "Key" ["Default"] }}
-	// Get Path from environment, converts to absolute path using filepath.Abs
+	// Get Path from environment, converts to absolute path using filepath.Abs.
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
 			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
@@ -177,8 +189,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		}
 		return filepath.Abs(path)
 	}
+
 	// {{ TempDir ["optional" ["optional" ... ]] }}
-	// TempDir with the same arguments point to the same directory
+	// Calls to TempDir with equivalent arguments result in the same directory.
+	// This allows to share temporary directories between steps/services.
 	fm["TempDir"] = func(args ...interface{}) (string, error) {
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -190,10 +204,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 }
 
 // ApplyTo executes the environment template parser on the provided data.
-func (e *PipelineEnvironment) ApplyTo(data []byte) ([]byte, error) {
+func (e *PipelineEnvironment) ApplyTo(rawFile []byte) ([]byte, error) {
 	var b bytes.Buffer
 	bw := bufio.NewWriter(&b)
-	t, err := e.createTemplateParser().Parse(string(data))
+	t, err := e.createTemplateParser().Parse(string(rawFile))
 	if err != nil {
 		return []byte(""), err
 	}

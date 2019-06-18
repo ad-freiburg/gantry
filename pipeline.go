@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ad-freiburg/gantry/types"
@@ -36,16 +37,20 @@ type Pipeline struct {
 // existence of steps with names provided in ignoreSteps.
 func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
+	var err error
 	// Load environment
-	env, _ := NewPipelineEnvironment(environmentPath, environment, ignoredSteps)
-	p.Environment = env
-	// Load definition
-	def, err := NewPipelineDefinition(definitionPath, env)
+	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps)
 	if err != nil {
-		return nil, err
+		// As environment files are optional, handle if non is accessable
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOENT {
+			log.Print("No environment file is used")
+		} else {
+			return nil, err
+		}
 	}
-	p.Definition = def
-	return p, nil
+	// Load definition
+	p.Definition, err = NewPipelineDefinition(definitionPath, p.Environment)
+	return p, err
 }
 
 // CleanUp removes containers and temporary data.
@@ -58,7 +63,7 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if step.Meta.KeepAlive == KeepAlive_No {
+			if step.Meta.KeepAlive == KeepAliveNo {
 				NewContainerKiller(step)()
 				NewOldContainerRemover(step)()
 			} else {
@@ -415,7 +420,7 @@ func (p Pipeline) PreRunKillContainers() error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if step.Meta.KeepAlive == KeepAlive_Replace {
+			if step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
 			NewContainerKiller(step)()
