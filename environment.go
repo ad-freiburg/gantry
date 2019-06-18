@@ -32,12 +32,13 @@ type PipelineEnvironment struct {
 // NewPipelineEnvironment builds a new environment merging the current
 // environment, the environment given by path and the user provided steps to
 // ignore.
-func NewPipelineEnvironment(path string, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
-		tempPaths: make(map[string]string, 0),
+		tempPaths:   make(map[string]string, 0),
+		Environment: types.MappingWithEquals{},
 	}
-	e.importCurrentEnv()
+	e.updateEnvironment(environment)
 	e.updateIgnoredSteps(ignoredSteps)
 
 	// Import settings from file
@@ -67,22 +68,14 @@ func NewPipelineEnvironment(path string, ignoredSteps types.StringSet) (*Pipelin
 		return e, err
 	}
 	// Reimport defaults
-	e.importCurrentEnv()
+	e.updateEnvironment(environment)
 	e.updateIgnoredSteps(ignoredSteps)
 	return e, nil
 }
 
-func (e *PipelineEnvironment) importCurrentEnv() {
-	// Import current environment
-	if e.Environment == nil {
-		e.Environment = types.MappingWithEquals{}
-	}
-	for _, pair := range os.Environ() {
-		parts := strings.SplitN(pair, "=", 2)
-		if old, exists := e.Environment[parts[0]]; exists && *old != parts[1] {
-			log.Printf("Replacing Environment '%s': '%s' with '%s'", parts[0], *old, parts[1])
-		}
-		e.Environment[parts[0]] = &parts[1]
+func (e *PipelineEnvironment) updateEnvironment(environment types.MappingWithEquals) {
+	for k, v := range environment {
+		e.Environment[k] = v
 	}
 }
 
