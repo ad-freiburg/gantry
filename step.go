@@ -21,6 +21,7 @@ type Service struct {
 	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Name        string
+	Meta        ServiceMeta
 	color       int
 }
 
@@ -81,8 +82,7 @@ func (s Service) ContainerName() string {
 
 // Runner returns a Runner which can execute s.
 func (s Service) Runner() Runner {
-	r := NewLocalRunner(s.ColoredContainerName(), os.Stdout, os.Stderr)
-	return r
+	return NewLocalRunner(s.ColoredContainerName(), s.Meta.Stdout, s.Meta.Stderr)
 }
 
 // BuildCommand returns the command to build a new image for s.

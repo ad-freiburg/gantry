@@ -27,7 +27,16 @@ var rootCmd = &cobra.Command{
 		for _, step := range stepsToIgnore {
 			ignoredSteps[step] = true
 		}
-		pipeline, err = gantry.NewPipeline(defFile, envFile, ignoredSteps)
+		env := types.MappingWithEquals{}
+		for _, v := range environment {
+			parts := strings.SplitN(v, "=", 2)
+			if len(parts) == 1 {
+				env[parts[0]] = nil
+			} else {
+				env[parts[0]] = &parts[1]
+			}
+		}
+		pipeline, err = gantry.NewPipeline(defFile, envFile, env, ignoredSteps)
 		if err != nil {
 			return err
 		}
@@ -54,7 +63,7 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		err := killCmd.RunE(cmd, args)
+		err := pipeline.PreRunKillContainers()
 		if err != nil {
 			return err
 		}
@@ -88,17 +97,19 @@ var (
 	envFile       string
 	pipeline      *gantry.Pipeline
 	stepsToIgnore []string
+	environment   []string
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&defFile, "file", "f", "", fmt.Sprintf("Explicit %s to use", gantry.GantryDef))
-	rootCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", fmt.Sprintf("Explicit %s to use", gantry.GantryEnv))
+	rootCmd.PersistentFlags().StringVarP(&envFile, "global-environment", "g", "", fmt.Sprintf("Explicit %s to use", gantry.GantryEnv))
 	rootCmd.PersistentFlags().StringVarP(&gantry.ProjectName, "project-name", "p", "", "Spefify an alternate project name")
 	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
+	rootCmd.PersistentFlags().StringArrayVarP(&environment, "env", "e", []string{}, "Set environment variables")
 	rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
-	rootCmd.PersistentFlags().SetAnnotation("env", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
+	rootCmd.PersistentFlags().SetAnnotation("global-environment", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
 	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
 	go signalHandler()
 }

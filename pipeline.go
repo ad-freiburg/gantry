@@ -5,8 +5,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ad-freiburg/gantry/types"
@@ -33,26 +35,48 @@ type Pipeline struct {
 
 // NewPipeline creates a new Pipeline from given files which ignores the
 // existence of steps with names provided in ignoreSteps.
-func NewPipeline(definitionPath, environmentPath string, ignoredSteps types.StringSet) (*Pipeline, error) {
+func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
-	def, err := NewPipelineDefinition(definitionPath, ignoredSteps)
+	var err error
+	// Load environment
+	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps)
 	if err != nil {
-		return nil, err
+		// As environment files are optional, handle if non is accessable
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOENT {
+			log.Print("No environment file is used")
+		} else {
+			return nil, err
+		}
 	}
-	p.Definition = def
-	p.Environment = NewPipelineEnvironment()
-	if err = p.Environment.ApplyTo(def); err != nil {
-		return nil, err
-	}
-	return p, nil
+	// Load definition
+	p.Definition, err = NewPipelineDefinition(definitionPath, p.Environment)
+	return p, err
 }
 
-// CleanUp removes temporarie data.
+// CleanUp removes containers and temporary data.
 func (p *Pipeline) CleanUp(signal os.Signal) {
-	p.Definition.CleanUp(signal)
-	if p.Environment != nil {
-		p.Environment.CleanUp(signal)
+	var keepNetworkAlive bool
+	// Stop all services which are not marked as keep-running
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		log.Fatal(err)
 	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			if step.Meta.KeepAlive == KeepAliveNo {
+				NewContainerKiller(step)()
+				NewOldContainerRemover(step)()
+			} else {
+				keepNetworkAlive = true
+			}
+			step.Meta.Close()
+		}
+	}
+	// Remove network if not needed anymore
+	if !keepNetworkAlive {
+		p.RemoveNetwork()
+	}
+	p.Environment.CleanUp(signal)
 }
 
 // Check validates Pipeline p, checks if all required information is present.
@@ -130,18 +154,24 @@ func (p *Pipelines) Check() error {
 
 // PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
-	Steps        StepList    `json:"steps"`
-	Services     ServiceList `json:"services"`
-	pipelines    *Pipelines
-	ignoredSteps types.StringSet
+	Version   string      `json:"version"`
+	Steps     StepList    `json:"steps"`
+	Services  ServiceList `json:"services"`
+	pipelines *Pipelines
 }
 
-func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*PipelineDefinition, error) {
-	if _, err := os.Stat(GantryDef); path == "" && os.IsExist(err) {
-		path = GantryDef
+func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefinition, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
-	if _, err := os.Stat(DockerCompose); path == "" && os.IsExist(err) {
-		path = DockerCompose
+	defaultPath := filepath.Join(dir, GantryDef)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
+	}
+	defaultPath = filepath.Join(dir, DockerCompose)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -154,14 +184,42 @@ func NewPipelineDefinition(path string, ignoredSteps types.StringSet) (*Pipeline
 	if err != nil {
 		return nil, err
 	}
+	// Apply environment to yaml
+	data, err = env.ApplyTo(data)
+	if err != nil {
+		return nil, err
+	}
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
-	d.ignoredSteps = ignoredSteps
+	// Add default meta to services and steps
+	for name, s := range d.Services {
+		s.Meta.Init()
+		d.Services[name] = s
+	}
+	for name, s := range d.Steps {
+		s.Meta.Init()
+		d.Steps[name] = s
+	}
+	// Update with specific meta if defined
+	for name, meta := range env.Services {
+		s, ok := d.Services[name]
+		if ok {
+			s.Meta = meta
+			d.Services[name] = s
+		} else if !meta.Ignore {
+			log.Printf("Metadata: unknown service '%s'", name)
+		}
+	}
+	for name, meta := range env.Steps {
+		s, ok := d.Steps[name]
+		if ok {
+			s.Meta = meta
+			d.Steps[name] = s
+		} else if !meta.Ignore {
+			log.Printf("Metadata: unknown step '%s'", name)
+		}
+	}
 	return d, err
-}
-
-// CleanUp removes temporarie data.
-func (p *PipelineDefinition) CleanUp(signal os.Signal) {
 }
 
 // Pipelines calculates and verifies dependencies and ordering for steps
@@ -169,15 +227,28 @@ func (p *PipelineDefinition) CleanUp(signal os.Signal) {
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
 		steps := make(map[string]Step, 0)
-		// Verfiy steps
+		// Collect ignored steps names
+		ignoredSteps := types.StringSet{}
 		for name, step := range p.Steps {
-			if _, ignore := p.ignoredSteps[name]; ignore {
+			if step.Meta.Ignore {
+				ignoredSteps[name] = true
+			}
+		}
+		for name, step := range p.Services {
+			if step.Meta.Ignore {
+				ignoredSteps[name] = true
+			}
+		}
+
+		// Verfiy steps and remove ignored from graph
+		for name, step := range p.Steps {
+			if step.Meta.Ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.ignoredSteps {
+			for ignored := range ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -185,13 +256,13 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		}
 		// Verify services
 		for name, step := range p.Services {
-			if _, ignore := p.ignoredSteps[name]; ignore {
+			if step.Meta.Ignore {
 				continue
 			}
 			if val, ok := steps[name]; ok {
 				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
 			}
-			for ignored := range p.ignoredSteps {
+			for ignored := range ignoredSteps {
 				delete(step.After, ignored)
 				delete(step.DependsOn, ignored)
 			}
@@ -341,6 +412,23 @@ func (p Pipeline) KillContainers() error {
 	return nil
 }
 
+// PreRunKillContainers kills all containers which are not marked as replace
+func (p Pipeline) PreRunKillContainers() error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			if step.Meta.KeepAlive == KeepAliveReplace {
+				continue
+			}
+			NewContainerKiller(step)()
+		}
+	}
+	return nil
+}
+
 // RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers() error {
 	pipelines, err := p.Definition.Pipelines()
@@ -373,7 +461,7 @@ func (p Pipeline) Runner() Runner {
 	return r
 }
 
-func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}) {
+func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}, abort chan struct{}) {
 	defer wg.Done()
 	defer close(o)
 	for i, c := range preconditions {
@@ -385,12 +473,27 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
+	// If an error was encounterd previusly, skip the rest
+	select {
+	case <-abort:
+		pipelineLogger.Printf("- Skipping %s: an error occured previously", step.ColoredContainerName())
+		return
+	default:
+	}
+	// Kill old container if KeepAlive_Replace
+	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
+	NewContainerKiller(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
-	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
 	if err != nil {
-		pipelineLogger.Println(err)
+		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
+		if !step.Meta.IgnoreFailure {
+			close(abort)
+		} else {
+			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
+		}
 	}
+	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
 	durations.Store(step.Name, duration)
 }
 
@@ -404,6 +507,7 @@ func (p Pipeline) ExecuteSteps() error {
 	var wg sync.WaitGroup
 	steps := 0
 	durations := &sync.Map{}
+	abort := make(chan struct{})
 	runChannel := make(chan struct{})
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
@@ -422,7 +526,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, val)
 			}
 			wg.Add(1)
-			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name])
+			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name], abort)
 			steps++
 		}
 	}

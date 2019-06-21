@@ -1,9 +1,6 @@
 package cmd // import "github.com/ad-freiburg/gantry/cmd"
 
 import (
-	"log"
-
-	"github.com/ad-freiburg/gantry"
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +19,6 @@ var downCmd = &cobra.Command{
 		err = rmCmd.RunE(cmd, args)
 		if err != nil {
 			return err
-		}
-		if gantry.Verbose {
-			log.Print("Remove network\n")
 		}
 		return pipeline.RemoveNetwork()
 	},

@@ -3,10 +3,12 @@ package gantry
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -14,37 +16,97 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-// PipelineEnvironment stores additional data for pipelines.
+// PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
+	Version     string                  `json:"version"`
 	Machines    []Machine               `json:"machines"`
 	LogSettings LogSettings             `json:"log"`
 	Environment types.MappingWithEquals `json:"environment"`
 	TempDirPath string                  `json:"tempdir"`
+	Services    ServiceMetaList         `json:"services"`
+	Steps       ServiceMetaList         `json:"steps"`
 	tempFiles   []string
 	tempPaths   map[string]string
 }
 
-func NewPipelineEnvironment() *PipelineEnvironment {
-	e := &PipelineEnvironment{}
-	e.tempPaths = make(map[string]string, 0)
-	return e
-}
+// NewPipelineEnvironment builds a new environment merging the current
+// environment, the environment given by path and the user provided steps to
+// ignore.
+func NewPipelineEnvironment(path string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+	// Set defaults
+	e := &PipelineEnvironment{
+		tempPaths:   make(map[string]string, 0),
+		Environment: types.MappingWithEquals{},
+	}
+	e.updateEnvironment(environment)
+	e.updateIgnoredSteps(ignoredSteps)
 
-func (e *PipelineEnvironment) Load(path string) error {
-	if _, err := os.Stat(GantryEnv); path == "" && os.IsExist(err) {
-		path = GantryEnv
+	// Import settings from file
+	dir, err := os.Getwd()
+	if err != nil {
+		return e, err
+	}
+	defaultPath := filepath.Join(dir, GantryEnv)
+	if _, err := os.Stat(defaultPath); path == "" && err == nil {
+		path = defaultPath
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return e, err
 	}
 	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return err
+		return e, err
 	}
-	return yaml.Unmarshal(data, e)
+	e.Services = nil
+	e.Steps = nil
+	err = yaml.Unmarshal(data, e)
+	if err != nil {
+		return e, err
+	}
+	// Reimport defaults
+	e.updateEnvironment(environment)
+	e.updateIgnoredSteps(ignoredSteps)
+	return e, nil
+}
+
+func (e *PipelineEnvironment) updateEnvironment(environment types.MappingWithEquals) {
+	for k, v := range environment {
+		e.Environment[k] = v
+	}
+}
+
+func (e *PipelineEnvironment) updateIgnoredSteps(ignoredSteps types.StringSet) {
+	if e.Services == nil {
+		e.Services = ServiceMetaList{}
+	}
+	if e.Steps == nil {
+		e.Steps = ServiceMetaList{}
+	}
+	// Update defined steps and serives
+	for name, stepMeta := range e.Steps {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+			e.Steps[name] = stepMeta
+		}
+	}
+	for name, stepMeta := range e.Services {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+			e.Steps[name] = stepMeta
+		}
+	}
+	for name, val := range ignoredSteps {
+		stepMeta := ServiceMeta{Ignore: val}
+		if _, found := e.Steps[name]; !found {
+			e.Steps[name] = stepMeta
+		}
+		if _, found := e.Services[name]; !found {
+			e.Services[name] = stepMeta
+		}
+	}
 }
 
 func (e *PipelineEnvironment) exportEnvironment(path string) error {
@@ -57,9 +119,80 @@ func (e *PipelineEnvironment) exportEnvironment(path string) error {
 
 func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
+
+	// {{ Key }}
+	// Required environment value, if not defined it will not be found as
+	// function and raise an error.
 	for k, v := range e.Environment {
-		fm[k] = func() string { return *v }
+		if v == nil {
+			// If no explicit value is set, return the empty string.
+			fm[k] = func() string {
+				return ""
+			}
+		} else {
+			// Ensure that each key uses it's own function, as otherwise all
+			// keys would report the last defined value.
+			fm[k] = func(v string) func() string {
+				return func() string {
+					return v
+				}
+			}(*v)
+
+		}
 	}
+
+	// {{ Env "Key" ["Default"] }}
+	// Usable as optional environment variable, can provide default value if not defined.
+	fm["Env"] = func(args ...interface{}) (string, error) {
+		if len(args) < 1 {
+			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
+		}
+		if len(args) > 2 {
+			return "", errors.New(fmt.Sprintf("Env: too many arguments. Got %d want <=2", len(args)))
+		}
+		parts := make([]string, len(args))
+		for i, v := range args {
+			parts[i] = fmt.Sprint(v)
+		}
+		val, ok := e.Environment[parts[0]]
+		if !ok {
+			if len(parts) < 2 {
+				return "", errors.New(fmt.Sprintf("Env '%s' not defined, no fallback provided", parts[0]))
+			}
+			return parts[1], nil
+		}
+		return *val, nil
+	}
+
+	// {{ EnvDir "Key" ["Default"] }}
+	// Get Path from environment, converts to absolute path using filepath.Abs.
+	fm["EnvDir"] = func(args ...interface{}) (string, error) {
+		if len(args) < 1 {
+			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
+		}
+		if len(args) > 2 {
+			return "", errors.New(fmt.Sprintf("EnvDir: too many arguments. Got %d want <=2", len(args)))
+		}
+		parts := make([]string, len(args))
+		for i, v := range args {
+			parts[i] = fmt.Sprint(v)
+		}
+		var path string
+		val, ok := e.Environment[parts[0]]
+		if ok {
+			path = *val
+		} else {
+			if len(parts) < 2 {
+				return "", errors.New(fmt.Sprintf("EnvDir '%s' not defined, no fallback provided", parts[0]))
+			}
+			path = parts[1]
+		}
+		return filepath.Abs(path)
+	}
+
+	// {{ TempDir ["optional" ["optional" ... ]] }}
+	// Calls to TempDir with equivalent arguments result in the same directory.
+	// This allows to share temporary directories between steps/services.
 	fm["TempDir"] = func(args ...interface{}) (string, error) {
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -70,38 +203,20 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	return template.New("PipelineEnvironment").Funcs(fm)
 }
 
-func (e *PipelineEnvironment) ApplyTo(def *PipelineDefinition) error {
-	templateParser := e.createTemplateParser()
-	if err := e.applyToVolumes(def, templateParser); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *PipelineEnvironment) applyToVolumes(def *PipelineDefinition, tp *template.Template) error {
-	pipelines, err := def.Pipelines()
+// ApplyTo executes the environment template parser on the provided data.
+func (e *PipelineEnvironment) ApplyTo(rawFile []byte) ([]byte, error) {
+	var b bytes.Buffer
+	bw := bufio.NewWriter(&b)
+	t, err := e.createTemplateParser().Parse(string(rawFile))
 	if err != nil {
-		return err
+		return []byte(""), err
 	}
-	for _, s := range pipelines.AllSteps() {
-		for i, volumePath := range s.Volumes {
-			var b bytes.Buffer
-			bw := bufio.NewWriter(&b)
-			t, err := tp.Parse(volumePath)
-			if err != nil {
-				return err
-			}
-			err = t.Execute(bw, nil)
-			if err != nil {
-				return err
-			}
-			bw.Flush()
-			s.Volumes[i] = b.String()
-		}
-	}
-	return nil
+	err = t.Execute(bw, e)
+	bw.Flush()
+	return b.Bytes(), err
 }
 
+// CleanUp tries to remove all managed temporary files and directories.
 func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
 	for _, file := range e.tempFiles {
 		if err := os.Remove(file); err != nil {
@@ -131,7 +246,7 @@ func (e *PipelineEnvironment) tempDir(prefix string) (string, error) {
 	return path, os.Chmod(path, 0777)
 }
 
-func (e *PipelineEnvironment) TempFile(pattern string) (*os.File, error) {
+func (e *PipelineEnvironment) tempFile(pattern string) (*os.File, error) {
 	file, err := ioutil.TempFile(e.TempDirPath, pattern)
 	if err == nil {
 		e.tempFiles = append(e.tempFiles, file.Name())
