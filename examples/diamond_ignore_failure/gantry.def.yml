@@ -2,22 +2,22 @@ version: "0"
 
 steps:
   a:
-    image: busybox
+    image: alpine
     command: "echo \"Step a\""
   b:
     after:
       - a
-    image: busybox
+    image: alpine
     entrypoint: "/bin/sh"
     command: ["-c", "echo \"Step b\" && exit 1"]
   c:
     after:
       - a
-    image: busybox
+    image: alpine
     command: "echo \"Step c\""
   d:
     after:
       - b
       - c
-    image: busybox
+    image: alpine
     command: "echo \"Step d\""

@@ -22,6 +22,12 @@ Binary releases are provided
 [here](https://github.com/ad-freiburg/gantry/releases). Alternatively you can
 build your own release as described in the *Building a Release* section.
 
+Gantry is go getable through
+
+    go get github.com/ad-freiburg/gantry/cmd/gantry
+
+This will result in a binary without a set version.
+
 ## Building a Release
 To build a release version first make sure everyhting works, then edit the
 [Setup](#Setup) section of this Readme so the download link points to the
@@ -31,7 +37,7 @@ future version. *Only after committing this final change tag the release*
 
 Then build with `-ldflags` such that the version is added to the binary
 
-    go build -ldflags="-X github.com/ad-freiburg/gantry.Version=$(git describe --always --long --dirty)" cmd/gantry/main.go
+    go build -ldflags="-X github.com/ad-freiburg/gantry.Version=$(git describe --always --long --dirty)" cmd/gantry/gantry.go
 
 Finally use the GitHub Releases mechanism to release a new version
 

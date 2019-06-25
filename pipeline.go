@@ -72,6 +72,12 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 			step.Meta.Close()
 		}
 	}
+	// If we are allowed, start a cleanup container to delete all files in the
+	// temporary directories as deletion from outside will fail when
+	// user-namespaces are used.
+	if !p.Environment.TempDirNoAutoClean {
+		p.RemoveTempDirData()
+	}
 	// Remove network if not needed anymore
 	if !keepNetworkAlive {
 		p.RemoveNetwork()
@@ -198,6 +204,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 	}
 	for name, s := range d.Steps {
 		s.Meta.Init()
+		s.Meta.KeepAlive = KeepAliveNo
 		d.Steps[name] = s
 	}
 	// Update with specific meta if defined
@@ -453,6 +460,44 @@ func (p Pipeline) CreateNetwork() error {
 func (p Pipeline) RemoveNetwork() error {
 	NewNetworkRemover(p)()
 	return nil
+}
+
+// RemoveTempDirData deletes all data stored in temporary directories.
+func (p Pipeline) RemoveTempDirData() error {
+	step := Step{
+		Service: Service{
+			Name:       "TempDirCleanUp",
+			Image:      "alpine",
+			Entrypoint: []string{"/bin/sh"},
+			Command:    []string{"-c", "rm -rf /data/*/*"},
+			Meta: ServiceMeta{
+				Stdout: ServiceLog{
+					Handler: LogHandlerStdout,
+				},
+				Stderr: ServiceLog{
+					Handler: LogHandlerStdout,
+				},
+			},
+		},
+	}
+	step.Meta.Stdout.Init(os.Stdout)
+	step.Meta.Stderr.Init(os.Stderr)
+	step.InitColor()
+	// Mount all temporary directories as /data/i
+	i := 0
+	for _, v := range p.Environment.tempPaths {
+		step.Volumes = append(step.Volumes, fmt.Sprintf("%s:/data/%d", v, i))
+		i += 1
+	}
+	NewContainerKiller(step)()
+	pipelineLogger.Printf("- Starting: %s", step.ColoredName())
+	duration, err := executeF(NewContainerRunner(step, p.NetworkName))
+	if err != nil {
+		pipelineLogger.Printf("  %s: %s", step.ColoredName(), err)
+	}
+	pipelineLogger.Printf("- Finished %s after %s", step.ColoredName(), duration)
+	NewOldContainerRemover(step)()
+	return err
 }
 
 // Runner returns a runner for the pipeline itself. Currently only localhost.

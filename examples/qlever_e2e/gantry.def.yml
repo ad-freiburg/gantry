@@ -13,7 +13,7 @@ services:
 
 steps:
   download_input:
-    image: busybox
+    image: alpine
     volumes:
       - {{TempDir "input"}}:/output
     command:
@@ -22,7 +22,7 @@ steps:
   unzip_input:
     after:
       - download_input
-    image: busybox
+    image: alpine
     volumes:
       - {{TempDir "input"}}:/input
     command:

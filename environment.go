@@ -18,15 +18,16 @@ import (
 
 // PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
-	Version     string                  `json:"version"`
-	Machines    []Machine               `json:"machines"`
-	LogSettings LogSettings             `json:"log"`
-	Environment types.MappingWithEquals `json:"environment"`
-	TempDirPath string                  `json:"tempdir"`
-	Services    ServiceMetaList         `json:"services"`
-	Steps       ServiceMetaList         `json:"steps"`
-	tempFiles   []string
-	tempPaths   map[string]string
+	Version            string                  `json:"version"`
+	Machines           []Machine               `json:"machines"`
+	LogSettings        LogSettings             `json:"log"`
+	Environment        types.MappingWithEquals `json:"environment"`
+	TempDirPath        string                  `json:"tempdir"`
+	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
+	Services           ServiceMetaList         `json:"services"`
+	Steps              ServiceMetaList         `json:"steps"`
+	tempFiles          []string
+	tempPaths          map[string]string
 }
 
 // NewPipelineEnvironment builds a new environment merging the current

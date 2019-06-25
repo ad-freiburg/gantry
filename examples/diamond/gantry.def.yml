@@ -2,21 +2,21 @@ version: "0"
 
 steps:
   a:
-    image: busybox
+    image: alpine
     command: "echo \"Step a\""
   b:
     after:
       - a
-    image: busybox
+    image: alpine
     command: "echo \"Step b\""
   c:
     after:
       - a
-    image: busybox
+    image: alpine
     command: "echo \"Step c\""
   d:
     after:
       - b
       - c
-    image: busybox
+    image: alpine
     command: "echo \"Step d\""
