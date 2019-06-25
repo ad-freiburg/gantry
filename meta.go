@@ -25,7 +25,6 @@ type ServiceMetaList map[string]ServiceMeta
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
-	fmt.Printf("\n%s\n\n", string(data))
 	storage := make(map[string]ServiceMeta, 0)
 	err := json.Unmarshal(data, &storage)
 	if err != nil {
