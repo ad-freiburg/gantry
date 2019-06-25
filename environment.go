@@ -21,7 +21,7 @@ type PipelineEnvironment struct {
 	Version            string                  `json:"version"`
 	Machines           []Machine               `json:"machines"`
 	LogSettings        LogSettings             `json:"log"`
-	Environment        types.MappingWithEquals `json:"environment"`
+	Substitutions      types.MappingWithEquals `json:"substitutions"`
 	TempDirPath        string                  `json:"tempdir"`
 	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
 	Services           ServiceMetaList         `json:"services"`
@@ -33,13 +33,13 @@ type PipelineEnvironment struct {
 // NewPipelineEnvironment builds a new environment merging the current
 // environment, the environment given by path and the user provided steps to
 // ignore.
-func NewPipelineEnvironment(path string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
-		tempPaths:   make(map[string]string, 0),
-		Environment: types.MappingWithEquals{},
+		tempPaths:     make(map[string]string, 0),
+		Substitutions: types.MappingWithEquals{},
 	}
-	e.updateEnvironment(environment)
+	e.updateSubstitutions(substitutions)
 	e.updateIgnoredSteps(ignoredSteps)
 
 	// Import settings from file
@@ -68,14 +68,14 @@ func NewPipelineEnvironment(path string, environment types.MappingWithEquals, ig
 		return e, err
 	}
 	// Reimport defaults
-	e.updateEnvironment(environment)
+	e.updateSubstitutions(substitutions)
 	e.updateIgnoredSteps(ignoredSteps)
 	return e, nil
 }
 
-func (e *PipelineEnvironment) updateEnvironment(environment types.MappingWithEquals) {
-	for k, v := range environment {
-		e.Environment[k] = v
+func (e *PipelineEnvironment) updateSubstitutions(substitutions types.MappingWithEquals) {
+	for k, v := range substitutions {
+		e.Substitutions[k] = v
 	}
 }
 
@@ -110,7 +110,7 @@ func (e *PipelineEnvironment) updateIgnoredSteps(ignoredSteps types.StringSet) {
 	}
 }
 
-func (e *PipelineEnvironment) exportEnvironment(path string) error {
+func (e *PipelineEnvironment) exportSubstitutions(path string) error {
 	data, err := yaml.Marshal(e)
 	if err != nil {
 		return err
@@ -122,9 +122,9 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	fm := template.FuncMap{}
 
 	// {{ Key }}
-	// Required environment value, if not defined it will not be found as
+	// Required substitution value, if not defined it will not be found as
 	// function and raise an error.
-	for k, v := range e.Environment {
+	for k, v := range e.Substitutions {
 		if v == nil {
 			// If no explicit value is set, return the empty string.
 			fm[k] = func() string {
@@ -155,7 +155,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		for i, v := range args {
 			parts[i] = fmt.Sprint(v)
 		}
-		val, ok := e.Environment[parts[0]]
+		val, ok := e.Substitutions[parts[0]]
 		if !ok {
 			if len(parts) < 2 {
 				return "", errors.New(fmt.Sprintf("Env '%s' not defined, no fallback provided", parts[0]))
@@ -179,7 +179,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			parts[i] = fmt.Sprint(v)
 		}
 		var path string
-		val, ok := e.Environment[parts[0]]
+		val, ok := e.Substitutions[parts[0]]
 		if ok {
 			path = *val
 		} else {
@@ -188,7 +188,14 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			}
 			path = parts[1]
 		}
-		return filepath.Abs(path)
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return path, err
+		}
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return path, err
+		}
+		return path, nil
 	}
 
 	// {{ TempDir ["optional" ["optional" ... ]] }}
