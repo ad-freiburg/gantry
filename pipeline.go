@@ -467,7 +467,7 @@ func (p Pipeline) RemoveTempDirData() error {
 		Service: Service{
 			Name:    "TempDirCleanUp",
 			Image:   "alpine",
-			Command: []string{"ls", "-lah", "/data"},
+			Command: []string{"rm", "-rf", "/data"},
 		},
 	}
 	step.InitColor()
