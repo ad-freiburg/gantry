@@ -16,10 +16,6 @@ var downCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		err = rmCmd.RunE(cmd, args)
-		if err != nil {
-			return err
-		}
-		return pipeline.RemoveNetwork()
+		return rmCmd.RunE(cmd, args)
 	},
 }
