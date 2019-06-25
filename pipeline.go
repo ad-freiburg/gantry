@@ -465,14 +465,29 @@ func (p Pipeline) RemoveNetwork() error {
 func (p Pipeline) RemoveTempDirData() error {
 	step := Step{
 		Service: Service{
-			Name:    "TempDirCleanUp",
-			Image:   "alpine",
-			Command: []string{"rm", "-rf", "/data"},
+			Name:       "TempDirCleanUp",
+			Image:      "alpine",
+			Entrypoint: []string{"/bin/sh"},
+			// direcories will be mounted as /data/i where i are consequitve numbers.
+			Command: []string{"-c", "rm -rf /data/*/*"},
+			Meta: ServiceMeta{
+				Stdout: ServiceLog{
+					Handler: LogHandlerStdout,
+				},
+				Stderr: ServiceLog{
+					Handler: LogHandlerStdout,
+				},
+			},
 		},
 	}
+	step.Meta.Stdout.Init(os.Stdout)
+	step.Meta.Stderr.Init(os.Stderr)
 	step.InitColor()
+	// Mount all temporary directories as /data/i
+	i := 0
 	for _, v := range p.Environment.tempPaths {
-		step.Volumes = append(step.Volumes, fmt.Sprintf("%s:/data%s", v, v))
+		step.Volumes = append(step.Volumes, fmt.Sprintf("%s:/data/%d", v, i))
+		i += 1
 	}
 	NewContainerKiller(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredName())
