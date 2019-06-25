@@ -83,7 +83,6 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	}
 	// Remove network if not needed anymore
 	if !keepNetworkAlive {
-		log.Print("Removing network")
 		p.RemoveNetwork()
 	}
 	p.Environment.CleanUp(signal)
