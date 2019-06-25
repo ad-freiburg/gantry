@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,7 +81,6 @@ func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	case "replace":
 		*d = KeepAliveReplace
 	}
-	log.Printf("%#v %#v", string(b), *d)
 	return nil
 }
 
