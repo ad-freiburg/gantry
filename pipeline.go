@@ -469,8 +469,7 @@ func (p Pipeline) RemoveTempDirData() error {
 			Name:       "TempDirCleanUp",
 			Image:      "alpine",
 			Entrypoint: []string{"/bin/sh"},
-			// direcories will be mounted as /data/i where i are consequitve numbers.
-			Command: []string{"-c", "rm -rf /data/*/*"},
+			Command:    []string{"-c", "rm -rf /data/*/*"},
 			Meta: ServiceMeta{
 				Stdout: ServiceLog{
 					Handler: LogHandlerStdout,
