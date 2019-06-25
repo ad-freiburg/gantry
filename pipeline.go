@@ -67,6 +67,9 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 				NewContainerKiller(step)()
 				NewOldContainerRemover(step)()
 			} else {
+				if Verbose {
+					log.Printf("Keeping network as '%s' can be still alive", step.ColoredName())
+				}
 				keepNetworkAlive = true
 			}
 			step.Meta.Close()
@@ -80,6 +83,7 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	}
 	// Remove network if not needed anymore
 	if !keepNetworkAlive {
+		log.Print("Removing network")
 		p.RemoveNetwork()
 	}
 	p.Environment.CleanUp(signal)
@@ -221,6 +225,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		s, ok := d.Steps[name]
 		if ok {
 			s.Meta = meta
+			s.Meta.KeepAlive = KeepAliveNo
 			d.Steps[name] = s
 		} else if !meta.Ignore {
 			log.Printf("Metadata: unknown step '%s'", name)
