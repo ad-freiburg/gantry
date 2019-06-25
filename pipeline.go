@@ -72,15 +72,15 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 			step.Meta.Close()
 		}
 	}
-	// Remove network if not needed anymore
-	if !keepNetworkAlive {
-		p.RemoveNetwork()
-	}
 	// If we are allowed, start a cleanup container to delete all files in the
 	// temporary directories as deletion from outside will fail when
 	// user-namespaces are used.
 	if !p.Environment.TempDirNoAutoClean {
 		p.RemoveTempDirData()
+	}
+	// Remove network if not needed anymore
+	if !keepNetworkAlive {
+		p.RemoveNetwork()
 	}
 	p.Environment.CleanUp(signal)
 }
@@ -204,6 +204,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 	}
 	for name, s := range d.Steps {
 		s.Meta.Init()
+		s.Meta.KeepAlive = KeepAliveNo
 		d.Steps[name] = s
 	}
 	// Update with specific meta if defined
