@@ -418,6 +418,7 @@ func (p Pipeline) KillContainers() error {
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			NewContainerKiller(step)()
+			NewOldContainerRemover(step)()
 		}
 	}
 	return nil
@@ -435,6 +436,7 @@ func (p Pipeline) PreRunKillContainers() error {
 				continue
 			}
 			NewContainerKiller(step)()
+			NewOldContainerRemover(step)()
 		}
 	}
 	return nil
@@ -494,6 +496,7 @@ func (p Pipeline) RemoveTempDirData() error {
 		i += 1
 	}
 	NewContainerKiller(step)()
+	NewOldContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredName())
 	duration, err := executeF(NewContainerRunner(step, p.NetworkName))
 	if err != nil {
@@ -532,6 +535,7 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	// Kill old container if KeepAlive_Replace
 	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
 	NewContainerKiller(step)()
+	NewOldContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
 	if err != nil {
