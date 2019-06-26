@@ -23,4 +23,5 @@ var stepsCmd = &cobra.Command{
 		}
 		return nil
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 }

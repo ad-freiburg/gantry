@@ -86,8 +86,8 @@ func TestMetaServiceMeta(t *testing.T) {
 	}{
 		{`{}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
 		{`{"ignore": true}`, gantry.ServiceMeta{Ignore: true, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"ignore-failure": true}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: true, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
-		{`{"keep-alive": "replace"}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: gantry.KeepAliveReplace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"ignore_failure": true}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: true, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
+		{`{"keep_alive": "replace"}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: gantry.KeepAliveReplace, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
 		{`{"stdout": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: gantry.LogHandlerDiscard, Path: ""}, Stderr: gantry.ServiceLog{Handler: 0, Path: ""}}},
 		{`{"stderr": {"handler": "discard"}}`, gantry.ServiceMeta{Ignore: false, IgnoreFailure: false, KeepAlive: 0, Stdout: gantry.ServiceLog{Handler: 0, Path: ""}, Stderr: gantry.ServiceLog{Handler: gantry.LogHandlerDiscard, Path: ""}}},
 	}
@@ -130,6 +130,8 @@ func TestMetaServiceMetaList(t *testing.T) {
 		{`{"a": {}}`, gantry.ServiceMetaList{"a": gantry.ServiceMeta{}}},
 		{`{"a": {}, "b": {}}`, gantry.ServiceMetaList{"a": gantry.ServiceMeta{}, "b": gantry.ServiceMeta{}}},
 		{`{"a": {}, "a": {}}`, gantry.ServiceMetaList{"a": gantry.ServiceMeta{}}},
+		{`{"a": {}, "b": {"keep_alive": "yes"}}`, gantry.ServiceMetaList{"a": gantry.ServiceMeta{}, "b": gantry.ServiceMeta{KeepAlive: gantry.KeepAliveYes}}},
+		{`{"a": {}, "b": {"keep_alive": "no"}}`, gantry.ServiceMetaList{"a": gantry.ServiceMeta{}, "b": gantry.ServiceMeta{KeepAlive: gantry.KeepAliveNo}}},
 	}
 
 	for _, c := range cases {
@@ -139,6 +141,11 @@ func TestMetaServiceMetaList(t *testing.T) {
 		}
 		if len(r) != len(c.result) {
 			t.Errorf("Incorrect number of entries in ServiceMetaList for '%s', got: '%d', wanted: '%d'", c.input, len(r), len(c.result))
+		}
+		for key, meta := range r {
+			if meta.KeepAlive != c.result[key].KeepAlive {
+				t.Errorf("Incorrect KeepAlive for '%s', got: '%d', wanted: '%d'", c.input, meta.KeepAlive, c.result[key].KeepAlive)
+			}
 		}
 	}
 }

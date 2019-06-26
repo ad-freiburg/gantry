@@ -20,6 +20,7 @@ type Service struct {
 	Volumes     []string                  `json:"volumes"`
 	Environment types.MappingWithEquals   `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
+	Restart     string                    `json:"restart"`
 	Name        string
 	Meta        ServiceMeta
 	color       int
@@ -121,6 +122,10 @@ func (s Step) RunCommand(network string) []string {
 		args = append(args, "-d")
 	} else {
 		args = append(args, "--rm")
+	}
+	if s.Restart != "" {
+		args = append(args, "--restart")
+		args = append(args, s.Restart)
 	}
 	for _, port := range s.Ports {
 		args = append(args, "-p", port)

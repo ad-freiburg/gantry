@@ -52,4 +52,5 @@ var dotCmd = &cobra.Command{
 		w.Flush()
 		return nil
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 }
