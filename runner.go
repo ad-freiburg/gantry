@@ -191,7 +191,7 @@ func NewImageExistenceChecker(step Step) func() error {
 	}
 }
 
-func NewOldContainerRemover(step Step) func() error {
+func NewContainerRemover(step Step) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Remove container '%s'", step.ContainerName())

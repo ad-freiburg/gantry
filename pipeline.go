@@ -65,7 +65,7 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 		for _, step := range pipeline {
 			if step.Meta.KeepAlive == KeepAliveNo {
 				NewContainerKiller(step)()
-				NewOldContainerRemover(step)()
+				NewContainerRemover(step)()
 			} else {
 				if Verbose {
 					log.Printf("Keeping network as '%s' can be still alive", step.ColoredName())
@@ -418,7 +418,7 @@ func (p Pipeline) KillContainers() error {
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			NewContainerKiller(step)()
-			NewOldContainerRemover(step)()
+			NewContainerRemover(step)()
 		}
 	}
 	return nil
@@ -436,7 +436,7 @@ func (p Pipeline) PreRunKillContainers() error {
 				continue
 			}
 			NewContainerKiller(step)()
-			NewOldContainerRemover(step)()
+			NewContainerRemover(step)()
 		}
 	}
 	return nil
@@ -450,7 +450,7 @@ func (p Pipeline) RemoveContainers() error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			NewOldContainerRemover(step)()
+			NewContainerRemover(step)()
 		}
 	}
 	return nil
@@ -496,14 +496,14 @@ func (p Pipeline) RemoveTempDirData() error {
 		i += 1
 	}
 	NewContainerKiller(step)()
-	NewOldContainerRemover(step)()
+	NewContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredName())
 	duration, err := executeF(NewContainerRunner(step, p.NetworkName))
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredName(), err)
 	}
 	pipelineLogger.Printf("- Finished %s after %s", step.ColoredName(), duration)
-	NewOldContainerRemover(step)()
+	NewContainerRemover(step)()
 	return err
 }
 
@@ -535,7 +535,7 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	// Kill old container if KeepAlive_Replace
 	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
 	NewContainerKiller(step)()
-	NewOldContainerRemover(step)()
+	NewContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
 	if err != nil {
