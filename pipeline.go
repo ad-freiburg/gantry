@@ -410,29 +410,14 @@ func (p Pipeline) PullImages(force bool) error {
 }
 
 // KillContainers kills all running containers of Pipeline p.
-func (p Pipeline) KillContainers() error {
+func (p Pipeline) KillContainers(preRun bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			NewContainerKiller(step)()
-			NewContainerRemover(step)()
-		}
-	}
-	return nil
-}
-
-// PreRunKillContainers kills all containers which are not marked as replace
-func (p Pipeline) PreRunKillContainers() error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	for _, pipeline := range *pipelines {
-		for _, step := range pipeline {
-			if step.Meta.KeepAlive == KeepAliveReplace {
+			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
 			NewContainerKiller(step)()
@@ -443,13 +428,16 @@ func (p Pipeline) PreRunKillContainers() error {
 }
 
 // RemoveContainers removes all stopped containers of Pipeline p.
-func (p Pipeline) RemoveContainers() error {
+func (p Pipeline) RemoveContainers(preRun bool) error {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
+				continue
+			}
 			NewContainerRemover(step)()
 		}
 	}
@@ -470,6 +458,9 @@ func (p Pipeline) RemoveNetwork() error {
 
 // RemoveTempDirData deletes all data stored in temporary directories.
 func (p Pipeline) RemoveTempDirData() error {
+	if len(p.Environment.tempPaths) < 1 {
+		return nil
+	}
 	step := Step{
 		Service: Service{
 			Name:       "TempDirCleanUp",
