@@ -63,12 +63,10 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		err := pipeline.PreRunKillContainers()
-		if err != nil {
+		if err := pipeline.KillContainers(true); err != nil {
 			return err
 		}
-		err = rmCmd.RunE(cmd, args)
-		if err != nil {
+		if err := pipeline.RemoveContainers(true); err != nil {
 			return err
 		}
 		return upCmd.RunE(cmd, args)

@@ -12,6 +12,6 @@ var killCmd = &cobra.Command{
 	Use:   "kill",
 	Short: "Force stop containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return pipeline.KillContainers()
+		return pipeline.KillContainers(false)
 	},
 }

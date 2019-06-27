@@ -12,6 +12,6 @@ var rmCmd = &cobra.Command{
 	Use:   "rm",
 	Short: "Removes stopped containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return pipeline.RemoveContainers()
+		return pipeline.RemoveContainers(false)
 	},
 }
