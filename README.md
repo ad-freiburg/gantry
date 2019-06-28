@@ -29,7 +29,7 @@ Gantry is go getable through
 This will result in a binary without a set version.
 
 ## Building a Release
-To build a release version first make sure everyhting works, then edit the
+To build a release version first make sure everything works, then edit the
 [Setup](#Setup) section of this Readme so the download link points to the
 future version. *Only after committing this final change tag the release*
 
@@ -50,11 +50,11 @@ To install gantry into the users ~/go/bin path it is enough to just run
 ## Setup
 
     # For a build from source
-    sudo mv main /usr/local/bin/
+    sudo mv gantry /usr/local/bin/
     # or for the binary release
     cd /tmp
     rm gantry_$(uname -m).tar.bz2
-    wget https://github.com/ad-freiburg/gantry/releases/download/v0.1.0/gantry_$(uname -m).tar.bz2
+    wget https://github.com/ad-freiburg/gantry/releases/download/v0.2.0/gantry_$(uname -m).tar.bz2
     tar -xavf gantry_$(uname -m).tar.bz2
     sudo mv gantry_$(uname -m)/gantry /usr/local/bin/gantry
 
