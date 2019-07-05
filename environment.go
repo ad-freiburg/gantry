@@ -26,6 +26,7 @@ type PipelineEnvironment struct {
 	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
 	Services           ServiceMetaList         `json:"services"`
 	Steps              ServiceMetaList         `json:"steps"`
+	ProjectName        string                  `json:"project_name"`
 	tempFiles          []string
 	tempPaths          map[string]string
 }
