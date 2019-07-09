@@ -274,7 +274,6 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			for len(queue) > 0 {
 				name := queue[0]
 				queue = queue[1:]
-				log.Printf("Looking @%#v, remaining: %#v", name, queue)
 				if s, ok := p.Steps[name]; ok {
 					if s.Meta.Ignore {
 						continue
