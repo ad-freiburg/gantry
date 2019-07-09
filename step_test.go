@@ -11,23 +11,23 @@ import (
 func TestStepDependencies(t *testing.T) {
 	cases := []struct {
 		step   gantry.Step
-		result *types.StringSet
+		result types.StringSet
 	}{
 		{
 			gantry.Step{Service: gantry.Service{Name: "a"}},
-			&types.StringSet{},
+			types.StringSet{},
 		},
 		{
 			gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}},
-			&types.StringSet{"a": true},
+			types.StringSet{"a": true},
 		},
 		{
 			gantry.Step{Service: gantry.Service{Name: "b", DependsOn: map[string]bool{"a": true}}},
-			&types.StringSet{"a": true},
+			types.StringSet{"a": true},
 		},
 		{
 			gantry.Step{Service: gantry.Service{Name: "d", DependsOn: map[string]bool{"c": true}}, After: map[string]bool{"b": true}},
-			&types.StringSet{"b": true, "c": true},
+			types.StringSet{"b": true, "c": true},
 		},
 	}
 

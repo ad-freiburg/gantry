@@ -60,8 +60,6 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 	}{
 		{gantry.PipelineDefinition{}, "", gantry.Pipelines{}},
 		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
-		{gantry.PipelineDefinition{Services: gantry.ServiceList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
-		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}, Services: gantry.ServiceList{"a": gantry.Step{}}}, "Redeclaration of step 'a'", gantry.Pipelines{}},
 	}
 
 	for _, c := range cases {
@@ -127,17 +125,18 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		env         string
 		environment types.MappingWithEquals
 		ignore      types.StringSet
+		selected    types.StringSet
 		err         string
 		result      gantry.Pipelines
 	}{
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
 	}
 
 	for _, c := range cases {
-		r, err := gantry.NewPipeline(c.def, c.env, c.environment, c.ignore)
+		r, err := gantry.NewPipeline(c.def, c.env, c.environment, c.ignore, c.selected)
 		if (err == nil && c.err != "") || (err != nil && c.err == "") {
 			t.Errorf("Incorrect error for '%v','%v','%v',%v', got: '%s', wanted '%s'", c.def, c.env, c.environment, c.ignore, err, c.err)
 		}
