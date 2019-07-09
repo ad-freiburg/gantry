@@ -3,6 +3,7 @@ package gantry
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,8 +17,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-// PipelineEnvironment stores additional data for pipelines and steps.
-type PipelineEnvironment struct {
+type pipelineEnvironmentJson struct {
 	Version            string                  `json:"version"`
 	Machines           []Machine               `json:"machines"`
 	LogSettings        LogSettings             `json:"log"`
@@ -26,8 +26,52 @@ type PipelineEnvironment struct {
 	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
 	Services           ServiceMetaList         `json:"services"`
 	Steps              ServiceMetaList         `json:"steps"`
+}
+
+// PipelineEnvironment stores additional data for pipelines and steps.
+type PipelineEnvironment struct {
+	Version            string
+	Machines           []Machine
+	LogSettings        LogSettings
+	Substitutions      types.MappingWithEquals
+	TempDirPath        string
+	TempDirNoAutoClean bool
+	Steps              ServiceMetaList
 	tempFiles          []string
 	tempPaths          map[string]string
+}
+
+// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJson struct.
+func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
+	result := PipelineEnvironment{
+		Steps:     ServiceMetaList{},
+		tempFiles: []string{},
+		tempPaths: map[string]string{},
+	}
+	storage := pipelineEnvironmentJson{}
+	if err := json.Unmarshal(data, &storage); err != nil {
+		return err
+	}
+	result.Version = storage.Version
+	result.Machines = storage.Machines
+	result.LogSettings = storage.LogSettings
+	result.Substitutions = storage.Substitutions
+	result.TempDirPath = storage.TempDirPath
+	result.TempDirNoAutoClean = storage.TempDirNoAutoClean
+	for name, meta := range storage.Services {
+		meta.Type = ServiceTypeService
+		result.Steps[name] = meta
+	}
+	for name, meta := range storage.Steps {
+		if _, found := result.Steps[name]; found {
+			return fmt.Errorf("Duplicate step/service '%s'", name)
+		}
+		meta.Type = ServiceTypeStep
+		meta.KeepAlive = KeepAliveNo
+		result.Steps[name] = meta
+	}
+	*r = result
+	return nil
 }
 
 // NewPipelineEnvironment builds a new environment merging the current
@@ -38,6 +82,7 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	e := &PipelineEnvironment{
 		tempPaths:     make(map[string]string, 0),
 		Substitutions: types.MappingWithEquals{},
+		Steps:         ServiceMetaList{},
 	}
 	e.updateSubstitutions(substitutions)
 	e.updateStepsMeta(ignoredSteps, selectedSteps)
@@ -61,7 +106,6 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	if err != nil {
 		return e, err
 	}
-	e.Services = nil
 	e.Steps = nil
 	err = yaml.Unmarshal(data, e)
 	if err != nil {
@@ -80,32 +124,14 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.MappingWit
 }
 
 func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, selectedSteps types.StringSet) {
-	if e.Services == nil {
-		e.Services = ServiceMetaList{}
-	}
-	if e.Steps == nil {
-		e.Steps = ServiceMetaList{}
-	}
 	for name := range ignoredSteps {
 		if _, found := e.Steps[name]; !found {
-			e.Steps[name] = ServiceMeta{
-				Type:      ServiceTypeStep,
-				KeepAlive: KeepAliveNo,
-			}
-		}
-		if _, found := e.Services[name]; !found {
-			e.Services[name] = ServiceMeta{Type: ServiceTypeService}
+			e.Steps[name] = ServiceMeta{}
 		}
 	}
 	for name := range selectedSteps {
 		if _, found := e.Steps[name]; !found {
-			e.Steps[name] = ServiceMeta{
-				Type:      ServiceTypeStep,
-				KeepAlive: KeepAliveNo,
-			}
-		}
-		if _, found := e.Services[name]; !found {
-			e.Services[name] = ServiceMeta{Type: ServiceTypeService}
+			e.Steps[name] = ServiceMeta{}
 		}
 	}
 	// Update defined steps and serives
@@ -117,15 +143,6 @@ func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, sele
 			stepMeta.Selected = val
 		}
 		e.Steps[name] = stepMeta
-	}
-	for name, stepMeta := range e.Services {
-		if val, ignored := ignoredSteps[name]; ignored {
-			stepMeta.Ignore = val
-		}
-		if val, selected := selectedSteps[name]; selected {
-			stepMeta.Selected = val
-		}
-		e.Services[name] = stepMeta
 	}
 }
 

@@ -162,7 +162,7 @@ func (p *Pipelines) Check() error {
 	return nil
 }
 
-type pipelineJson struct {
+type pipelineDefinitionJson struct {
 	Version  string
 	Steps    StepList
 	Services ServiceList
@@ -180,7 +180,7 @@ func (r *PipelineDefinition) UnmarshalJSON(data []byte) error {
 	result := PipelineDefinition{
 		Steps: StepList{},
 	}
-	storage := pipelineJson{}
+	storage := pipelineDefinitionJson{}
 	if err := json.Unmarshal(data, &storage); err != nil {
 		return err
 	}
