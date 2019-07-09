@@ -243,6 +243,11 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 			log.Printf("Metadata: unknown step '%s'", name)
 		}
 	}
+	// Initialize all metadata
+	for n, step := range d.Steps {
+		step.Meta.Init()
+		d.Steps[n] = step
+	}
 	return d, err
 }
 
@@ -514,8 +519,7 @@ func (p Pipeline) RemoveTempDirData() error {
 			},
 		},
 	}
-	step.Meta.Stdout.Init(os.Stdout)
-	step.Meta.Stderr.Init(os.Stderr)
+	step.Meta.Init()
 	step.InitColor()
 	// Mount all temporary directories as /data/i
 	i := 0

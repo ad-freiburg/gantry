@@ -35,7 +35,6 @@ func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for name, meta := range storage {
-		err := meta.Init()
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error in '%s': %s", name, err))
 		}
