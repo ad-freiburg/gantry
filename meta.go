@@ -20,6 +20,10 @@ const (
 	LogHandlerBoth
 	LogHandlerDiscard
 )
+const (
+	ServiceTypeService ServiceType = iota
+	ServiceTypeStep
+)
 
 type ServiceMetaList map[string]ServiceMeta
 
@@ -48,6 +52,7 @@ type ServiceMeta struct {
 	Stdout        ServiceLog       `json:"stdout"`
 	Stderr        ServiceLog       `json:"stderr"`
 	Selected      bool
+	Type          ServiceType
 }
 
 // Init handles initialisation by setting defaults.
@@ -65,6 +70,8 @@ func (m *ServiceMeta) Close() {
 	m.Stdout.Close()
 	m.Stderr.Close()
 }
+
+type ServiceType int
 
 type ServiceKeepAlive int
 

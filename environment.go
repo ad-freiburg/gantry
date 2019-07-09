@@ -87,21 +87,25 @@ func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, sele
 		e.Steps = ServiceMetaList{}
 	}
 	for name := range ignoredSteps {
-		stepMeta := ServiceMeta{}
 		if _, found := e.Steps[name]; !found {
-			e.Steps[name] = stepMeta
+			e.Steps[name] = ServiceMeta{
+				Type:      ServiceTypeStep,
+				KeepAlive: KeepAliveNo,
+			}
 		}
 		if _, found := e.Services[name]; !found {
-			e.Services[name] = stepMeta
+			e.Services[name] = ServiceMeta{Type: ServiceTypeService}
 		}
 	}
 	for name := range selectedSteps {
-		stepMeta := ServiceMeta{}
 		if _, found := e.Steps[name]; !found {
-			e.Steps[name] = stepMeta
+			e.Steps[name] = ServiceMeta{
+				Type:      ServiceTypeStep,
+				KeepAlive: KeepAliveNo,
+			}
 		}
 		if _, found := e.Services[name]; !found {
-			e.Services[name] = stepMeta
+			e.Services[name] = ServiceMeta{Type: ServiceTypeService}
 		}
 	}
 	// Update defined steps and serives

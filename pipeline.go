@@ -1,6 +1,7 @@
 package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -161,12 +162,40 @@ func (p *Pipelines) Check() error {
 	return nil
 }
 
+type pipelineJson struct {
+	Version  string
+	Steps    StepList
+	Services ServiceList
+}
+
 // PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
-	Version   string      `json:"version"`
-	Steps     StepList    `json:"steps"`
-	Services  ServiceList `json:"services"`
+	Version   string
+	Steps     StepList
 	pipelines *Pipelines
+}
+
+// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJson struct.
+func (r *PipelineDefinition) UnmarshalJSON(data []byte) error {
+	result := PipelineDefinition{
+		Steps: StepList{},
+	}
+	storage := pipelineJson{}
+	if err := json.Unmarshal(data, &storage); err != nil {
+		return err
+	}
+	result.Version = storage.Version
+	for name, service := range storage.Services {
+		result.Steps[name] = service
+	}
+	for name, step := range storage.Steps {
+		if _, found := result.Steps[name]; found {
+			return fmt.Errorf("Duplicate step/service '%s'", name)
+		}
+		result.Steps[name] = step
+	}
+	*r = result
+	return nil
 }
 
 func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefinition, error) {
@@ -200,31 +229,15 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 	}
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
-	// Add default meta to services and steps
-	for name, s := range d.Services {
-		s.Meta.Init()
-		d.Services[name] = s
-	}
-	for name, s := range d.Steps {
-		s.Meta.Init()
-		s.Meta.KeepAlive = KeepAliveNo
-		d.Steps[name] = s
-	}
 	// Update with specific meta if defined
-	for name, meta := range env.Services {
-		s, ok := d.Services[name]
-		if ok {
-			s.Meta = meta
-			d.Services[name] = s
-		} else if !meta.Ignore {
-			log.Printf("Metadata: unknown service '%s'", name)
-		}
-	}
 	for name, meta := range env.Steps {
 		s, ok := d.Steps[name]
 		if ok {
+			meta.Type = s.Meta.Type
 			s.Meta = meta
-			s.Meta.KeepAlive = KeepAliveNo
+			if meta.Type == ServiceTypeStep {
+				s.Meta.KeepAlive = KeepAliveNo
+			}
 			d.Steps[name] = s
 		} else if !meta.Ignore {
 			log.Printf("Metadata: unknown step '%s'", name)
@@ -248,17 +261,6 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 				selectedSteps[name] = true
 				if step.Meta.Ignore {
 					return nil, fmt.Errorf("Instructed to ignore selected step '%s'", step.Name)
-				}
-			}
-		}
-		for name, step := range p.Services {
-			if step.Meta.Ignore {
-				ignoredSteps[name] = true
-			}
-			if step.Meta.Selected {
-				selectedSteps[name] = true
-				if step.Meta.Ignore {
-					return nil, fmt.Errorf("Instructed to ignore selected service '%s'", step.Name)
 				}
 			}
 		}
@@ -287,32 +289,9 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 					selectedSteps[name] = true
 					p.Steps[name] = s
 				}
-				if s, ok := p.Services[name]; ok {
-					if s.Meta.Ignore {
-						continue
-					}
-					for dep := range s.Dependencies() {
-						queue = append(queue, dep)
-					}
-					if s.Meta.Selected {
-						continue
-					}
-					s.Meta.Selected = true
-					selectedSteps[name] = true
-					p.Services[name] = s
-				}
 			}
 			// Update ignored steps list
 			for name, step := range p.Steps {
-				if step.Meta.Selected {
-					continue
-				}
-				step.Meta.Ignore = true
-				p.Steps[name] = step
-				ignoredSteps[name] = true
-			}
-			// Verify services
-			for name, step := range p.Services {
 				if step.Meta.Selected {
 					continue
 				}
@@ -326,20 +305,6 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		steps := make(map[string]Step, 0)
 		// Verfiy steps and remove ignored from graph
 		for name, step := range p.Steps {
-			if step.Meta.Ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range ignoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
-			steps[name] = step
-		}
-		// Verify services
-		for name, step := range p.Services {
 			if step.Meta.Ignore {
 				continue
 			}
