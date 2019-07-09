@@ -27,6 +27,10 @@ var rootCmd = &cobra.Command{
 		for _, step := range stepsToIgnore {
 			ignoredSteps[step] = true
 		}
+		selectedSteps := types.StringSet{}
+		for _, step := range args {
+			selectedSteps[step] = true
+		}
 		env := types.MappingWithEquals{}
 		for _, v := range environment {
 			parts := strings.SplitN(v, "=", 2)
@@ -36,7 +40,7 @@ var rootCmd = &cobra.Command{
 				env[parts[0]] = &parts[1]
 			}
 		}
-		pipeline, err = gantry.NewPipeline(defFile, envFile, env, ignoredSteps)
+		pipeline, err = gantry.NewPipeline(defFile, envFile, env, ignoredSteps, selectedSteps)
 		if err != nil {
 			return err
 		}

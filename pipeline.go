@@ -35,11 +35,11 @@ type Pipeline struct {
 
 // NewPipeline creates a new Pipeline from given files which ignores the
 // existence of steps with names provided in ignoreSteps.
-func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*Pipeline, error) {
+func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	var err error
 	// Load environment
-	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps)
+	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps, selectedSteps)
 	if err != nil {
 		// As environment files are optional, handle if non is accessable
 		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOENT {
@@ -145,7 +145,7 @@ func (p *Pipelines) Check() error {
 			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
-		for r := range *step.Dependencies() {
+		for r := range step.Dependencies() {
 			requirements[r] = true
 		}
 		delete(requirements, step.Name)
@@ -237,20 +237,93 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 // defined in the PipelineDefinition p.
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
-		steps := make(map[string]Step, 0)
-		// Collect ignored steps names
+		// Collect ignored and selected steps names
 		ignoredSteps := types.StringSet{}
+		selectedSteps := types.StringSet{}
 		for name, step := range p.Steps {
 			if step.Meta.Ignore {
 				ignoredSteps[name] = true
+			}
+			if step.Meta.Selected {
+				selectedSteps[name] = true
+				if step.Meta.Ignore {
+					return nil, fmt.Errorf("Instructed to ignore selected step '%s'", step.Name)
+				}
 			}
 		}
 		for name, step := range p.Services {
 			if step.Meta.Ignore {
 				ignoredSteps[name] = true
 			}
+			if step.Meta.Selected {
+				selectedSteps[name] = true
+				if step.Meta.Ignore {
+					return nil, fmt.Errorf("Instructed to ignore selected service '%s'", step.Name)
+				}
+			}
 		}
 
+		// If steps or services are marked es selected, expand the selection
+		queue := make([]string, 0)
+		for name := range selectedSteps {
+			queue = append(queue, name)
+		}
+		if len(queue) > 0 {
+			for len(queue) > 0 {
+				name := queue[0]
+				queue = queue[1:]
+				log.Printf("Looking @%#v, remaining: %#v", name, queue)
+				if s, ok := p.Steps[name]; ok {
+					if s.Meta.Ignore {
+						continue
+					}
+					for dep := range s.Dependencies() {
+						queue = append(queue, dep)
+					}
+					if s.Meta.Selected {
+						continue
+					}
+					s.Meta.Selected = true
+					selectedSteps[name] = true
+					p.Steps[name] = s
+				}
+				if s, ok := p.Services[name]; ok {
+					if s.Meta.Ignore {
+						continue
+					}
+					for dep := range s.Dependencies() {
+						queue = append(queue, dep)
+					}
+					if s.Meta.Selected {
+						continue
+					}
+					s.Meta.Selected = true
+					selectedSteps[name] = true
+					p.Services[name] = s
+				}
+			}
+			// Update ignored steps list
+			for name, step := range p.Steps {
+				if step.Meta.Selected {
+					continue
+				}
+				step.Meta.Ignore = true
+				p.Steps[name] = step
+				ignoredSteps[name] = true
+			}
+			// Verify services
+			for name, step := range p.Services {
+				if step.Meta.Selected {
+					continue
+				}
+				step.Meta.Ignore = true
+				p.Steps[name] = step
+				ignoredSteps[name] = true
+			}
+		}
+
+		// Build list of active steps
+		steps := make(map[string]Step, 0)
 		// Verfiy steps and remove ignored from graph
 		for name, step := range p.Steps {
 			if step.Meta.Ignore {
@@ -559,7 +632,7 @@ func (p Pipeline) ExecuteSteps() error {
 			channels[step.Name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
-			for pre := range *step.Dependencies() {
+			for pre := range step.Dependencies() {
 				if Verbose {
 					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
 				}

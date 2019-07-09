@@ -35,7 +35,7 @@ type Step struct {
 }
 
 // Dependencies returns all steps needed for running s.
-func (s Step) Dependencies() *types.StringSet {
+func (s Step) Dependencies() types.StringSet {
 	r := types.StringSet{}
 	for dep := range s.After {
 		r[dep] = true
@@ -43,7 +43,7 @@ func (s Step) Dependencies() *types.StringSet {
 	for dep := range s.DependsOn {
 		r[dep] = true
 	}
-	return &r
+	return r
 }
 
 // InitColor initializes the color of s.

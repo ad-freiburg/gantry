@@ -33,14 +33,14 @@ type PipelineEnvironment struct {
 // NewPipelineEnvironment builds a new environment merging the current
 // environment, the environment given by path and the user provided steps to
 // ignore.
-func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
 		tempPaths:     make(map[string]string, 0),
 		Substitutions: types.MappingWithEquals{},
 	}
 	e.updateSubstitutions(substitutions)
-	e.updateIgnoredSteps(ignoredSteps)
+	e.updateStepsMeta(ignoredSteps, selectedSteps)
 
 	// Import settings from file
 	dir, err := os.Getwd()
@@ -69,7 +69,7 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	}
 	// Reimport defaults
 	e.updateSubstitutions(substitutions)
-	e.updateIgnoredSteps(ignoredSteps)
+	e.updateStepsMeta(ignoredSteps, selectedSteps)
 	return e, nil
 }
 
@@ -79,34 +79,49 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.MappingWit
 	}
 }
 
-func (e *PipelineEnvironment) updateIgnoredSteps(ignoredSteps types.StringSet) {
+func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, selectedSteps types.StringSet) {
 	if e.Services == nil {
 		e.Services = ServiceMetaList{}
 	}
 	if e.Steps == nil {
 		e.Steps = ServiceMetaList{}
 	}
-	// Update defined steps and serives
-	for name, stepMeta := range e.Steps {
-		if val, ignored := ignoredSteps[name]; ignored {
-			stepMeta.Ignore = val
-			e.Steps[name] = stepMeta
-		}
-	}
-	for name, stepMeta := range e.Services {
-		if val, ignored := ignoredSteps[name]; ignored {
-			stepMeta.Ignore = val
-			e.Steps[name] = stepMeta
-		}
-	}
-	for name, val := range ignoredSteps {
-		stepMeta := ServiceMeta{Ignore: val}
+	for name := range ignoredSteps {
+		stepMeta := ServiceMeta{}
 		if _, found := e.Steps[name]; !found {
 			e.Steps[name] = stepMeta
 		}
 		if _, found := e.Services[name]; !found {
 			e.Services[name] = stepMeta
 		}
+	}
+	for name := range selectedSteps {
+		stepMeta := ServiceMeta{}
+		if _, found := e.Steps[name]; !found {
+			e.Steps[name] = stepMeta
+		}
+		if _, found := e.Services[name]; !found {
+			e.Services[name] = stepMeta
+		}
+	}
+	// Update defined steps and serives
+	for name, stepMeta := range e.Steps {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+		}
+		if val, selected := selectedSteps[name]; selected {
+			stepMeta.Selected = val
+		}
+		e.Steps[name] = stepMeta
+	}
+	for name, stepMeta := range e.Services {
+		if val, ignored := ignoredSteps[name]; ignored {
+			stepMeta.Ignore = val
+		}
+		if val, selected := selectedSteps[name]; selected {
+			stepMeta.Selected = val
+		}
+		e.Services[name] = stepMeta
 	}
 }
 

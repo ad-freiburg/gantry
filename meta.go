@@ -47,6 +47,7 @@ type ServiceMeta struct {
 	KeepAlive     ServiceKeepAlive `json:"keep_alive"`
 	Stdout        ServiceLog       `json:"stdout"`
 	Stderr        ServiceLog       `json:"stderr"`
+	Selected      bool
 }
 
 // Init handles initialisation by setting defaults.
