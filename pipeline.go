@@ -231,9 +231,9 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 			log.Printf("Metadata: unknown step '%s'", name)
 		}
 	}
-	// Initialize all metadata
+	// Open output files for container logs
 	for n, step := range d.Steps {
-		step.Meta.Init()
+		step.Meta.Open()
 		d.Steps[n] = step
 	}
 	return d, err
@@ -507,7 +507,7 @@ func (p Pipeline) RemoveTempDirData() error {
 			},
 		},
 	}
-	step.Meta.Init()
+	step.Meta.Open()
 	step.InitColor()
 	// Mount all temporary directories as /data/i
 	i := 0
@@ -524,6 +524,7 @@ func (p Pipeline) RemoveTempDirData() error {
 	}
 	pipelineLogger.Printf("- Finished %s after %s", step.ColoredName(), duration)
 	NewContainerRemover(step)()
+	step.Meta.Close()
 	return err
 }
 

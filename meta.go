@@ -54,12 +54,12 @@ type ServiceMeta struct {
 	Type          ServiceType
 }
 
-// Init handles initialisation by setting defaults.
-func (m *ServiceMeta) Init() error {
-	if err := m.Stdout.Init(os.Stdout); err != nil {
+// Open handles output initialisation by setting defaults.
+func (m *ServiceMeta) Open() error {
+	if err := m.Stdout.Open(os.Stdout); err != nil {
 		return err
 	}
-	if err := m.Stderr.Init(os.Stderr); err != nil {
+	if err := m.Stderr.Open(os.Stderr); err != nil {
 		return err
 	}
 	return nil
@@ -118,8 +118,8 @@ type ServiceLog struct {
 	file    *os.File
 }
 
-// Init handles initialisation by setting defaults and creating files.
-func (l *ServiceLog) Init(std *os.File) error {
+// Open handles output initialisation by setting defaults and creating files.
+func (l *ServiceLog) Open(std *os.File) error {
 	l.std = std
 	if l.Handler != LogHandlerStdout && l.Handler != LogHandlerDiscard {
 		if l.Path == "" {
