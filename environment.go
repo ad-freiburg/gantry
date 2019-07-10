@@ -26,6 +26,7 @@ type pipelineEnvironmentJson struct {
 	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
 	Services           ServiceMetaList         `json:"services"`
 	Steps              ServiceMetaList         `json:"steps"`
+	ProjectName        string                  `json:"project_name"`
 }
 
 // PipelineEnvironment stores additional data for pipelines and steps.
@@ -37,6 +38,7 @@ type PipelineEnvironment struct {
 	TempDirPath        string
 	TempDirNoAutoClean bool
 	Steps              ServiceMetaList
+	ProjectName        string
 	tempFiles          []string
 	tempPaths          map[string]string
 }
@@ -58,6 +60,7 @@ func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 	result.Substitutions = storage.Substitutions
 	result.TempDirPath = storage.TempDirPath
 	result.TempDirNoAutoClean = storage.TempDirNoAutoClean
+	result.ProjectName = storage.ProjectName
 	for name, meta := range storage.Services {
 		meta.Type = ServiceTypeService
 		result.Steps[name] = meta

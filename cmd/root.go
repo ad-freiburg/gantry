@@ -51,6 +51,9 @@ var rootCmd = &cobra.Command{
 		if err = pipeline.Check(); err != nil {
 			log.Fatal(err)
 		}
+		if gantry.ProjectName == "" && pipeline.Environment.ProjectName != "" {
+			gantry.ProjectName = pipeline.Environment.ProjectName
+		}
 		if gantry.ProjectName == "" {
 			// If ProjectName was not set, try to calculate it
 			if gantry.Verbose {
