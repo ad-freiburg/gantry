@@ -42,7 +42,7 @@ func NewPipeline(definitionPath, environmentPath string, environment types.Mappi
 	// Load environment
 	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps, selectedSteps)
 	if err != nil {
-		// As environment files are optional, handle if non is accessable
+		// As environment files are optional, handle if non is accessible
 		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOENT {
 			log.Print("No environment file is used")
 		} else {
@@ -547,10 +547,10 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
-	// If an error was encounterd previusly, skip the rest
+	// If an error was encountered previusly, skip the rest
 	select {
 	case <-abort:
-		pipelineLogger.Printf("- Skipping %s: an error occured previously", step.ColoredContainerName())
+		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
 		return
 	default:
 	}
