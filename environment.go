@@ -48,20 +48,20 @@ func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 		tempFiles: []string{},
 		tempPaths: map[string]string{},
 	}
-	storage := pipelineEnvironmentJson{}
-	if err := json.Unmarshal(data, &storage); err != nil {
+	parsedJson := pipelineEnvironmentJson{}
+	if err := json.Unmarshal(data, &parsedJson); err != nil {
 		return err
 	}
-	result.Version = storage.Version
-	result.Substitutions = storage.Substitutions
-	result.TempDirPath = storage.TempDirPath
-	result.TempDirNoAutoClean = storage.TempDirNoAutoClean
-	result.ProjectName = storage.ProjectName
-	for name, meta := range storage.Services {
+	result.Version = parsedJson.Version
+	result.Substitutions = parsedJson.Substitutions
+	result.TempDirPath = parsedJson.TempDirPath
+	result.TempDirNoAutoClean = parsedJson.TempDirNoAutoClean
+	result.ProjectName = parsedJson.ProjectName
+	for name, meta := range parsedJson.Services {
 		meta.Type = ServiceTypeService
 		result.Steps[name] = meta
 	}
-	for name, meta := range storage.Steps {
+	for name, meta := range parsedJson.Steps {
 		if _, found := result.Steps[name]; found {
 			return fmt.Errorf("Duplicate step/service '%s'", name)
 		}

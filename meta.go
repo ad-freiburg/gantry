@@ -3,7 +3,6 @@ package gantry // import "github.com/ad-freiburg/gantry"
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,23 +25,6 @@ const (
 )
 
 type ServiceMetaList map[string]ServiceMeta
-
-// UnmarshalJSON sets *r to a copy of data.
-func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
-	storage := make(map[string]ServiceMeta, 0)
-	err := json.Unmarshal(data, &storage)
-	if err != nil {
-		return err
-	}
-	for name, meta := range storage {
-		if err != nil {
-			return errors.New(fmt.Sprintf("Error in '%s': %s", name, err))
-		}
-		storage[name] = meta
-	}
-	*r = storage
-	return nil
-}
 
 type ServiceMeta struct {
 	Ignore        bool             `json:"ignore"`

@@ -168,15 +168,15 @@ func (r *PipelineDefinition) UnmarshalJSON(data []byte) error {
 	result := PipelineDefinition{
 		Steps: StepList{},
 	}
-	storage := pipelineDefinitionJson{}
-	if err := json.Unmarshal(data, &storage); err != nil {
+	parsedJson := pipelineDefinitionJson{}
+	if err := json.Unmarshal(data, &parsedJson); err != nil {
 		return err
 	}
-	result.Version = storage.Version
-	for name, service := range storage.Services {
+	result.Version = parsedJson.Version
+	for name, service := range parsedJson.Services {
 		result.Steps[name] = service
 	}
-	for name, step := range storage.Steps {
+	for name, step := range parsedJson.Steps {
 		if _, found := result.Steps[name]; found {
 			return fmt.Errorf("Duplicate step/service '%s'", name)
 		}

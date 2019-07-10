@@ -10,10 +10,10 @@ type StringSet map[string]bool
 func (r *StringSet) UnmarshalJSON(data []byte) error {
 	result := make(map[string]bool, 0)
 
-	var storage []string
-	err := json.Unmarshal(data, &storage)
+	var parsedJson []string
+	err := json.Unmarshal(data, &parsedJson)
 	if err == nil {
-		for _, s := range storage {
+		for _, s := range parsedJson {
 			result[s] = true
 		}
 	} else {

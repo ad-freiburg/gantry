@@ -14,12 +14,12 @@ func (r *MappingWithEquals) UnmarshalJSON(data []byte) error {
 
 	err := json.Unmarshal(data, &result)
 	if err != nil {
-		storage := []string{}
-		err := json.Unmarshal(data, &storage)
+		parsedJson := []string{}
+		err := json.Unmarshal(data, &parsedJson)
 		if err != nil {
 			return err
 		}
-		for _, v := range storage {
+		for _, v := range parsedJson {
 			parts := strings.SplitN(v, "=", 2)
 			if len(parts) == 1 {
 				result[parts[0]] = nil
