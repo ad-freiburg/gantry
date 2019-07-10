@@ -243,7 +243,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 // defined in the PipelineDefinition p.
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
-		// Collect ignored and selected steps names
+		// Collect ignored and selected step names
 		ignoredSteps := types.StringSet{}
 		selectedSteps := types.StringSet{}
 		for name, step := range p.Steps {
@@ -263,26 +263,27 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		for name := range selectedSteps {
 			queue = append(queue, name)
 		}
-		if len(queue) > 0 {
-			for len(queue) > 0 {
-				name := queue[0]
-				queue = queue[1:]
-				if s, ok := p.Steps[name]; ok {
-					if s.Meta.Ignore {
-						continue
-					}
-					for dep := range s.Dependencies() {
-						queue = append(queue, dep)
-					}
-					if s.Meta.Selected {
-						continue
-					}
-					s.Meta.Selected = true
-					selectedSteps[name] = true
-					p.Steps[name] = s
+		ignoreNotSelected = len(queue) > 0
+		for len(queue) > 0 {
+			name := queue[0]
+			queue = queue[1:]
+			if s, ok := p.Steps[name]; ok {
+				if s.Meta.Ignore {
+					continue
 				}
+				for dep := range s.Dependencies() {
+					queue = append(queue, dep)
+				}
+				if s.Meta.Selected {
+					continue
+				}
+				s.Meta.Selected = true
+				selectedSteps[name] = true
+				p.Steps[name] = s
 			}
-			// Update ignored steps list
+		}
+		if ignoreNotSelected {
+			// Ignore all not selected steps
 			for name, step := range p.Steps {
 				if step.Meta.Selected {
 					continue
