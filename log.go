@@ -101,7 +101,7 @@ func ApplyAnsiStyle(text string, style ...int) string {
 
 // BuildAnsiStyle combines style integers with ;
 func BuildAnsiStyle(parts ...int) string {
-	return strings.Trim(strings.Replace(fmt.Sprint(parts), " ", ";", -1), "[]")
+	return strings.Trim(strings.ReplaceAll(fmt.Sprint(parts), " ", ";"), "[]")
 }
 
 // GetNextFriendlyColor returns the next friendly color from the global

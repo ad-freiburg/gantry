@@ -37,7 +37,7 @@ var dotCmd = &cobra.Command{
 		w := bufio.NewWriter(f)
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
-			sName := strings.Replace(step.Name, "-", "_", -1)
+			sName := strings.ReplaceAll(step.Name, "-", "_")
 			// Display services as ellipse, and steps as rectangle
 			shape := "ellipse"
 			if !step.Detach {
@@ -45,7 +45,7 @@ var dotCmd = &cobra.Command{
 			}
 			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name, shape))
 			for name := range step.Dependencies() {
-				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.Replace(name, "-", "_", -1)))
+				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_")))
 			}
 		}
 		w.WriteString("}\n")

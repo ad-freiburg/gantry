@@ -67,18 +67,18 @@ func (s Service) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+	return strings.ReplaceAll(strings.ToLower(s.Name), " ", "_")
 }
 
 // RawContainerName returns the name for a container of s.
 func (s Service) RawContainerName() string {
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+	return strings.ReplaceAll(strings.ToLower(s.Name), " ", "_")
 }
 
 // ContainerName returns the name for a container of s prefixed with the
 // current project name.
 func (s Service) ContainerName() string {
-	return fmt.Sprintf("%s_%s", ProjectName, strings.Replace(strings.ToLower(s.Name), " ", "_", -1))
+	return fmt.Sprintf("%s_%s", ProjectName, strings.ReplaceAll(strings.ToLower(s.Name), " ", "_"))
 }
 
 // Runner returns a Runner which can execute s.

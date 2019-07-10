@@ -65,7 +65,7 @@ var rootCmd = &cobra.Command{
 			}
 			gantry.ProjectName = filepath.Base(cwd)
 		}
-		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
+		gantry.ProjectName = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(gantry.ProjectName), " ", "_"), ".", "")
 		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
 		return nil
 	},
