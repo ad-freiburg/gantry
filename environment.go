@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -181,10 +180,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Usable as optional environment variable, can provide default value if not defined.
 	fm["Env"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
+			return "", fmt.Errorf("Env: missing argument(s). Need atleast 1 argument")
 		}
 		if len(args) > 2 {
-			return "", errors.New(fmt.Sprintf("Env: too many arguments. Got %d want <=2", len(args)))
+			return "", fmt.Errorf("Env: too many arguments. Got %d want <=2", len(args))
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -193,7 +192,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		val, ok := e.Substitutions[parts[0]]
 		if !ok {
 			if len(parts) < 2 {
-				return "", errors.New(fmt.Sprintf("Env '%s' not defined, no fallback provided", parts[0]))
+				return "", fmt.Errorf("Env '%s' not defined, no fallback provided", parts[0])
 			}
 			return parts[1], nil
 		}
@@ -204,10 +203,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Get Path from environment, converts to absolute path using filepath.Abs.
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
+			return "", fmt.Errorf("EnvDir: missing argument(s). Need atleast 1 argument")
 		}
 		if len(args) > 2 {
-			return "", errors.New(fmt.Sprintf("EnvDir: too many arguments. Got %d want <=2", len(args)))
+			return "", fmt.Errorf("EnvDir: too many arguments. Got %d want <=2", len(args))
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -219,7 +218,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			path = *val
 		} else {
 			if len(parts) < 2 {
-				return "", errors.New(fmt.Sprintf("EnvDir '%s' not defined, no fallback provided", parts[0]))
+				return "", fmt.Errorf("EnvDir '%s' not defined, no fallback provided", parts[0])
 			}
 			path = parts[1]
 		}
