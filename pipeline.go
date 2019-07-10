@@ -91,23 +91,11 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 
 // Check validates Pipeline p, checks if all required information is present.
 func (p Pipeline) Check() error {
-	roleProvider := make(map[string][]Machine)
-	if p.Environment != nil {
-		for _, machine := range p.Environment.Machines {
-			for role := range machine.Roles {
-				roleProvider[role] = append(roleProvider[role], machine)
-			}
-		}
-	}
-
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
 	for _, step := range pipelines.AllSteps() {
-		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.ColoredName())
-		}
 		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
 			return fmt.Errorf("No container information for '%s'", step.ColoredName())
 		}

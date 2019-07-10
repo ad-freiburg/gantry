@@ -19,7 +19,6 @@ import (
 
 type pipelineEnvironmentJson struct {
 	Version            string                  `json:"version"`
-	Machines           []Machine               `json:"machines"`
 	LogSettings        LogSettings             `json:"log"`
 	Substitutions      types.MappingWithEquals `json:"substitutions"`
 	TempDirPath        string                  `json:"tempdir"`
@@ -32,7 +31,6 @@ type pipelineEnvironmentJson struct {
 // PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
 	Version            string
-	Machines           []Machine
 	LogSettings        LogSettings
 	Substitutions      types.MappingWithEquals
 	TempDirPath        string
@@ -55,8 +53,6 @@ func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	result.Version = storage.Version
-	result.Machines = storage.Machines
-	result.LogSettings = storage.LogSettings
 	result.Substitutions = storage.Substitutions
 	result.TempDirPath = storage.TempDirPath
 	result.TempDirNoAutoClean = storage.TempDirNoAutoClean
