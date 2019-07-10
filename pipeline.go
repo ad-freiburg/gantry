@@ -263,7 +263,6 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		for name := range selectedSteps {
 			queue = append(queue, name)
 		}
-		ignoreNotSelected := len(queue) > 0
 		for len(queue) > 0 {
 			name := queue[0]
 			queue = queue[1:]
@@ -282,7 +281,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 				p.Steps[name] = s
 			}
 		}
-		if ignoreNotSelected {
+		if len(selectedSteps) > 0 {
 			// Ignore all not selected steps
 			for name, step := range p.Steps {
 				if step.Meta.Selected {
