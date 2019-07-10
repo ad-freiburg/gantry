@@ -263,7 +263,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		for name := range selectedSteps {
 			queue = append(queue, name)
 		}
-		ignoreNotSelected = len(queue) > 0
+		ignoreNotSelected := len(queue) > 0
 		for len(queue) > 0 {
 			name := queue[0]
 			queue = queue[1:]
