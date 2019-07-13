@@ -9,7 +9,7 @@ func init() {
 }
 
 var upCmd = &cobra.Command{
-	Use:   "up",
+	Use:   "up [flags] [Service/Step...]",
 	Short: "Builds, (re)creates, and starts containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := pipeline.PullImages(false)

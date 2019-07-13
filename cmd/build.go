@@ -14,7 +14,7 @@ var (
 )
 
 var buildCmd = &cobra.Command{
-	Use:   "build",
+	Use:   "build [flags] [Service/Step...]",
 	Short: "Builds all pipeline images",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return pipeline.BuildImages(forcePull)

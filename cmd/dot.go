@@ -19,7 +19,7 @@ var (
 )
 
 var dotCmd = &cobra.Command{
-	Use:   "dot",
+	Use:   "dot [flags] [Service/Step...]",
 	Short: "Generates a .dot file for graph visualisation",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		f, err := os.Create(dotOutput)

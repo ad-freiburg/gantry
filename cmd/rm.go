@@ -9,7 +9,7 @@ func init() {
 }
 
 var rmCmd = &cobra.Command{
-	Use:   "rm",
+	Use:   "rm [flags] [Service/Step...]",
 	Short: "Removes stopped containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return pipeline.RemoveContainers(false)

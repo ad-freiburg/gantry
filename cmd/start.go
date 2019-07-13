@@ -9,7 +9,7 @@ func init() {
 }
 
 var startCmd = &cobra.Command{
-	Use:   "start",
+	Use:   "start [flags] [Service/Step...]",
 	Short: "Starts containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pipeline.CreateNetwork()

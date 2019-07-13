@@ -27,4 +27,5 @@ var completionCmd = &cobra.Command{
 			return rootCmd.GenBashCompletion(os.Stdout)
 		}
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 }

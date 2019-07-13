@@ -9,7 +9,7 @@ func init() {
 }
 
 var downCmd = &cobra.Command{
-	Use:   "down",
+	Use:   "down [flags] [Service/Step...]",
 	Short: "Stop and remove containers, and networks created by `up`",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := killCmd.RunE(cmd, args); err != nil {
