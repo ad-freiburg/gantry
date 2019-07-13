@@ -12,10 +12,12 @@ import (
 func init() {
 	rootCmd.AddCommand(dotCmd)
 	dotCmd.Flags().StringVar(&dotOutput, "output", "gantry.dot", "File to store .dot output")
+	dotCmd.Flags().BoolVar(&hideIgnored, "hide-ignored", false, "Hide ignored steps in .dot output")
 }
 
 var (
-	dotOutput string
+	dotOutput   string
+	hideIgnored bool
 )
 
 var dotCmd = &cobra.Command{
@@ -37,15 +39,25 @@ var dotCmd = &cobra.Command{
 		w := bufio.NewWriter(f)
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
+			if hideIgnored && step.Meta.Ignore {
+				continue
+			}
 			sName := strings.ReplaceAll(step.Name, "-", "_")
 			// Display services as ellipse, and steps as rectangle
 			shape := "ellipse"
 			if !step.Detach {
 				shape = "rectangle"
 			}
+			if step.Meta.Ignore {
+				shape += ", style=dashed"
+			}
 			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name, shape))
 			for name := range step.Dependencies() {
-				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_")))
+				style := ""
+				if step.Meta.Ignore {
+					style = " [style=dashed]"
+				}
+				w.WriteString(fmt.Sprintf("%s -> %s%s\n", sName, strings.ReplaceAll(name, "-", "_"), style))
 			}
 		}
 		w.WriteString("}\n")
