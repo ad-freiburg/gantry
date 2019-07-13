@@ -15,7 +15,8 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "gantry",
+	Use:   "gantry [flags] [Service/Step...]",
+	Args:  cobra.ArbitraryArgs,
 	Short: "gantry is a docker-compose like pipeline tool",
 	Long:  `Tool for running pipelines and docker-compose deployments.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
