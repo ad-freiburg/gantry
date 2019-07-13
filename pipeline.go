@@ -297,19 +297,8 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 		steps := make(map[string]Step, 0)
 		// Verfiy steps and remove ignored from graph
 		for name, step := range p.Steps {
-			if step.Meta.Ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range ignoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
 			steps[name] = step
 		}
-
 		// Calculate order and indepenence
 		pipelines, err := NewTarjan(steps)
 		if err != nil {
@@ -348,6 +337,9 @@ func (p Pipeline) BuildImages(force bool) error {
 	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
+		if step.Meta.Ignore {
+			continue
+		}
 		if step.BuildInfo.Dockerfile == "" && step.BuildInfo.Context == "" {
 			continue
 		}
@@ -407,6 +399,9 @@ func (p Pipeline) PullImages(force bool) error {
 	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
+		if step.Meta.Ignore {
+			continue
+		}
 		if step.BuildInfo.Dockerfile != "" || step.BuildInfo.Context != "" {
 			continue
 		}
@@ -447,6 +442,9 @@ func (p Pipeline) KillContainers(preRun bool) error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
@@ -465,6 +463,9 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
@@ -586,10 +587,19 @@ func (p Pipeline) ExecuteSteps() error {
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			channels[step.Name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
 			for pre := range step.Dependencies() {
+				if p.Definition.Steps[pre].Meta.Ignore {
+					if Verbose {
+						pipelineLogger.Printf("Skipping %s as precondition for %s as it's ignored", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
+					}
+					continue
+				}
 				if Verbose {
 					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
 				}

@@ -127,12 +127,12 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		ignore      types.StringSet
 		selected    types.StringSet
 		err         string
-		result      gantry.Pipelines
+		numIgnore   int
 	}{
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}, gantry.Step{}}}},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", [][]gantry.Step{{gantry.Step{}, gantry.Step{}}}},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 0},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", 1},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 1},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", 2},
 	}
 
 	for _, c := range cases {
@@ -147,13 +147,14 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if len(*pipelines) != len(c.result) {
-			t.Errorf("Incorrect number of pipelines for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, len(*pipelines), len(c.result))
-		}
-		for i, pipeline := range *pipelines {
-			if len(pipeline) != len(c.result[i]) {
-				t.Errorf("Incorrect number of steps in pipeline '%d' for '%v','%v','%v', got: '%d', wanted '%d'", i, c.def, c.env, c.ignore, len(pipeline), len(c.result[i]))
+		ignoreCount := 0
+		for _, step := range pipelines.AllSteps() {
+			if step.Meta.Ignore {
+				ignoreCount += 1
 			}
+		}
+		if ignoreCount != c.numIgnore {
+			t.Errorf("Incorrect number of ignored steps for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, ignoreCount, c.numIgnore)
 		}
 	}
 }
