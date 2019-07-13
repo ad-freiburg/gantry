@@ -174,11 +174,18 @@ func (r *PipelineDefinition) UnmarshalJSON(data []byte) error {
 	}
 	result.Version = parsedJson.Version
 	for name, service := range parsedJson.Services {
+		service.Meta = ServiceMeta{
+			Type: ServiceTypeService,
+		}
 		result.Steps[name] = service
 	}
 	for name, step := range parsedJson.Steps {
 		if _, found := result.Steps[name]; found {
 			return fmt.Errorf("Duplicate step/service '%s'", name)
+		}
+		step.Meta = ServiceMeta{
+			Type:      ServiceTypeStep,
+			KeepAlive: KeepAliveNo,
 		}
 		result.Steps[name] = step
 	}
