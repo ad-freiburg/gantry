@@ -302,7 +302,6 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 
 		// Build list of active steps
 		steps := make(map[string]Step, 0)
-		// Verfiy steps and remove ignored from graph
 		for name, step := range p.Steps {
 			steps[name] = step
 		}
