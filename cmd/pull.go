@@ -9,7 +9,7 @@ func init() {
 }
 
 var pullCmd = &cobra.Command{
-	Use:   "pull",
+	Use:   "pull [flags] [Service/Step...]",
 	Short: "Pulls images for services/steps defined in a Compose file, but does not start the containers.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return pipeline.PullImages(true)

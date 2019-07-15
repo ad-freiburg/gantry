@@ -9,7 +9,7 @@ func init() {
 }
 
 var killCmd = &cobra.Command{
-	Use:   "kill",
+	Use:   "kill [flags] [Service/Step...]",
 	Short: "Force stop containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return pipeline.KillContainers(false)

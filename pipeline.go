@@ -1,6 +1,7 @@
 package gantry // import "github.com/ad-freiburg/gantry"
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -35,13 +36,13 @@ type Pipeline struct {
 
 // NewPipeline creates a new Pipeline from given files which ignores the
 // existence of steps with names provided in ignoreSteps.
-func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet) (*Pipeline, error) {
+func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	var err error
 	// Load environment
-	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps)
+	p.Environment, err = NewPipelineEnvironment(environmentPath, environment, ignoredSteps, selectedSteps)
 	if err != nil {
-		// As environment files are optional, handle if non is accessable
+		// As environment files are optional, handle if non is accessible
 		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOENT {
 			log.Print("No environment file is used")
 		} else {
@@ -90,23 +91,11 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 
 // Check validates Pipeline p, checks if all required information is present.
 func (p Pipeline) Check() error {
-	roleProvider := make(map[string][]Machine)
-	if p.Environment != nil {
-		for _, machine := range p.Environment.Machines {
-			for role := range machine.Roles {
-				roleProvider[role] = append(roleProvider[role], machine)
-			}
-		}
-	}
-
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
 		return err
 	}
 	for _, step := range pipelines.AllSteps() {
-		if step.Role != "" && len(roleProvider[step.Role]) < 1 {
-			return fmt.Errorf("No machine for role '%s' in '%s'", step.Role, step.ColoredName())
-		}
 		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
 			return fmt.Errorf("No container information for '%s'", step.ColoredName())
 		}
@@ -145,7 +134,7 @@ func (p *Pipelines) Check() error {
 			return fmt.Errorf("cyclic component found in (sub)pipeline: '%s'", strings.Join(names, ", "))
 		}
 		var step = steps[0]
-		for r := range *step.Dependencies() {
+		for r := range step.Dependencies() {
 			requirements[r] = true
 		}
 		delete(requirements, step.Name)
@@ -161,12 +150,47 @@ func (p *Pipelines) Check() error {
 	return nil
 }
 
+type pipelineDefinitionJson struct {
+	Version  string
+	Steps    StepList
+	Services ServiceList
+}
+
 // PipelineDefinition stores docker-compose services and gantry steps.
 type PipelineDefinition struct {
-	Version   string      `json:"version"`
-	Steps     StepList    `json:"steps"`
-	Services  ServiceList `json:"services"`
+	Version   string
+	Steps     StepList
 	pipelines *Pipelines
+}
+
+// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJson struct.
+func (r *PipelineDefinition) UnmarshalJSON(data []byte) error {
+	result := PipelineDefinition{
+		Steps: StepList{},
+	}
+	parsedJson := pipelineDefinitionJson{}
+	if err := json.Unmarshal(data, &parsedJson); err != nil {
+		return err
+	}
+	result.Version = parsedJson.Version
+	for name, service := range parsedJson.Services {
+		service.Meta = ServiceMeta{
+			Type: ServiceTypeService,
+		}
+		result.Steps[name] = service
+	}
+	for name, step := range parsedJson.Steps {
+		if _, found := result.Steps[name]; found {
+			return fmt.Errorf("Duplicate step/service '%s'", name)
+		}
+		step.Meta = ServiceMeta{
+			Type:      ServiceTypeStep,
+			KeepAlive: KeepAliveNo,
+		}
+		result.Steps[name] = step
+	}
+	*r = result
+	return nil
 }
 
 func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefinition, error) {
@@ -200,35 +224,24 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 	}
 	d := &PipelineDefinition{}
 	err = yaml.Unmarshal(data, d)
-	// Add default meta to services and steps
-	for name, s := range d.Services {
-		s.Meta.Init()
-		d.Services[name] = s
-	}
-	for name, s := range d.Steps {
-		s.Meta.Init()
-		s.Meta.KeepAlive = KeepAliveNo
-		d.Steps[name] = s
-	}
 	// Update with specific meta if defined
-	for name, meta := range env.Services {
-		s, ok := d.Services[name]
-		if ok {
-			s.Meta = meta
-			d.Services[name] = s
-		} else if !meta.Ignore {
-			log.Printf("Metadata: unknown service '%s'", name)
-		}
-	}
 	for name, meta := range env.Steps {
 		s, ok := d.Steps[name]
 		if ok {
+			meta.Type = s.Meta.Type
 			s.Meta = meta
-			s.Meta.KeepAlive = KeepAliveNo
+			if meta.Type == ServiceTypeStep {
+				s.Meta.KeepAlive = KeepAliveNo
+			}
 			d.Steps[name] = s
 		} else if !meta.Ignore {
 			log.Printf("Metadata: unknown step '%s'", name)
 		}
+	}
+	// Open output files for container logs
+	for n, step := range d.Steps {
+		step.Meta.Open()
+		d.Steps[n] = step
 	}
 	return d, err
 }
@@ -237,49 +250,61 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 // defined in the PipelineDefinition p.
 func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	if p.pipelines == nil {
-		steps := make(map[string]Step, 0)
-		// Collect ignored steps names
+		// Collect ignored and selected step names
 		ignoredSteps := types.StringSet{}
+		selectedSteps := types.StringSet{}
 		for name, step := range p.Steps {
 			if step.Meta.Ignore {
 				ignoredSteps[name] = true
 			}
+			if step.Meta.Selected {
+				selectedSteps[name] = true
+				if step.Meta.Ignore {
+					return nil, fmt.Errorf("Instructed to ignore selected step '%s'", step.Name)
+				}
+			}
 		}
-		for name, step := range p.Services {
-			if step.Meta.Ignore {
+
+		// If steps or services are marked es selected, expand the selection
+		queue := make([]string, 0)
+		for name := range selectedSteps {
+			queue = append(queue, name)
+		}
+		for len(queue) > 0 {
+			name := queue[0]
+			queue = queue[1:]
+			if s, ok := p.Steps[name]; ok {
+				if s.Meta.Ignore {
+					continue
+				}
+				for dep := range s.Dependencies() {
+					queue = append(queue, dep)
+				}
+				if s.Meta.Selected {
+					continue
+				}
+				s.Meta.Selected = true
+				selectedSteps[name] = true
+				p.Steps[name] = s
+			}
+		}
+		if len(selectedSteps) > 0 {
+			// Ignore all not selected steps
+			for name, step := range p.Steps {
+				if step.Meta.Selected {
+					continue
+				}
+				step.Meta.Ignore = true
+				p.Steps[name] = step
 				ignoredSteps[name] = true
 			}
 		}
 
-		// Verfiy steps and remove ignored from graph
+		// Build list of active steps
+		steps := make(map[string]Step, 0)
 		for name, step := range p.Steps {
-			if step.Meta.Ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range ignoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
 			steps[name] = step
 		}
-		// Verify services
-		for name, step := range p.Services {
-			if step.Meta.Ignore {
-				continue
-			}
-			if val, ok := steps[name]; ok {
-				return nil, fmt.Errorf("Redeclaration of step '%s'", val.Name)
-			}
-			for ignored := range ignoredSteps {
-				delete(step.After, ignored)
-				delete(step.DependsOn, ignored)
-			}
-			steps[name] = step
-		}
-
 		// Calculate order and indepenence
 		pipelines, err := NewTarjan(steps)
 		if err != nil {
@@ -318,6 +343,9 @@ func (p Pipeline) BuildImages(force bool) error {
 	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
+		if step.Meta.Ignore {
+			continue
+		}
 		if step.BuildInfo.Dockerfile == "" && step.BuildInfo.Context == "" {
 			continue
 		}
@@ -377,6 +405,9 @@ func (p Pipeline) PullImages(force bool) error {
 	durations := &sync.Map{}
 
 	for _, step := range pipelines.AllSteps() {
+		if step.Meta.Ignore {
+			continue
+		}
 		if step.BuildInfo.Dockerfile != "" || step.BuildInfo.Context != "" {
 			continue
 		}
@@ -417,6 +448,9 @@ func (p Pipeline) KillContainers(preRun bool) error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
@@ -435,6 +469,9 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
@@ -477,8 +514,7 @@ func (p Pipeline) RemoveTempDirData() error {
 			},
 		},
 	}
-	step.Meta.Stdout.Init(os.Stdout)
-	step.Meta.Stderr.Init(os.Stderr)
+	step.Meta.Open()
 	step.InitColor()
 	// Mount all temporary directories as /data/i
 	i := 0
@@ -495,6 +531,7 @@ func (p Pipeline) RemoveTempDirData() error {
 	}
 	pipelineLogger.Printf("- Finished %s after %s", step.ColoredName(), duration)
 	NewContainerRemover(step)()
+	step.Meta.Close()
 	return err
 }
 
@@ -516,16 +553,18 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
 		}
 	}
-	// If an error was encounterd previusly, skip the rest
+	// If an error was encountered previusly, skip the rest
 	select {
 	case <-abort:
-		pipelineLogger.Printf("- Skipping %s: an error occured previously", step.ColoredContainerName())
+		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
 		return
 	default:
 	}
 	// Kill old container if KeepAlive_Replace
-	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
-	NewContainerKiller(step)()
+	count, err := NewContainerKiller(step)()
+	if count > 0 {
+		pipelineLogger.Printf("- Killed: %s", step.ColoredContainerName())
+	}
 	NewContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
@@ -556,10 +595,19 @@ func (p Pipeline) ExecuteSteps() error {
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
+			if step.Meta.Ignore {
+				continue
+			}
 			channels[step.Name] = make(chan struct{})
 			preChannels := make([]chan struct{}, 0)
 			preChannels = append(preChannels, runChannel)
-			for pre := range *step.Dependencies() {
+			for pre := range step.Dependencies() {
+				if p.Definition.Steps[pre].Meta.Ignore {
+					if Verbose {
+						pipelineLogger.Printf("Skipping %s as precondition for %s as it's ignored", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
+					}
+					continue
+				}
 				if Verbose {
 					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
 				}

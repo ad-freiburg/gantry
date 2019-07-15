@@ -9,21 +9,24 @@ type ServiceList map[string]Step
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *ServiceList) UnmarshalJSON(data []byte) error {
-	serviceStorage := make(map[string]Service, 0)
-	stepStorage := make(map[string]Step, 0)
-	err := json.Unmarshal(data, &serviceStorage)
+	parsedJson := make(map[string]Service, 0)
+	steps := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &parsedJson)
 	if err != nil {
 		return err
 	}
-	for name, step := range serviceStorage {
+	for name, step := range parsedJson {
 		step.Name = name
 		step.InitColor()
-		stepStorage[name] = Step{
+		step.Meta = ServiceMeta{
+			Type: ServiceTypeService,
+		}
+		steps[name] = Step{
 			Service: step,
 			Detach:  true,
 		}
 	}
-	*r = stepStorage
+	*r = steps
 	return nil
 }
 
@@ -32,16 +35,19 @@ type StepList map[string]Step
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *StepList) UnmarshalJSON(data []byte) error {
-	storage := make(map[string]Step, 0)
-	err := json.Unmarshal(data, &storage)
+	parsedJson := make(map[string]Step, 0)
+	err := json.Unmarshal(data, &parsedJson)
 	if err != nil {
 		return err
 	}
-	for name, step := range storage {
+	for name, step := range parsedJson {
 		step.Name = name
 		step.InitColor()
-		storage[name] = step
+		step.Meta = ServiceMeta{
+			Type: ServiceTypeStep,
+		}
+		parsedJson[name] = step
 	}
-	*r = storage
+	*r = parsedJson
 	return nil
 }

@@ -35,7 +35,7 @@ type Step struct {
 }
 
 // Dependencies returns all steps needed for running s.
-func (s Step) Dependencies() *types.StringSet {
+func (s Step) Dependencies() types.StringSet {
 	r := types.StringSet{}
 	for dep := range s.After {
 		r[dep] = true
@@ -43,7 +43,7 @@ func (s Step) Dependencies() *types.StringSet {
 	for dep := range s.DependsOn {
 		r[dep] = true
 	}
-	return &r
+	return r
 }
 
 // InitColor initializes the color of s.
@@ -67,18 +67,18 @@ func (s Service) ImageName() string {
 	if s.Image != "" {
 		return s.Image
 	}
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+	return strings.ReplaceAll(strings.ToLower(s.Name), " ", "_")
 }
 
 // RawContainerName returns the name for a container of s.
 func (s Service) RawContainerName() string {
-	return strings.Replace(strings.ToLower(s.Name), " ", "_", -1)
+	return strings.ReplaceAll(strings.ToLower(s.Name), " ", "_")
 }
 
 // ContainerName returns the name for a container of s prefixed with the
 // current project name.
 func (s Service) ContainerName() string {
-	return fmt.Sprintf("%s_%s", ProjectName, strings.Replace(strings.ToLower(s.Name), " ", "_", -1))
+	return fmt.Sprintf("%s_%s", ProjectName, strings.ReplaceAll(strings.ToLower(s.Name), " ", "_"))
 }
 
 // Runner returns a Runner which can execute s.

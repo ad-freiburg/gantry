@@ -140,8 +140,9 @@ func NewContainerRunner(step Step, network string) func() error {
 	}
 }
 
-func NewContainerKiller(step Step) func() error {
-	return func() error {
+func NewContainerKiller(step Step) func() (int, error) {
+	return func() (int, error) {
+		var counter int
 		if Verbose {
 			log.Printf("Kill container '%s'", step.ContainerName())
 		}
@@ -149,18 +150,19 @@ func NewContainerKiller(step Step) func() error {
 		r.SetCommand(getContainerExecutable(), []string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		out, err := r.Output()
 		if err != nil {
-			return err
+			return counter, err
 		}
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
+			counter += 1
 			k := step.Runner()
 			k.SetCommand(getContainerExecutable(), []string{"kill", scanner.Text()})
 			if err := k.Exec(); err != nil {
-				return err
+				return counter, err
 			}
 		}
-		return scanner.Err()
+		return counter, scanner.Err()
 	}
 }
 

@@ -3,7 +3,7 @@ package gantry
 import (
 	"bufio"
 	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -16,10 +16,8 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-// PipelineEnvironment stores additional data for pipelines and steps.
-type PipelineEnvironment struct {
+type pipelineEnvironmentJson struct {
 	Version            string                  `json:"version"`
-	Machines           []Machine               `json:"machines"`
 	LogSettings        LogSettings             `json:"log"`
 	Substitutions      types.MappingWithEquals `json:"substitutions"`
 	TempDirPath        string                  `json:"tempdir"`
@@ -27,21 +25,65 @@ type PipelineEnvironment struct {
 	Services           ServiceMetaList         `json:"services"`
 	Steps              ServiceMetaList         `json:"steps"`
 	ProjectName        string                  `json:"project_name"`
+}
+
+// PipelineEnvironment stores additional data for pipelines and steps.
+type PipelineEnvironment struct {
+	Version            string
+	LogSettings        LogSettings
+	Substitutions      types.MappingWithEquals
+	TempDirPath        string
+	TempDirNoAutoClean bool
+	Steps              ServiceMetaList
+	ProjectName        string
 	tempFiles          []string
 	tempPaths          map[string]string
+}
+
+// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJson struct.
+func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
+	result := PipelineEnvironment{
+		Steps:     ServiceMetaList{},
+		tempFiles: []string{},
+		tempPaths: map[string]string{},
+	}
+	parsedJson := pipelineEnvironmentJson{}
+	if err := json.Unmarshal(data, &parsedJson); err != nil {
+		return err
+	}
+	result.Version = parsedJson.Version
+	result.Substitutions = parsedJson.Substitutions
+	result.TempDirPath = parsedJson.TempDirPath
+	result.TempDirNoAutoClean = parsedJson.TempDirNoAutoClean
+	result.ProjectName = parsedJson.ProjectName
+	for name, meta := range parsedJson.Services {
+		meta.Type = ServiceTypeService
+		result.Steps[name] = meta
+	}
+	for name, meta := range parsedJson.Steps {
+		if _, found := result.Steps[name]; found {
+			return fmt.Errorf("Duplicate step/service '%s'", name)
+		}
+		meta.Type = ServiceTypeStep
+		meta.KeepAlive = KeepAliveNo
+		result.Steps[name] = meta
+	}
+	*r = result
+	return nil
 }
 
 // NewPipelineEnvironment builds a new environment merging the current
 // environment, the environment given by path and the user provided steps to
 // ignore.
-func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
 		tempPaths:     make(map[string]string, 0),
 		Substitutions: types.MappingWithEquals{},
+		Steps:         ServiceMetaList{},
 	}
 	e.updateSubstitutions(substitutions)
-	e.updateIgnoredSteps(ignoredSteps)
+	e.updateStepsMeta(ignoredSteps, selectedSteps)
 
 	// Import settings from file
 	dir, err := os.Getwd()
@@ -62,7 +104,6 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	if err != nil {
 		return e, err
 	}
-	e.Services = nil
 	e.Steps = nil
 	err = yaml.Unmarshal(data, e)
 	if err != nil {
@@ -70,7 +111,7 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	}
 	// Reimport defaults
 	e.updateSubstitutions(substitutions)
-	e.updateIgnoredSteps(ignoredSteps)
+	e.updateStepsMeta(ignoredSteps, selectedSteps)
 	return e, nil
 }
 
@@ -80,34 +121,26 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.MappingWit
 	}
 }
 
-func (e *PipelineEnvironment) updateIgnoredSteps(ignoredSteps types.StringSet) {
-	if e.Services == nil {
-		e.Services = ServiceMetaList{}
+func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, selectedSteps types.StringSet) {
+	for name := range ignoredSteps {
+		if _, found := e.Steps[name]; !found {
+			e.Steps[name] = ServiceMeta{}
+		}
 	}
-	if e.Steps == nil {
-		e.Steps = ServiceMetaList{}
+	for name := range selectedSteps {
+		if _, found := e.Steps[name]; !found {
+			e.Steps[name] = ServiceMeta{}
+		}
 	}
 	// Update defined steps and serives
 	for name, stepMeta := range e.Steps {
 		if val, ignored := ignoredSteps[name]; ignored {
 			stepMeta.Ignore = val
-			e.Steps[name] = stepMeta
 		}
-	}
-	for name, stepMeta := range e.Services {
-		if val, ignored := ignoredSteps[name]; ignored {
-			stepMeta.Ignore = val
-			e.Steps[name] = stepMeta
+		if val, selected := selectedSteps[name]; selected {
+			stepMeta.Selected = val
 		}
-	}
-	for name, val := range ignoredSteps {
-		stepMeta := ServiceMeta{Ignore: val}
-		if _, found := e.Steps[name]; !found {
-			e.Steps[name] = stepMeta
-		}
-		if _, found := e.Services[name]; !found {
-			e.Services[name] = stepMeta
-		}
+		e.Steps[name] = stepMeta
 	}
 }
 
@@ -147,10 +180,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Usable as optional environment variable, can provide default value if not defined.
 	fm["Env"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", errors.New(fmt.Sprintf("Env: missing argument(s). Need atleast 1 argument"))
+			return "", fmt.Errorf("Env: missing argument(s). Need atleast 1 argument")
 		}
 		if len(args) > 2 {
-			return "", errors.New(fmt.Sprintf("Env: too many arguments. Got %d want <=2", len(args)))
+			return "", fmt.Errorf("Env: too many arguments. Got %d want <=2", len(args))
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -159,7 +192,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		val, ok := e.Substitutions[parts[0]]
 		if !ok {
 			if len(parts) < 2 {
-				return "", errors.New(fmt.Sprintf("Env '%s' not defined, no fallback provided", parts[0]))
+				return "", fmt.Errorf("Env '%s' not defined, no fallback provided", parts[0])
 			}
 			return parts[1], nil
 		}
@@ -170,10 +203,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Get Path from environment, converts to absolute path using filepath.Abs.
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", errors.New(fmt.Sprintf("EnvDir: missing argument(s). Need atleast 1 argument"))
+			return "", fmt.Errorf("EnvDir: missing argument(s). Need atleast 1 argument")
 		}
 		if len(args) > 2 {
-			return "", errors.New(fmt.Sprintf("EnvDir: too many arguments. Got %d want <=2", len(args)))
+			return "", fmt.Errorf("EnvDir: too many arguments. Got %d want <=2", len(args))
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -185,7 +218,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			path = *val
 		} else {
 			if len(parts) < 2 {
-				return "", errors.New(fmt.Sprintf("EnvDir '%s' not defined, no fallback provided", parts[0]))
+				return "", fmt.Errorf("EnvDir '%s' not defined, no fallback provided", parts[0])
 			}
 			path = parts[1]
 		}

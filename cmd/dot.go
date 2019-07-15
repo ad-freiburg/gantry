@@ -12,14 +12,16 @@ import (
 func init() {
 	rootCmd.AddCommand(dotCmd)
 	dotCmd.Flags().StringVar(&dotOutput, "output", "gantry.dot", "File to store .dot output")
+	dotCmd.Flags().BoolVar(&hideIgnored, "hide-ignored", false, "Hide ignored steps in .dot output")
 }
 
 var (
-	dotOutput string
+	dotOutput   string
+	hideIgnored bool
 )
 
 var dotCmd = &cobra.Command{
-	Use:   "dot",
+	Use:   "dot [flags] [Service/Step...]",
 	Short: "Generates a .dot file for graph visualisation",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		f, err := os.Create(dotOutput)
@@ -37,15 +39,25 @@ var dotCmd = &cobra.Command{
 		w := bufio.NewWriter(f)
 		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
 		for _, step := range pipelines.AllSteps() {
-			sName := strings.Replace(step.Name, "-", "_", -1)
-			// Display services as ellipse, and steps as rectangle
-			shape := "ellipse"
-			if !step.Detach {
-				shape = "rectangle"
+			if hideIgnored && step.Meta.Ignore {
+				continue
 			}
-			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name, shape))
-			for name := range *step.Dependencies() {
-				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.Replace(name, "-", "_", -1)))
+			sName := strings.ReplaceAll(step.Name, "-", "_")
+			// Display services as ellipse, and steps as rectangle
+			shape := "rectangle"
+			style := "solid"
+			if step.Detach {
+				shape = "ellipse"
+			}
+			if step.Meta.Ignore {
+				style = "dashed"
+			}
+			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s, style=%s]\n", sName, step.Name, shape, style))
+			for name := range step.Dependencies() {
+				if hideIgnored && pipeline.Definition.Steps[name].Meta.Ignore {
+					continue
+				}
+				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_")))
 			}
 		}
 		w.WriteString("}\n")

@@ -3,7 +3,6 @@ package gantry // import "github.com/ad-freiburg/gantry"
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,26 +19,12 @@ const (
 	LogHandlerBoth
 	LogHandlerDiscard
 )
+const (
+	ServiceTypeService ServiceType = iota
+	ServiceTypeStep
+)
 
 type ServiceMetaList map[string]ServiceMeta
-
-// UnmarshalJSON sets *r to a copy of data.
-func (r *ServiceMetaList) UnmarshalJSON(data []byte) error {
-	storage := make(map[string]ServiceMeta, 0)
-	err := json.Unmarshal(data, &storage)
-	if err != nil {
-		return err
-	}
-	for name, meta := range storage {
-		err := meta.Init()
-		if err != nil {
-			return errors.New(fmt.Sprintf("Error in '%s': %s", name, err))
-		}
-		storage[name] = meta
-	}
-	*r = storage
-	return nil
-}
 
 type ServiceMeta struct {
 	Ignore        bool             `json:"ignore"`
@@ -47,14 +32,16 @@ type ServiceMeta struct {
 	KeepAlive     ServiceKeepAlive `json:"keep_alive"`
 	Stdout        ServiceLog       `json:"stdout"`
 	Stderr        ServiceLog       `json:"stderr"`
+	Selected      bool
+	Type          ServiceType
 }
 
-// Init handles initialisation by setting defaults.
-func (m *ServiceMeta) Init() error {
-	if err := m.Stdout.Init(os.Stdout); err != nil {
+// Open handles output initialisation by setting defaults.
+func (m *ServiceMeta) Open() error {
+	if err := m.Stdout.Open(os.Stdout); err != nil {
 		return err
 	}
-	if err := m.Stderr.Init(os.Stderr); err != nil {
+	if err := m.Stderr.Open(os.Stderr); err != nil {
 		return err
 	}
 	return nil
@@ -64,6 +51,8 @@ func (m *ServiceMeta) Close() {
 	m.Stdout.Close()
 	m.Stderr.Close()
 }
+
+type ServiceType int
 
 type ServiceKeepAlive int
 
@@ -111,8 +100,8 @@ type ServiceLog struct {
 	file    *os.File
 }
 
-// Init handles initialisation by setting defaults and creating files.
-func (l *ServiceLog) Init(std *os.File) error {
+// Open handles output initialisation by setting defaults and creating files.
+func (l *ServiceLog) Open(std *os.File) error {
 	l.std = std
 	if l.Handler != LogHandlerStdout && l.Handler != LogHandlerDiscard {
 		if l.Path == "" {

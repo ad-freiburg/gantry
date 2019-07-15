@@ -15,7 +15,8 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "gantry",
+	Use:   "gantry [flags] [Service/Step...]",
+	Args:  cobra.ArbitraryArgs,
 	Short: "gantry is a docker-compose like pipeline tool",
 	Long:  `Tool for running pipelines and docker-compose deployments.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -27,6 +28,10 @@ var rootCmd = &cobra.Command{
 		for _, step := range stepsToIgnore {
 			ignoredSteps[step] = true
 		}
+		selectedSteps := types.StringSet{}
+		for _, step := range args {
+			selectedSteps[step] = true
+		}
 		env := types.MappingWithEquals{}
 		for _, v := range environment {
 			parts := strings.SplitN(v, "=", 2)
@@ -36,7 +41,7 @@ var rootCmd = &cobra.Command{
 				env[parts[0]] = &parts[1]
 			}
 		}
-		pipeline, err = gantry.NewPipeline(defFile, envFile, env, ignoredSteps)
+		pipeline, err = gantry.NewPipeline(defFile, envFile, env, ignoredSteps, selectedSteps)
 		if err != nil {
 			return err
 		}
@@ -61,7 +66,7 @@ var rootCmd = &cobra.Command{
 			}
 			gantry.ProjectName = filepath.Base(cwd)
 		}
-		gantry.ProjectName = strings.Replace(strings.Replace(strings.ToLower(gantry.ProjectName), " ", "_", -1), ".", "", -1)
+		gantry.ProjectName = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(gantry.ProjectName), " ", "_"), ".", "")
 		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
 		return nil
 	},
