@@ -44,20 +44,20 @@ var dotCmd = &cobra.Command{
 			}
 			sName := strings.ReplaceAll(step.Name, "-", "_")
 			// Display services as ellipse, and steps as rectangle
-			shape := "ellipse"
-			if !step.Detach {
-				shape = "rectangle"
+			shape := "rectangle"
+			style := "solid"
+			if step.Detach {
+				shape = "ellipse"
 			}
 			if step.Meta.Ignore {
-				shape += ", style=dashed"
+				style = "dashed"
 			}
-			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s]\n", sName, step.Name, shape))
+			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s, style=%s]\n", sName, step.Name, shape, style))
 			for name := range step.Dependencies() {
-				style := ""
-				if step.Meta.Ignore {
-					style = " [style=dashed]"
+				if hideIgnored && pipeline.Definition.Steps[name].Meta.Ignore {
+					continue
 				}
-				w.WriteString(fmt.Sprintf("%s -> %s%s\n", sName, strings.ReplaceAll(name, "-", "_"), style))
+				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_")))
 			}
 		}
 		w.WriteString("}\n")

@@ -561,8 +561,10 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	default:
 	}
 	// Kill old container if KeepAlive_Replace
-	pipelineLogger.Printf("- Killing: %s", step.ColoredContainerName())
-	NewContainerKiller(step)()
+	count, err := NewContainerKiller(step)()
+	if count > 0 {
+		pipelineLogger.Printf("- Killed: %s", step.ColoredContainerName())
+	}
 	NewContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
 	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
