@@ -11,10 +11,10 @@ To rerun the validation without preparing a new version
 ```
 gantry -i prepare_new_service_version test_new_service
 ```
-can be used. This forces all gantry to ignore all non-dependencies of
+can be used. This forces gantry to ignore all non-dependencies of
 `test_new_service`. `prepare_new_service_version` is explicitly ignored thus
-`otherthing` and `something` are not considered prerequests for
-`test_new_service` and also ignored.
+`otherthing` and `something` are not considered dependencies for
+`test_new_service` and are ignored.
 
 The resulting structure is visualized in
 [test_new_service.svg](./test_new_service.svg) and pruned in
