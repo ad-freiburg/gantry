@@ -1,0 +1,48 @@
+version: "0"
+
+services:
+  active_service:
+    image: alpine
+    command: "echo \"Step active_service\""
+    depends_on:
+      - move_data_to_active_service
+
+  new_service:
+    image: alpine
+    command: "echo \"Step new_service\""
+    depends_on:
+      - prepare_new_service_version
+
+steps:
+  otherthing:
+    image: alpine
+    command: "echo \"Step otherthing\""
+
+  something:
+    image: alpine
+    command: "echo \"Step something\""
+
+  prepare_new_service_version:
+    image: alpine
+    command: "echo \"Step prepare_new_service_version\""
+    after:
+      - something
+      - otherthing
+
+  wait_for_new_service:
+    image: alpine
+    command: "echo \"Step wait_for_new_service\""
+    after:
+      - new_service
+
+  test_new_service:
+    image: alpine
+    command: "echo \"Step test_new_service\""
+    after:
+      - wait_for_new_service
+
+  move_data_to_active_service:
+    image: alpine
+    command: "echo \"Step move_data_to_active_service\""
+    after:
+      - test_new_service
