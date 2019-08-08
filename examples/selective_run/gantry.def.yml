@@ -14,20 +14,20 @@ services:
       - prepare_new_service_version
 
 steps:
-  otherthing:
+  pre_prepare_0:
     image: alpine
-    command: "echo \"Step otherthing\""
+    command: "echo \"Step pre_prepare_0\""
 
-  something:
+  pre_prepare_1:
     image: alpine
-    command: "echo \"Step something\""
+    command: "echo \"Step pre_prepare_1\""
 
   prepare_new_service_version:
     image: alpine
     command: "echo \"Step prepare_new_service_version\""
     after:
-      - something
-      - otherthing
+      - pre_prepare_0
+      - pre_prepare_1
 
   wait_for_new_service:
     image: alpine
