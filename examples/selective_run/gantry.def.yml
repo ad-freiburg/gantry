@@ -3,13 +3,15 @@ version: "0"
 services:
   active_service:
     image: alpine
-    command: "echo \"Step active_service\""
+    entrypoint: /bin/sh
+    command: ["-c", "while true; do echo 'active_service running'; sleep 1; done"]
     depends_on:
       - move_data_to_active_service
 
   new_service:
     image: alpine
-    command: "echo \"Step new_service\""
+    entrypoint: /bin/sh
+    command: ["-c", "while true; do echo 'new_service running'; sleep 1; done"]
     depends_on:
       - prepare_new_service_version
 
