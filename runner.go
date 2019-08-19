@@ -60,20 +60,17 @@ func isWharferInstalled() bool {
 	return true
 }
 
-type Executable interface {
-	Exec() error
-	Output() ([]byte, error)
-}
-
 type Runner interface {
-	Executable
-	SetCommand(name string, args []string)
+	ImageBuilder(Step, bool) func() error
+	ImagePuller(Step) func() error
+	ImageExistenceChecker(Step) func() error
+	ContainerKiller(Step) func() (int, error)
+	ContainerRemover(Step) func() error
+	ContainerRunner(Step, Network) func() error
 }
 
 // Local host
 type LocalRunner struct {
-	name   string
-	args   []string
 	prefix string
 	stdout io.Writer
 	stderr io.Writer
@@ -88,8 +85,8 @@ func NewLocalRunner(prefix string, stdout io.Writer, stderr io.Writer) *LocalRun
 	return r
 }
 
-func (r *LocalRunner) Exec() error {
-	cmd := exec.Command(r.name, r.args...)
+func (r *LocalRunner) Exec(args []string) error {
+	cmd := exec.Command(getContainerExecutable(), args...)
 	stdout := NewPrefixedLogger(r.prefix, log.New(r.stdout, "", log.LstdFlags))
 	stderr := NewPrefixedLogger(r.prefix, log.New(r.stderr, "", log.LstdFlags))
 	cmd.Stdout = stdout
@@ -97,58 +94,57 @@ func (r *LocalRunner) Exec() error {
 	return cmd.Run()
 }
 
-func (r *LocalRunner) Output() ([]byte, error) {
-	cmd := exec.Command(r.name, r.args...)
+func (r *LocalRunner) Output(args []string) ([]byte, error) {
+	cmd := exec.Command(getContainerExecutable(), args...)
 	return cmd.Output()
 }
 
-func (r *LocalRunner) SetCommand(name string, args []string) {
-	r.name = name
-	r.args = args
-}
-
-func NewImageBuilder(step Step, pull bool) func() error {
+func (r *LocalRunner) ImageBuilder(step Step, pull bool) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Build image for '%s'", step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), step.BuildCommand(pull))
-		return r.Exec()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		return r.Exec(step.BuildCommand(pull))
 	}
 }
 
-func NewImagePuller(step Step) func() error {
+func (r *LocalRunner) ImagePuller(step Step) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Pull image for '%s'", step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), step.PullCommand())
-		return r.Exec()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		return r.Exec(step.PullCommand())
 	}
 }
 
-func NewContainerRunner(step Step, network string) func() error {
+func (r *LocalRunner) ContainerRunner(step Step, network Network) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Run container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), step.RunCommand(network))
-		return r.Exec()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		return r.Exec(step.RunCommand(fmt.Sprintf("%s", network)))
 	}
 }
 
-func NewContainerKiller(step Step) func() (int, error) {
+func (r *LocalRunner) ContainerKiller(step Step) func() (int, error) {
 	return func() (int, error) {
 		var counter int
 		if Verbose {
 			log.Printf("Kill container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
-		out, err := r.Output()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		out, err := r.Output([]string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return counter, err
 		}
@@ -156,9 +152,7 @@ func NewContainerKiller(step Step) func() (int, error) {
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
 			counter += 1
-			k := step.Runner()
-			k.SetCommand(getContainerExecutable(), []string{"kill", scanner.Text()})
-			if err := k.Exec(); err != nil {
+			if err := r.Exec([]string{"kill", scanner.Text()}); err != nil {
 				return counter, err
 			}
 		}
@@ -166,14 +160,15 @@ func NewContainerKiller(step Step) func() (int, error) {
 	}
 }
 
-func NewImageExistenceChecker(step Step) func() error {
+func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Check image ('%s') existence for '%s'", step.ImageName(), step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
-		out, err := r.Output()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		out, err := r.Output([]string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
 		if err != nil {
 			return err
 		}
@@ -193,23 +188,22 @@ func NewImageExistenceChecker(step Step) func() error {
 	}
 }
 
-func NewContainerRemover(step Step) func() error {
+func (r *LocalRunner) ContainerRemover(step Step) func() error {
 	return func() error {
 		if Verbose {
 			log.Printf("Remove container '%s'", step.ContainerName())
 		}
-		r := step.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
-		out, err := r.Output()
+		r.prefix = step.ColoredContainerName()
+		r.stdout = step.Meta.Stdout
+		r.stderr = step.Meta.Stderr
+		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return err
 		}
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
-			k := step.Runner()
-			k.SetCommand(getContainerExecutable(), []string{"rm", scanner.Text()})
-			if err := k.Exec(); err != nil {
+			if err := r.Exec([]string{"rm", scanner.Text()}); err != nil {
 				return err
 			}
 		}
@@ -217,24 +211,20 @@ func NewContainerRemover(step Step) func() error {
 	}
 }
 
-func NewNetworkCreator(p Pipeline) func() error {
+func (r *LocalRunner) NetworkCreator(network Network) func() error {
 	return func() error {
 		if Verbose {
-			log.Printf("Create network '%s'", p.NetworkName)
+			log.Printf("Create network '%s'", network)
 		}
-		r := p.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"network", "create", p.NetworkName})
-		return r.Exec()
+		return r.Exec([]string{"network", "create", fmt.Sprintf("%s", network)})
 	}
 }
 
-func NewNetworkRemover(p Pipeline) func() error {
+func (r *LocalRunner) NetworkRemover(network Network) func() error {
 	return func() error {
 		if Verbose {
-			log.Printf("Remove network '%s'", p.NetworkName)
+			log.Printf("Remove network '%s'", network)
 		}
-		r := p.Runner()
-		r.SetCommand(getContainerExecutable(), []string{"network", "rm", p.NetworkName})
-		return r.Exec()
+		return r.Exec([]string{"network", "rm", fmt.Sprintf("%s", network)})
 	}
 }

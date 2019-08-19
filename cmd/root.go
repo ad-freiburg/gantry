@@ -67,7 +67,7 @@ var rootCmd = &cobra.Command{
 			gantry.ProjectName = filepath.Base(cwd)
 		}
 		gantry.ProjectName = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(gantry.ProjectName), " ", "_"), ".", "")
-		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
+		pipeline.Network = gantry.Network(fmt.Sprintf("%s_gantry", gantry.ProjectName))
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -31,7 +31,7 @@ func init() {
 type Pipeline struct {
 	Definition  *PipelineDefinition
 	Environment *PipelineEnvironment
-	NetworkName string
+	Network     Network
 }
 
 // NewPipeline creates a new Pipeline from given files which ignores the
@@ -62,11 +62,12 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			if step.Meta.KeepAlive == KeepAliveNo {
-				NewContainerKiller(step)()
-				NewContainerRemover(step)()
+				runner.ContainerKiller(step)()
+				runner.ContainerRemover(step)()
 			} else {
 				if Verbose {
 					log.Printf("Keeping network as '%s' can be still alive", step.ColoredName())
@@ -320,11 +321,11 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	return p.pipelines, nil
 }
 
-func runParallelBuildImage(step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelBuildImage(runner Runner, step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
 	defer wg.Done()
 	<-s
 
-	duration, err := executeF(NewImageBuilder(step, pull))
+	duration, err := executeF(runner.ImageBuilder(step, pull))
 	if err != nil {
 		pipelineLogger.Println(err)
 	}
@@ -337,6 +338,7 @@ func (p Pipeline) BuildImages(force bool) error {
 	if err != nil {
 		return err
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	runChannel := make(chan struct{})
 	var wg sync.WaitGroup
 	images := 0
@@ -346,11 +348,11 @@ func (p Pipeline) BuildImages(force bool) error {
 		if step.Meta.Ignore {
 			continue
 		}
-		if step.BuildInfo.Dockerfile == "" && step.BuildInfo.Context == "" {
+		if step.IsPullable() {
 			continue
 		}
 		wg.Add(1)
-		go runParallelBuildImage(step, force, durations, &wg, runChannel)
+		go runParallelBuildImage(runner, step, force, durations, &wg, runChannel)
 		images++
 	}
 
@@ -378,13 +380,13 @@ func (p Pipeline) BuildImages(force bool) error {
 	return nil
 }
 
-func runParallelPullImage(step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelPullImage(runner Runner, step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
 	defer wg.Done()
 	<-s
 
-	duration, err := executeF(NewImageExistenceChecker(step))
+	duration, err := executeF(runner.ImageExistenceChecker(step))
 	if err != nil || force {
-		duration2, err := executeF(NewImagePuller(step))
+		duration2, err := executeF(runner.ImagePuller(step))
 		if err != nil {
 			pipelineLogger.Println(err)
 		}
@@ -399,6 +401,7 @@ func (p Pipeline) PullImages(force bool) error {
 	if err != nil {
 		return err
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	runChannel := make(chan struct{})
 	var wg sync.WaitGroup
 	images := 0
@@ -408,11 +411,11 @@ func (p Pipeline) PullImages(force bool) error {
 		if step.Meta.Ignore {
 			continue
 		}
-		if step.BuildInfo.Dockerfile != "" || step.BuildInfo.Context != "" {
+		if step.IsBuildable() {
 			continue
 		}
 		wg.Add(1)
-		go runParallelPullImage(step, force, durations, &wg, runChannel)
+		go runParallelPullImage(runner, step, force, durations, &wg, runChannel)
 		images++
 	}
 
@@ -446,6 +449,7 @@ func (p Pipeline) KillContainers(preRun bool) error {
 	if err != nil {
 		return err
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			if step.Meta.Ignore {
@@ -454,8 +458,8 @@ func (p Pipeline) KillContainers(preRun bool) error {
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
-			NewContainerKiller(step)()
-			NewContainerRemover(step)()
+			runner.ContainerKiller(step)()
+			runner.ContainerRemover(step)()
 		}
 	}
 	return nil
@@ -467,6 +471,7 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 	if err != nil {
 		return err
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			if step.Meta.Ignore {
@@ -475,7 +480,7 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
 				continue
 			}
-			NewContainerRemover(step)()
+			runner.ContainerRemover(step)()
 		}
 	}
 	return nil
@@ -483,13 +488,15 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 
 // CreateNetwork creates a network using the NetworkName of the Pipeline p.
 func (p Pipeline) CreateNetwork() error {
-	NewNetworkCreator(p)()
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
+	runner.NetworkCreator(p.Network)()
 	return nil
 }
 
 // RemoveNetwork removes the network of Pipeline p.
 func (p Pipeline) RemoveNetwork() error {
-	NewNetworkRemover(p)()
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
+	runner.NetworkRemover(p.Network)()
 	return nil
 }
 
@@ -498,6 +505,7 @@ func (p Pipeline) RemoveTempDirData() error {
 	if len(p.Environment.tempPaths) < 1 {
 		return nil
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	step := Step{
 		Service: Service{
 			Name:       "TempDirCleanUp",
@@ -522,26 +530,20 @@ func (p Pipeline) RemoveTempDirData() error {
 		step.Volumes = append(step.Volumes, fmt.Sprintf("%s:/data/%d", v, i))
 		i += 1
 	}
-	NewContainerKiller(step)()
-	NewContainerRemover(step)()
+	runner.ContainerKiller(step)()
+	runner.ContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredName())
-	duration, err := executeF(NewContainerRunner(step, p.NetworkName))
+	duration, err := executeF(runner.ContainerRunner(step, p.Network))
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredName(), err)
 	}
 	pipelineLogger.Printf("- Finished %s after %s", step.ColoredName(), duration)
-	NewContainerRemover(step)()
+	runner.ContainerRemover(step)()
 	step.Meta.Close()
 	return err
 }
 
-// Runner returns a runner for the pipeline itself. Currently only localhost.
-func (p Pipeline) Runner() Runner {
-	r := NewLocalRunner("local", os.Stdout, os.Stderr)
-	return r
-}
-
-func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}, abort chan struct{}) {
+func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}, abort chan struct{}) {
 	defer wg.Done()
 	defer close(o)
 	for i, c := range preconditions {
@@ -561,13 +563,13 @@ func runParallelStep(step Step, pipeline Pipeline, durations *sync.Map, wg *sync
 	default:
 	}
 	// Kill old container if KeepAlive_Replace
-	count, err := NewContainerKiller(step)()
+	count, err := runner.ContainerKiller(step)()
 	if count > 0 {
 		pipelineLogger.Printf("- Killed: %s", step.ColoredContainerName())
 	}
-	NewContainerRemover(step)()
+	runner.ContainerRemover(step)()
 	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
-	duration, err := executeF(NewContainerRunner(step, pipeline.NetworkName))
+	duration, err := executeF(runner.ContainerRunner(step, pipeline.Network))
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
 		if !step.Meta.IgnoreFailure {
@@ -587,6 +589,7 @@ func (p Pipeline) ExecuteSteps() error {
 	if err != nil {
 		return err
 	}
+	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	var wg sync.WaitGroup
 	steps := 0
 	durations := &sync.Map{}
@@ -618,7 +621,7 @@ func (p Pipeline) ExecuteSteps() error {
 				preChannels = append(preChannels, val)
 			}
 			wg.Add(1)
-			go runParallelStep(step, p, durations, &wg, preChannels, channels[step.Name], abort)
+			go runParallelStep(runner, step, p, durations, &wg, preChannels, channels[step.Name], abort)
 			steps++
 		}
 	}
