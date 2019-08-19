@@ -69,6 +69,40 @@ type Runner interface {
 	ContainerRunner(Step, Network) func() error
 }
 
+// Noop
+type NoopRunner struct{}
+
+func (r *NoopRunner) ImageBuilder(Step, bool) func() error {
+	return func() error {
+		return nil
+	}
+}
+func (r *NoopRunner) ImagePuller(Step) func() error {
+	return func() error {
+		return nil
+	}
+}
+func (r *NoopRunner) ImageExistenceChecker(Step) func() error {
+	return func() error {
+		return nil
+	}
+}
+func (r *NoopRunner) ContainerKiller(Step) func() (int, error) {
+	return func() (int, error) {
+		return 0, nil
+	}
+}
+func (r *NoopRunner) ContainerRemover(Step) func() error {
+	return func() error {
+		return nil
+	}
+}
+func (r *NoopRunner) ContainerRunner(Step, Network) func() error {
+	return func() error {
+		return nil
+	}
+}
+
 // Local host
 type LocalRunner struct {
 	prefix string
