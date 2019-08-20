@@ -97,8 +97,9 @@ func (r *NoopRunner) ContainerRemover(Step) func() error {
 		return nil
 	}
 }
-func (r *NoopRunner) ContainerRunner(Step, Network) func() error {
+func (r *NoopRunner) ContainerRunner(step Step, n Network) func() error {
 	return func() error {
+		pipelineLogger.Printf("- Skipping: %s!", step.ColoredContainerName())
 		return nil
 	}
 }
