@@ -16,9 +16,8 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-type pipelineEnvironmentJson struct {
+type pipelineEnvironmentJSON struct {
 	Version            string                  `json:"version"`
-	LogSettings        LogSettings             `json:"log"`
 	Substitutions      types.MappingWithEquals `json:"substitutions"`
 	TempDirPath        string                  `json:"tempdir"`
 	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
@@ -30,7 +29,6 @@ type pipelineEnvironmentJson struct {
 // PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
 	Version            string
-	LogSettings        LogSettings
 	Substitutions      types.MappingWithEquals
 	TempDirPath        string
 	TempDirNoAutoClean bool
@@ -40,27 +38,27 @@ type PipelineEnvironment struct {
 	tempPaths          map[string]string
 }
 
-// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJson struct.
-func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON loads a PipelineDefinition from json using the pipelineJSON struct.
+func (e *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 	result := PipelineEnvironment{
 		Steps:     ServiceMetaList{},
 		tempFiles: []string{},
 		tempPaths: map[string]string{},
 	}
-	parsedJson := pipelineEnvironmentJson{}
-	if err := json.Unmarshal(data, &parsedJson); err != nil {
+	parsedJSON := pipelineEnvironmentJSON{}
+	if err := json.Unmarshal(data, &parsedJSON); err != nil {
 		return err
 	}
-	result.Version = parsedJson.Version
-	result.Substitutions = parsedJson.Substitutions
-	result.TempDirPath = parsedJson.TempDirPath
-	result.TempDirNoAutoClean = parsedJson.TempDirNoAutoClean
-	result.ProjectName = parsedJson.ProjectName
-	for name, meta := range parsedJson.Services {
+	result.Version = parsedJSON.Version
+	result.Substitutions = parsedJSON.Substitutions
+	result.TempDirPath = parsedJSON.TempDirPath
+	result.TempDirNoAutoClean = parsedJSON.TempDirNoAutoClean
+	result.ProjectName = parsedJSON.ProjectName
+	for name, meta := range parsedJSON.Services {
 		meta.Type = ServiceTypeService
 		result.Steps[name] = meta
 	}
-	for name, meta := range parsedJson.Steps {
+	for name, meta := range parsedJSON.Steps {
 		if _, found := result.Steps[name]; found {
 			return fmt.Errorf("Duplicate step/service '%s'", name)
 		}
@@ -68,7 +66,7 @@ func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 		meta.KeepAlive = KeepAliveNo
 		result.Steps[name] = meta
 	}
-	*r = result
+	*e = result
 	return nil
 }
 
@@ -78,7 +76,7 @@ func (r *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
-		tempPaths:     make(map[string]string, 0),
+		tempPaths:     make(map[string]string),
 		Substitutions: types.MappingWithEquals{},
 		Steps:         ServiceMetaList{},
 	}
@@ -142,14 +140,6 @@ func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, sele
 		}
 		e.Steps[name] = stepMeta
 	}
-}
-
-func (e *PipelineEnvironment) exportSubstitutions(path string) error {
-	data, err := yaml.Marshal(e)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(path, data, 0644)
 }
 
 func (e *PipelineEnvironment) createTemplateParser() *template.Template {
@@ -286,12 +276,4 @@ func (e *PipelineEnvironment) tempDir(prefix string) (string, error) {
 		e.tempPaths[prefix] = path
 	}
 	return path, os.Chmod(path, 0777)
-}
-
-func (e *PipelineEnvironment) tempFile(pattern string) (*os.File, error) {
-	file, err := ioutil.TempFile(e.TempDirPath, pattern)
-	if err == nil {
-		e.tempFiles = append(e.tempFiles, file.Name())
-	}
-	return file, err
 }

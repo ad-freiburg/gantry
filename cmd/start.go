@@ -1,6 +1,8 @@
 package cmd // import "github.com/ad-freiburg/gantry/cmd"
 
 import (
+	"log"
+
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +14,9 @@ var startCmd = &cobra.Command{
 	Use:   "start [flags] [Service/Step...]",
 	Short: "Starts containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		pipeline.CreateNetwork()
+		if err := pipeline.CreateNetwork(); err != nil {
+			log.Printf("Error creating network: %s", err)
+		}
 		return pipeline.ExecuteSteps()
 	},
 }

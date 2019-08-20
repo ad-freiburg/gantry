@@ -100,7 +100,9 @@ func TestPrefixedLoggerWrite(t *testing.T) {
 	writer := bufio.NewWriter(buf)
 	// Create new logger without date and time
 	logger := gantry.NewPrefixedLogger("prefix", log.New(writer, "", 0))
-	logger.Write([]byte("A\nB\n"))
+	if _, err := logger.Write([]byte("A\nB\n")); err != nil {
+		t.Error(err)
+	}
 	writer.Flush()
 	result := buf.String()
 	expected := fmt.Sprintf(gantry.PrefixedWriterFormat, "prefix", "A") + "\n" + fmt.Sprintf(gantry.PrefixedWriterFormat, "prefix", "B") + "\n"

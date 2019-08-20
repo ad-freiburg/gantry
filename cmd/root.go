@@ -114,9 +114,15 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
 	rootCmd.PersistentFlags().StringArrayVarP(&environment, "env", "e", []string{}, "Set environment variables")
-	rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
-	rootCmd.PersistentFlags().SetAnnotation("global-environment", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
-	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
+	if err := rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"}); err != nil {
+		log.Printf("Error setting file annotation: %s", err)
+	}
+	if err := rootCmd.PersistentFlags().SetAnnotation("global-environment", cobra.BashCompFilenameExt, []string{".yaml", ".yml"}); err != nil {
+		log.Printf("Error setting global-environment annotation: %s", err)
+	}
+	if err := rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"}); err != nil {
+		log.Printf("Error setting ignore annotation: %s", err)
+	}
 	go signalHandler()
 }
 

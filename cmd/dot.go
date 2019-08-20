@@ -3,6 +3,7 @@ package cmd // import "github.com/ad-freiburg/gantry/cmd"
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -37,7 +38,9 @@ var dotCmd = &cobra.Command{
 		}
 
 		w := bufio.NewWriter(f)
-		w.WriteString("digraph gantry {\nrankdir=\"BT\"\n")
+		if _, err := w.WriteString("digraph gantry {\nrankdir=\"BT\"\n"); err != nil {
+			log.Printf("Error writing graph header: %s", err)
+		}
 		for _, step := range pipelines.AllSteps() {
 			if hideIgnored && step.Meta.Ignore {
 				continue
@@ -52,15 +55,21 @@ var dotCmd = &cobra.Command{
 			if step.Meta.Ignore {
 				style = "dashed"
 			}
-			w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s, style=%s]\n", sName, step.Name, shape, style))
+			if _, err := w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s, style=%s]\n", sName, step.Name, shape, style)); err != nil {
+				log.Printf("Error writing node: %s", err)
+			}
 			for name := range step.Dependencies() {
 				if hideIgnored && pipeline.Definition.Steps[name].Meta.Ignore {
 					continue
 				}
-				w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_")))
+				if _, err := w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_"))); err != nil {
+					log.Printf("Error writing connection: %s", err)
+				}
 			}
 		}
-		w.WriteString("}\n")
+		if _, err := w.WriteString("}\n"); err != nil {
+			log.Printf("Error writing graph tail: %s", err)
+		}
 		w.Flush()
 		return nil
 	},

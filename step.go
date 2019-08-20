@@ -81,6 +81,7 @@ func (s Service) ContainerName() string {
 	return fmt.Sprintf("%s_%s", ProjectName, strings.ReplaceAll(strings.ToLower(s.Name), " ", "_"))
 }
 
+// IsBuildable returns whether or not the step can be build.
 func (s Step) IsBuildable() bool {
 	return s.BuildInfo.Dockerfile != "" || s.BuildInfo.Context != ""
 }
@@ -170,6 +171,7 @@ func (s Step) RunCommand(network string) []string {
 	return args
 }
 
+// IsPullable returns whether or not a image is pulled for this step.
 func (s Step) IsPullable() bool {
 	return !s.IsBuildable()
 }
