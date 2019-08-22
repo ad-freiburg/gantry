@@ -81,9 +81,9 @@ func (s Service) ContainerName() string {
 	return fmt.Sprintf("%s_%s", ProjectName, strings.ReplaceAll(strings.ToLower(s.Name), " ", "_"))
 }
 
-// Runner returns a Runner which can execute s.
-func (s Service) Runner() Runner {
-	return NewLocalRunner(s.ColoredContainerName(), s.Meta.Stdout, s.Meta.Stderr)
+// IsBuildable returns whether or not the step can be build.
+func (s Step) IsBuildable() bool {
+	return s.BuildInfo.Dockerfile != "" || s.BuildInfo.Context != ""
 }
 
 // BuildCommand returns the command to build a new image for s.
@@ -169,6 +169,11 @@ func (s Step) RunCommand(network string) []string {
 		args = append(args, callerArgs...)
 	}
 	return args
+}
+
+// IsPullable returns whether or not a image is pulled for this step.
+func (s Step) IsPullable() bool {
+	return !s.IsBuildable()
 }
 
 // PullCommand returns the command to pull the image for step s.

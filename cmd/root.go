@@ -67,7 +67,7 @@ var rootCmd = &cobra.Command{
 			gantry.ProjectName = filepath.Base(cwd)
 		}
 		gantry.ProjectName = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(gantry.ProjectName), " ", "_"), ".", "")
-		pipeline.NetworkName = fmt.Sprintf("%s_gantry", gantry.ProjectName)
+		pipeline.Network = gantry.Network(fmt.Sprintf("%s_gantry", gantry.ProjectName))
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,9 +114,15 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
 	rootCmd.PersistentFlags().StringArrayVarP(&environment, "env", "e", []string{}, "Set environment variables")
-	rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
-	rootCmd.PersistentFlags().SetAnnotation("global-environment", cobra.BashCompFilenameExt, []string{".yaml", ".yml"})
-	rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"})
+	if err := rootCmd.PersistentFlags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{".yaml", ".yml"}); err != nil {
+		log.Printf("Error setting file annotation: %s", err)
+	}
+	if err := rootCmd.PersistentFlags().SetAnnotation("global-environment", cobra.BashCompFilenameExt, []string{".yaml", ".yml"}); err != nil {
+		log.Printf("Error setting global-environment annotation: %s", err)
+	}
+	if err := rootCmd.PersistentFlags().SetAnnotation("ignore", cobra.BashCompCustom, []string{"__gantry_get_steps"}); err != nil {
+		log.Printf("Error setting ignore annotation: %s", err)
+	}
 	go signalHandler()
 }
 

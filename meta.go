@@ -9,23 +9,34 @@ import (
 )
 
 const (
+	// KeepAliveYes signals that the service will keep running after gantry exits.
 	KeepAliveYes ServiceKeepAlive = iota
+	// KeepAliveNo signals that the service will be killed when gantry stops.
 	KeepAliveNo
+	// KeepAliveReplace signals that the service is killed prior to replacement.
 	KeepAliveReplace
 )
 const (
+	// LogHandlerStdout signals that the standard location (stdout or stderr) is used.
 	LogHandlerStdout ServiceLogHandler = iota
+	// LogHandlerFile signals that the log shall be stored in a file.
 	LogHandlerFile
+	// LogHandlerBoth signals that the log is printed into a file and to the standard location.
 	LogHandlerBoth
+	// LogHandlerDiscard signals that the log shall be discarded.
 	LogHandlerDiscard
 )
 const (
+	// ServiceTypeService signals a normal docker service.
 	ServiceTypeService ServiceType = iota
+	// ServiceTypeStep signals a gantry step.
 	ServiceTypeStep
 )
 
+// ServiceMetaList stores ServiceMeta as a map[stepname]Meta.
 type ServiceMetaList map[string]ServiceMeta
 
+// ServiceMeta stores all metainformation for a step.
 type ServiceMeta struct {
 	Ignore        bool             `json:"ignore"`
 	IgnoreFailure bool             `json:"ignore_failure"`
@@ -47,16 +58,19 @@ func (m *ServiceMeta) Open() error {
 	return nil
 }
 
+// Close closes stderr and stdout writers.
 func (m *ServiceMeta) Close() {
 	m.Stdout.Close()
 	m.Stderr.Close()
 }
 
+// ServiceType stores the type of the service.
 type ServiceType int
 
+// ServiceKeepAlive stores the KeepAlive state of the service.
 type ServiceKeepAlive int
 
-// UnmarshalJSON sets *r to a copy of data.
+// UnmarshalJSON sets ServiceKeepAlive d.
 func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -73,8 +87,10 @@ func (d *ServiceKeepAlive) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// ServiceLogHandler stores the logging configuration of the service.
 type ServiceLogHandler int
 
+// UnmarshalJSON sets ServiceLogHandler d.
 func (d *ServiceLogHandler) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -93,6 +109,7 @@ func (d *ServiceLogHandler) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// ServiceLog stores log configuration for an output stream.
 type ServiceLog struct {
 	Handler ServiceLogHandler `json:"handler"`
 	Path    string            `json:"path"`
@@ -120,6 +137,7 @@ func (l *ServiceLog) Open(std *os.File) error {
 	return nil
 }
 
+// Write writes data to an output stream or discards if LogHandlerDiscard is configured.
 func (l ServiceLog) Write(p []byte) (int, error) {
 	var n1, n2 int
 	var err1, err2 error
@@ -138,6 +156,7 @@ func (l ServiceLog) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// Close closes the output file if one is used.
 func (l *ServiceLog) Close() {
 	if l.file != nil {
 		l.file.Close()

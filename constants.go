@@ -15,7 +15,6 @@ const GantryDef string = "gantry.def.yml"
 const GantryEnv string = "gantry.env.yml"
 
 var (
-	gantryLogger *PrefixedLogger
 	// Version of the program
 	Version = "no-version"
 	// Verbose is a global verbosity flag

@@ -8,12 +8,12 @@ type StringSet map[string]bool
 
 // UnmarshalJSON sets *r to a copy of data.
 func (r *StringSet) UnmarshalJSON(data []byte) error {
-	result := make(map[string]bool, 0)
+	result := make(map[string]bool)
 
-	var parsedJson []string
-	err := json.Unmarshal(data, &parsedJson)
+	var parsedJSON []string
+	err := json.Unmarshal(data, &parsedJSON)
 	if err == nil {
-		for _, s := range parsedJson {
+		for _, s := range parsedJSON {
 			result[s] = true
 		}
 	} else {

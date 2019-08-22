@@ -91,9 +91,6 @@ func init() {
 	friendlyColors = NewColorStore([]int{AnsiForegroundColorCyan, AnsiForegroundColorYellow, AnsiForegroundColorMagenta, AnsiForegroundColorBlue, AnsiForegroundColorLightCyan, AnsiForegroundColorLightYellow, AnsiForegroundColorLightMagenta, AnsiForegroundColorLightBlue})
 }
 
-type LogSettings struct {
-}
-
 // ApplyAnsiStyle applies ansi integer styles to text
 func ApplyAnsiStyle(text string, style ...int) string {
 	return fmt.Sprintf(GenericStringFormat, BuildAnsiStyle(style...), text)
@@ -136,12 +133,14 @@ func (c *ColorStore) NextColor() int {
 	return c.colors[c.index]
 }
 
+// PrefixedWriter is a writer which prefixes all lines with given prefix.
 type PrefixedWriter struct {
 	prefix string
 	target io.Writer
 	buf    *bytes.Buffer
 }
 
+// NewPrefixedWriter returns a PrefixWriter for given prefix and target.
 func NewPrefixedWriter(prefix string, target io.Writer) *PrefixedWriter {
 	return &PrefixedWriter{
 		prefix: prefix,
@@ -150,6 +149,7 @@ func NewPrefixedWriter(prefix string, target io.Writer) *PrefixedWriter {
 	}
 }
 
+// Write writes bytes to an internal buffer and outputs the data to the internal target.
 func (p *PrefixedWriter) Write(b []byte) (int, error) {
 	n, err := p.buf.Write(b)
 	if err != nil {
@@ -159,6 +159,7 @@ func (p *PrefixedWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
+// Output generates lines from the internal buffer and prefixes them.
 func (p *PrefixedWriter) Output() error {
 	for {
 		line, err := p.buf.ReadString('\n')
@@ -174,11 +175,13 @@ func (p *PrefixedWriter) Output() error {
 	return nil
 }
 
+// PrefixedLogger is a logger with a prefix.
 type PrefixedLogger struct {
 	prefix string
 	logger *log.Logger
 }
 
+// NewPrefixedLogger creates a PrefixedLogger from a prefix and a logger.
 func NewPrefixedLogger(prefix string, logger *log.Logger) *PrefixedLogger {
 	return &PrefixedLogger{
 		prefix: prefix,
@@ -186,21 +189,30 @@ func NewPrefixedLogger(prefix string, logger *log.Logger) *PrefixedLogger {
 	}
 }
 
+// Printf format prints to the logger.
 func (p *PrefixedLogger) Printf(format string, v ...interface{}) {
-	p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintf(format, v...)))
+	if err := p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintf(format, v...))); err != nil {
+		log.Printf("Error in PrefixedLogger.Printf: %s", err)
+	}
 }
 
+// Println prints a line to the logger.
 func (p *PrefixedLogger) Println(v ...interface{}) {
-	p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintln(v...)))
+	if err := p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, fmt.Sprintln(v...))); err != nil {
+		log.Printf("Error in PrefixedLogger.Println: %s", err)
+	}
 }
 
+// Write writes given bytes to the logger.
 func (p *PrefixedLogger) Write(b []byte) (int, error) {
 	n := len(b)
 	if n > 0 && b[n-1] == '\n' {
 		b = b[:n-1]
 	}
 	for _, s := range strings.Split(string(b), "\n") {
-		p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, s))
+		if err := p.logger.Output(2, fmt.Sprintf(PrefixedWriterFormat, p.prefix, s)); err != nil {
+			return n, err
+		}
 	}
 	return n, nil
 }
