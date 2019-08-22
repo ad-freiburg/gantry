@@ -1,0 +1,38 @@
+version: "0"
+
+services:
+  service:
+    image: alpine
+    entrypoint: /bin/sh
+    command: ["-c", "while true; do echo 'active_service running'; sleep 1; done"]
+
+steps:
+  wait_for_service:
+    image: alpine
+    command: "echo \"Step wait_for_service\""
+    after:
+      - service
+
+  test_0:
+    image: alpine
+    command: "echo \"Step test_0\""
+    after:
+      - wait_for_service
+
+  test_1:
+    image: alpine
+    command: "echo \"Step test_1\""
+    after:
+      - test_0
+
+  test_2:
+    image: alpine
+    command: "echo \"Step test_2\""
+    after:
+      - test_1
+
+  test_3:
+    image: alpine
+    command: "echo \"Step test_3\""
+    after:
+      - test_2
