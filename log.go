@@ -133,7 +133,7 @@ func (c *ColorStore) NextColor() int {
 	return c.colors[c.index]
 }
 
-// PrefixedWriter is a writer which prefixes all lines.
+// PrefixedWriter is a writer which prefixes all lines with given prefix.
 type PrefixedWriter struct {
 	prefix string
 	target io.Writer
@@ -149,7 +149,7 @@ func NewPrefixedWriter(prefix string, target io.Writer) *PrefixedWriter {
 	}
 }
 
-// Write writes bytes to a internal buffer and outputs the data to the internal target.
+// Write writes bytes to an internal buffer and outputs the data to the internal target.
 func (p *PrefixedWriter) Write(b []byte) (int, error) {
 	n, err := p.buf.Write(b)
 	if err != nil {

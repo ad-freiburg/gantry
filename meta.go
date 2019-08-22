@@ -19,7 +19,7 @@ const (
 const (
 	// LogHandlerStdout signals that the standard location (stdout or stderr) is used.
 	LogHandlerStdout ServiceLogHandler = iota
-	// LogHandlerFile signlas that the log shall be stored in a file.
+	// LogHandlerFile signals that the log shall be stored in a file.
 	LogHandlerFile
 	// LogHandlerBoth signals that the log is printed into a file and to the standard location.
 	LogHandlerBoth
