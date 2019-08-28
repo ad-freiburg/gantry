@@ -1,0 +1,7 @@
+steps:
+  step:
+    image: alpine
+    after: ignored
+  ignored:
+    image: alpine
+

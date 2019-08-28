@@ -1,0 +1,6 @@
+steps:
+  step:
+    image: alpine
+    after: precondition
+  precondition:
+    image: alpine
