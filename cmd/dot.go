@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ad-freiburg/gantry"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,18 @@ var (
 	dotOutput   string
 	hideIgnored bool
 )
+
+func getActiveDependencies(steps gantry.StepList, stepname string) []string {
+	result := make([]string, 0)
+	for dep := range steps[stepname].Dependencies() {
+		if hideIgnored && steps[dep].Meta.Ignore {
+			result = append(result, getActiveDependencies(steps, dep)...)
+		} else {
+			result = append(result, dep)
+		}
+	}
+	return result
+}
 
 var dotCmd = &cobra.Command{
 	Use:   "dot [flags] [Service/Step...]",
@@ -58,7 +71,7 @@ var dotCmd = &cobra.Command{
 			if _, err := w.WriteString(fmt.Sprintf("%s [label=\"%s\", shape=%s, style=%s]\n", sName, step.Name, shape, style)); err != nil {
 				log.Printf("Error writing node: %s", err)
 			}
-			for name := range step.Dependencies() {
+			for _, name := range getActiveDependencies(pipeline.Definition.Steps, step.Name) {
 				if hideIgnored && pipeline.Definition.Steps[name].Meta.Ignore {
 					continue
 				}
