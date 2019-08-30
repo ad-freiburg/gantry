@@ -3,10 +3,6 @@
 ![types.svg](./types.svg)
 
 Gantry supports `services` (oval shapes) and `steps` (box shapes).
-Services are docker containers executed like `docker-compose` is used, they
-are started and left running, the pipeline continues directly after they are
-started. Steps block the execution of the pipeline until the container exits,
-this allows predictable and sequential execution of tasks.
 
 ![simple.svg](./simple.svg)
 
