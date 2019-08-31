@@ -81,6 +81,7 @@ type NoopRunner struct {
 	mutex  sync.RWMutex
 }
 
+// NewLocalRunner returns a NoopRunner.
 func NewNoopRunner(silent bool) *NoopRunner {
 	return &NoopRunner{
 		silent: silent,
@@ -96,7 +97,7 @@ func (r *NoopRunner) NumCalls(key string) int {
 	return r.calls[key]
 }
 
-// NumCalls returns how many functions with the given key were executed.
+// NumCalled returns how many functions with the given key were executed.
 func (r *NoopRunner) NumCalled(key string) int {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -269,10 +270,12 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Search for image
 		out, err := r.Output([]string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
 		if err != nil {
 			return err
 		}
+		// Count found images
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		count := 0
@@ -282,6 +285,7 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		if err := scanner.Err(); err != nil {
 			return err
 		}
+		// If no image was found, raise error
 		if count == 0 {
 			return fmt.Errorf("Image not found '%s'", step.ImageName())
 		}
@@ -299,10 +303,12 @@ func (r *LocalRunner) ContainerKiller(step Step) func() (int, error) {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Get id(s) of container with name of step to kill
 		out, err := r.Output([]string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return counter, err
 		}
+		// Kill all found containers
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
@@ -324,10 +330,12 @@ func (r *LocalRunner) ContainerRemover(step Step) func() error {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Get id(s) of container with name of step to remove
 		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return err
 		}
+		// Remove all found containers
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
