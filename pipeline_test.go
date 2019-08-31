@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
@@ -156,5 +157,126 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		if ignoreCount != c.numIgnore {
 			t.Errorf("Incorrect number of ignored steps for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, ignoreCount, c.numIgnore)
 		}
+	}
+}
+
+func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cases := []struct {
+		def         string
+		env         string
+		environment types.MappingWithEquals
+		ignore      types.StringSet
+		selected    types.StringSet
+		err         string
+		numIgnore   int
+	}{
+		{tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 0},
+	}
+
+	for _, c := range cases {
+		r, err := gantry.NewPipeline(c.def, c.env, c.environment, c.ignore, c.selected)
+		if (err == nil && c.err != "") || (err != nil && c.err == "") {
+			t.Errorf("Incorrect error for '%v','%v','%v',%v', got: '%s', wanted '%s'", c.def, c.env, c.environment, c.ignore, err, c.err)
+		}
+		if err != nil {
+			continue
+		}
+		pipelines, err := r.Definition.Pipelines()
+		if err != nil {
+			t.Error(err)
+		}
+		ignoreCount := 0
+		for _, step := range pipelines.AllSteps() {
+			if step.Meta.Ignore {
+				ignoreCount += 1
+			}
+		}
+		if ignoreCount != c.numIgnore {
+			t.Errorf("Incorrect number of ignored steps for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, ignoreCount, c.numIgnore)
+		}
+	}
+}
+
+func TestPipelineCheck(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	if err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	if err := p.Check(); err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+}
+
+func TestPipelineCheckNoContainerInformation(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
+  a:
+`), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	if err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	if err := p.Check(); err == nil {
+		t.Error("Unexpected error, got: 'nil'!")
+	}
+}
+
+func TestPipelineCleanUp(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	if err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	if err := p.CleanUp(syscall.SIGKILL); err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 }

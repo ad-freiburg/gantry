@@ -249,7 +249,7 @@ func (e *PipelineEnvironment) ApplyTo(rawFile []byte) ([]byte, error) {
 }
 
 // CleanUp tries to remove all managed temporary files and directories.
-func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
+func (e *PipelineEnvironment) CleanUp(signal os.Signal) error {
 	for _, file := range e.tempFiles {
 		if err := os.Remove(file); err != nil {
 			log.Print(err)
@@ -260,6 +260,7 @@ func (e *PipelineEnvironment) CleanUp(signal os.Signal) {
 			log.Print(err)
 		}
 	}
+	return nil
 }
 
 func (e *PipelineEnvironment) getOrCreateTempDir(prefix string) (string, error) {
