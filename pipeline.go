@@ -38,7 +38,7 @@ type Pipeline struct {
 
 // NewPipeline creates a new Pipeline from given files which ignores the
 // existence of steps with names provided in ignoreSteps.
-func NewPipeline(definitionPath, environmentPath string, environment types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*Pipeline, error) {
+func NewPipeline(definitionPath, environmentPath string, environment types.StringMap, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*Pipeline, error) {
 	p := &Pipeline{}
 	var err error
 	// Load environment

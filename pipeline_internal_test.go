@@ -51,7 +51,7 @@ func TestPipelineGetRunnerForMeta(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -96,7 +96,7 @@ func TestPipelineBuildImages(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -147,7 +147,7 @@ func TestPipelineBuildImagesForced(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -198,7 +198,7 @@ func TestPipelinePullImages(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -254,7 +254,7 @@ func TestPipelinePullImagesForced(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -310,7 +310,7 @@ func TestPipelineKillContainers(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -366,7 +366,7 @@ func TestPipelineKillContainersPreRun(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -422,7 +422,7 @@ func TestPipelineRemoveContainers(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -475,7 +475,7 @@ func TestPipelineRemoveContainersPreRun(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -528,7 +528,7 @@ func TestPipelineCreateNetwork(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -580,7 +580,7 @@ func TestPipelineRemoveNetwork(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -632,7 +632,7 @@ func TestPipelineExecuteSteps(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -696,7 +696,7 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -752,7 +752,7 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}

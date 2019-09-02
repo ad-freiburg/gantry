@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// MappingWithEquals stores a list of key=value or key: value as a map.
-type MappingWithEquals map[string]*string
+// StringMap stores a list of key=value or key: value as a map.
+type StringMap map[string]*string
 
 // UnmarshalJSON sets *r to a copy of data.
-func (r *MappingWithEquals) UnmarshalJSON(data []byte) error {
+func (r *StringMap) UnmarshalJSON(data []byte) error {
 	result := map[string]*string{}
 
 	err := json.Unmarshal(data, &result)

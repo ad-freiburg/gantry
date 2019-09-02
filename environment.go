@@ -17,19 +17,19 @@ import (
 )
 
 type pipelineEnvironmentJSON struct {
-	Version            string                  `json:"version"`
-	Substitutions      types.MappingWithEquals `json:"substitutions"`
-	TempDirPath        string                  `json:"tempdir"`
-	TempDirNoAutoClean bool                    `json:"tempdir_no_autoclean"`
-	Services           ServiceMetaList         `json:"services"`
-	Steps              ServiceMetaList         `json:"steps"`
-	ProjectName        string                  `json:"project_name"`
+	Version            string          `json:"version"`
+	Substitutions      types.StringMap `json:"substitutions"`
+	TempDirPath        string          `json:"tempdir"`
+	TempDirNoAutoClean bool            `json:"tempdir_no_autoclean"`
+	Services           ServiceMetaList `json:"services"`
+	Steps              ServiceMetaList `json:"steps"`
+	ProjectName        string          `json:"project_name"`
 }
 
 // PipelineEnvironment stores additional data for pipelines and steps.
 type PipelineEnvironment struct {
 	Version            string
-	Substitutions      types.MappingWithEquals
+	Substitutions      types.StringMap
 	TempDirPath        string
 	TempDirNoAutoClean bool
 	Steps              ServiceMetaList
@@ -73,11 +73,11 @@ func (e *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 // NewPipelineEnvironment builds a new environment merging the current
 // environment, the environment given by path and the user provided steps to
 // ignore.
-func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*PipelineEnvironment, error) {
+func NewPipelineEnvironment(path string, substitutions types.StringMap, ignoredSteps types.StringSet, selectedSteps types.StringSet) (*PipelineEnvironment, error) {
 	// Set defaults
 	e := &PipelineEnvironment{
 		tempPaths:     make(map[string]string),
-		Substitutions: types.MappingWithEquals{},
+		Substitutions: types.StringMap{},
 		Steps:         ServiceMetaList{},
 	}
 	e.updateSubstitutions(substitutions)
@@ -113,7 +113,7 @@ func NewPipelineEnvironment(path string, substitutions types.MappingWithEquals, 
 	return e, nil
 }
 
-func (e *PipelineEnvironment) updateSubstitutions(substitutions types.MappingWithEquals) {
+func (e *PipelineEnvironment) updateSubstitutions(substitutions types.StringMap) {
 	for k, v := range substitutions {
 		e.Substitutions[k] = v
 	}

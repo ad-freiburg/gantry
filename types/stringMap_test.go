@@ -7,21 +7,21 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 )
 
-func TestMappingWithEqualsUnmarshalJSON(t *testing.T) {
+func TestStringMapUnmarshalJSON(t *testing.T) {
 	bar := "Bar"
 	var cases = []struct {
 		json   string
 		err    string
-		result types.MappingWithEquals
+		result types.StringMap
 	}{
-		{"", "unexpected end of JSON input,", types.MappingWithEquals{}},
-		{"{\"Foo\": \"Bar\"}", "", types.MappingWithEquals{"Foo": &bar}},
-		{"[\"Foo=Bar\"]", "", types.MappingWithEquals{"Foo": &bar}},
-		{"[\"Foo\"]", "", types.MappingWithEquals{"Foo": nil}},
+		{"", "unexpected end of JSON input,", types.StringMap{}},
+		{"{\"Foo\": \"Bar\"}", "", types.StringMap{"Foo": &bar}},
+		{"[\"Foo=Bar\"]", "", types.StringMap{"Foo": &bar}},
+		{"[\"Foo\"]", "", types.StringMap{"Foo": nil}},
 	}
 
 	for _, c := range cases {
-		s := types.MappingWithEquals{}
+		s := types.StringMap{}
 		err := s.UnmarshalJSON([]byte(c.json))
 		if (err != nil && c.err == "") || (err == nil && c.err != "") {
 			t.Errorf("Incorrect error for '%s', got '%s', wanted '%s'", c.json, err, c.err)

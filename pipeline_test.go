@@ -124,16 +124,16 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 	cases := []struct {
 		def         string
 		env         string
-		environment types.MappingWithEquals
+		environment types.StringMap
 		ignore      types.StringSet
 		selected    types.StringSet
 		err         string
 		numIgnore   int
 	}{
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 0},
-		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", 1},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 1},
-		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.MappingWithEquals{}, types.StringSet{"a": true}, types.StringSet{}, "", 2},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{}, "", 0},
+		{tmpDef.Name(), tmpEnvWithoutIgnore.Name(), types.StringMap{}, types.StringSet{"a": true}, types.StringSet{}, "", 1},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{}, "", 1},
+		{tmpDef.Name(), tmpEnvWithIgnore.Name(), types.StringMap{}, types.StringSet{"a": true}, types.StringSet{}, "", 2},
 	}
 
 	for _, c := range cases {
@@ -178,13 +178,13 @@ func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
 	cases := []struct {
 		def         string
 		env         string
-		environment types.MappingWithEquals
+		environment types.StringMap
 		ignore      types.StringSet
 		selected    types.StringSet
 		err         string
 		numIgnore   int
 	}{
-		{tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{}, "", 0},
+		{tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{}, "", 0},
 	}
 
 	for _, c := range cases {
@@ -226,7 +226,7 @@ func TestPipelineCheck(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
@@ -248,7 +248,7 @@ func TestPipelineCheckNoContainerInformation(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
@@ -272,7 +272,7 @@ func TestPipelineCleanUp(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
