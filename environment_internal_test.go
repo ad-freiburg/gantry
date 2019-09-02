@@ -53,7 +53,7 @@ func TestPipelineEnvironmentCreatedTemplateParserDirectSubstitution(t *testing.T
 			}
 			continue
 		}
-		res := string(b.Bytes())
+		res := b.String()
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
@@ -104,7 +104,7 @@ func TestPipelineEnvironmentCreatedTemplateParserEnv(t *testing.T) {
 			}
 			continue
 		}
-		res := string(b.Bytes())
+		res := b.String()
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
@@ -160,7 +160,7 @@ func TestPipelineEnvironmentCreatedTemplateParserEnvDir(t *testing.T) {
 			}
 			continue
 		}
-		res := string(b.Bytes())
+		res := b.String()
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
@@ -207,7 +207,7 @@ func TestPipelineEnvironmentCreatedTemplateParserTmpDir(t *testing.T) {
 			}
 			continue
 		}
-		res := filepath.Base(string(b.Bytes()))
+		res := filepath.Base(b.String())
 		if !strings.HasPrefix(res, c.prefix) {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted prefix: '%s'", i, res, c.prefix)
 		}
