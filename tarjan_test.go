@@ -82,6 +82,7 @@ func TestNewTarjan(t *testing.T) {
 	for ci, c := range cases {
 		r, err := gantry.NewTarjan(c.input)
 		result := *r
+		seen := make(map[string]bool)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
 		}
@@ -92,7 +93,127 @@ func TestNewTarjan(t *testing.T) {
 			if len(result[i]) != len(c.result[i]) {
 				t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
 			}
-			// Tarjan is not deterministic on each level, thus no further comparisons
+			// skip following check for invalid pipelines
+			if len(result[i]) > 1 {
+				continue
+			}
+			seen[result[i][0].Name] = true
+			for after := range result[i][0].After {
+				if !seen[after] {
+					t.Errorf("Unknown dependency '%s' for '%s' - wrong step order!", after, result[i][0].Name)
+				}
+			}
+		}
+	}
+}
+
+func TestNewTarjanDisjointPipelines(t *testing.T) {
+	// Pipeline A
+	stepA := gantry.Step{Service: gantry.Service{Name: "a"}}
+	stepB := gantry.Step{Service: gantry.Service{Name: "b"}, After: map[string]bool{"a": true}}
+	stepC := gantry.Step{Service: gantry.Service{Name: "c"}, After: map[string]bool{"b": true}}
+	// Pipeline B
+	stepD := gantry.Step{Service: gantry.Service{Name: "d"}}
+	stepE := gantry.Step{Service: gantry.Service{Name: "e"}, After: map[string]bool{"d": true}}
+	stepF := gantry.Step{Service: gantry.Service{Name: "f"}, After: map[string]bool{"e": true}}
+	// Connection A to B
+	stepG := gantry.Step{Service: gantry.Service{Name: "g"}, After: map[string]bool{"c": true, "f": true}}
+
+	cases := []struct {
+		input  map[string]gantry.Step
+		result gantry.Pipelines
+	}{
+		// Test only A
+		{
+			map[string]gantry.Step{
+				"a": stepA,
+				"b": stepB,
+				"c": stepC,
+			},
+			gantry.Pipelines{
+				[]gantry.Step{stepA},
+				[]gantry.Step{stepB},
+				[]gantry.Step{stepC},
+			},
+		},
+		// Test only B
+		{
+			map[string]gantry.Step{
+				"d": stepD,
+				"e": stepE,
+				"f": stepF,
+			},
+			gantry.Pipelines{
+				[]gantry.Step{stepD},
+				[]gantry.Step{stepE},
+				[]gantry.Step{stepF},
+			},
+		},
+		// Both
+		{
+			map[string]gantry.Step{
+				"a": stepA,
+				"b": stepB,
+				"c": stepC,
+				"d": stepD,
+				"e": stepE,
+				"f": stepF,
+			},
+			gantry.Pipelines{
+				[]gantry.Step{stepA},
+				[]gantry.Step{stepB},
+				[]gantry.Step{stepC},
+				[]gantry.Step{stepD},
+				[]gantry.Step{stepE},
+				[]gantry.Step{stepF},
+			},
+		},
+		// Combined
+		{
+			map[string]gantry.Step{
+				"a": stepA,
+				"b": stepB,
+				"c": stepC,
+				"d": stepD,
+				"e": stepE,
+				"f": stepF,
+				"g": stepG,
+			},
+			gantry.Pipelines{
+				[]gantry.Step{stepA},
+				[]gantry.Step{stepB},
+				[]gantry.Step{stepC},
+				[]gantry.Step{stepD},
+				[]gantry.Step{stepE},
+				[]gantry.Step{stepF},
+				[]gantry.Step{stepG},
+			},
+		},
+	}
+	for ci, c := range cases {
+		r, err := gantry.NewTarjan(c.input)
+		result := *r
+		seen := make(map[string]bool)
+		if err != nil {
+			t.Errorf("Got error: %v", err)
+		}
+		if len(result) != len(c.result) {
+			t.Errorf("Incorrect length for '%d', got %d, wanted %d", ci, len(result), len(c.result))
+		}
+		for i := range result {
+			if len(result[i]) != len(c.result[i]) {
+				t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
+			}
+			// skip following check for invalid pipelines
+			if len(result[i]) > 1 {
+				continue
+			}
+			seen[result[i][0].Name] = true
+			for after := range result[i][0].After {
+				if !seen[after] {
+					t.Errorf("Unknown dependency '%s' for '%s' - wrong step order!", after, result[i][0].Name)
+				}
+			}
 		}
 	}
 }

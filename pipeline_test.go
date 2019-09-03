@@ -13,6 +13,21 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 )
 
+const def = `steps:
+  a:
+    image: alpine
+  b:
+    image: alpine
+    after:
+      - a
+services:
+  c:
+    build:
+      context: ./dummy
+    depends_on:
+      - b
+`
+
 func TestPipelinesAllSteps(t *testing.T) {
 	cases := []struct {
 		input  gantry.Pipelines
@@ -54,13 +69,56 @@ func TestPipelinesCheck(t *testing.T) {
 }
 
 func TestPipelineDefinitionPipelines(t *testing.T) {
+	type rs struct {
+		name     string
+		ignore   bool
+		selected bool
+	}
 	cases := []struct {
 		definition gantry.PipelineDefinition
 		err        string
-		result     gantry.Pipelines
+		result     [][]rs
 	}{
-		{gantry.PipelineDefinition{}, "", gantry.Pipelines{}},
-		{gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{}}}, "", gantry.Pipelines{[]gantry.Step{{}}}},
+		{
+			gantry.PipelineDefinition{},
+			"",
+			[][]rs{},
+		},
+		{
+			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a"}}}},
+			"",
+			[][]rs{[]rs{rs{name: "a", ignore: false, selected: false}}},
+		},
+		{
+			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Ignore: true}}}}},
+			"",
+			[][]rs{[]rs{rs{name: "a", ignore: true, selected: false}}},
+		},
+		{
+			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Selected: true}}}}},
+			"",
+			[][]rs{[]rs{rs{name: "a", ignore: false, selected: true}}},
+		},
+		{
+			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Ignore: true, Selected: true}}}}},
+			"Instructed to ignore selected step 'a'",
+			[][]rs{},
+		},
+		{
+			gantry.PipelineDefinition{Steps: gantry.StepList{
+				"a": gantry.Step{Service: gantry.Service{Name: "a"}},
+				"b": gantry.Step{Service: gantry.Service{Name: "b", Meta: gantry.ServiceMeta{Ignore: true}}, After: types.StringSet{"a": true}},
+				"c": gantry.Step{Service: gantry.Service{Name: "c"}, After: types.StringSet{"b": true}},
+				"d": gantry.Step{Service: gantry.Service{Name: "d", Meta: gantry.ServiceMeta{Selected: true}}, After: types.StringSet{"c": true}},
+			}},
+			"",
+			[][]rs{[]rs{
+				rs{name: "a", ignore: true, selected: false},
+				rs{name: "b", ignore: true, selected: false},
+				rs{name: "c", ignore: false, selected: true},
+				rs{name: "d", ignore: false, selected: true},
+			}},
+		},
 	}
 
 	for _, c := range cases {
@@ -74,6 +132,18 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		for i, ri := range *r {
 			if len(ri) != len(c.result[i]) {
 				t.Errorf("Incorrect length for '%v'@'%d', got: '%d', wanted: '%d'", c.definition, i, len(ri), len(c.result[i]))
+				continue
+			}
+			for j, step := range ri {
+				if step.Name != c.result[i][j].name {
+					t.Errorf("Incorrect step name, got: '%s', wanted: '%s'", step.Name, c.result[i][j].name)
+				}
+				if step.Meta.Ignore != c.result[i][j].ignore {
+					t.Errorf("Incorrect step.Meta.Ignore, got: '%t', wanted: '%t'", step.Meta.Ignore, c.result[i][j].ignore)
+				}
+				if step.Meta.Selected != c.result[i][j].selected {
+					t.Errorf("Incorrect step.Meta.Selected, got: '%t', wanted: '%t'", step.Meta.Selected, c.result[i][j].selected)
+				}
 			}
 		}
 	}
@@ -166,11 +236,7 @@ func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer os.Remove(tmpDef.Name())
-	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,6 +250,7 @@ func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
 		err         string
 		numIgnore   int
 	}{
+		{"I_DO_NEVER_EXIST", "", types.StringMap{}, types.StringSet{}, types.StringSet{}, "open I_DO_NEVER_EXIST: no such file or directory", 0},
 		{tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{}, "", 0},
 	}
 
@@ -217,11 +284,7 @@ func TestPipelineCheck(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer os.Remove(tmpDef.Name())
-	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -263,11 +326,7 @@ func TestPipelineCleanUp(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer os.Remove(tmpDef.Name())
-	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile(tmpDef.Name(), diamond, 0644)
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
