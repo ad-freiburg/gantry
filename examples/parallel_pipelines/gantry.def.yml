@@ -1,0 +1,28 @@
+steps:
+  pipeline_a_step_0:
+    image: alpine
+    command: "echo \"Step pipeline_a_step_0\""
+  pipeline_a_step_1:
+    image: alpine
+    command: "echo \"Step pipeline_a_step_1\""
+    after:
+      - pipeline_a_step_0
+  pipeline_a_step_2:
+    image: alpine
+    command: "echo \"Step pipeline_a_step_2\""
+    after:
+      - pipeline_a_step_1
+
+  pipeline_b_step_0:
+    image: alpine
+    command: "echo \"Step pipeline_b_step_0\""
+  pipeline_b_step_1:
+    image: alpine
+    command: "echo \"Step pipeline_b_step_1\""
+    after:
+      - pipeline_b_step_0
+  pipeline_b_step_2:
+    image: alpine
+    command: "echo \"Step pipeline_b_step_2\""
+    after:
+      - pipeline_b_step_1

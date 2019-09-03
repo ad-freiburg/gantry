@@ -111,6 +111,46 @@ func TestExamples(t *testing.T) {
 			},
 		},
 		{
+			"parallel_pipelines",
+			"gantry.def.yml",
+			"",
+			[]struct {
+				key    string
+				runner bool
+				calls  int
+				called int
+			}{
+				{"NetworkCreator(test)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_a_step_0)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_a_step_1)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_a_step_2)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_b_step_0)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_b_step_1)", true, 1, 1},
+				{"ImageExistenceChecker(pipeline_b_step_2)", true, 1, 1},
+				{"ContainerKiller(pipeline_a_step_0)", true, 3, 3},
+				{"ContainerKiller(pipeline_a_step_1)", true, 3, 3},
+				{"ContainerKiller(pipeline_a_step_2)", true, 3, 3},
+				{"ContainerKiller(pipeline_b_step_0)", true, 3, 3},
+				{"ContainerKiller(pipeline_b_step_1)", true, 3, 3},
+				{"ContainerKiller(pipeline_b_step_2)", true, 3, 3},
+				{"ContainerKiller(TempDirCleanUp)", true, 0, 0},
+				{"ContainerRemover(pipeline_a_step_0)", true, 4, 4},
+				{"ContainerRemover(pipeline_a_step_1)", true, 4, 4},
+				{"ContainerRemover(pipeline_a_step_2)", true, 4, 4},
+				{"ContainerRemover(pipeline_b_step_0)", true, 4, 4},
+				{"ContainerRemover(pipeline_b_step_1)", true, 4, 4},
+				{"ContainerRemover(pipeline_b_step_2)", true, 4, 4},
+				{"ContainerRemover(TempDirCleanUp)", true, 0, 0},
+				{"ContainerRunner(pipeline_a_step_0,test)", true, 1, 1},
+				{"ContainerRunner(pipeline_a_step_1,test)", true, 1, 1},
+				{"ContainerRunner(pipeline_a_step_2,test)", true, 1, 1},
+				{"ContainerRunner(pipeline_b_step_0,test)", true, 1, 1},
+				{"ContainerRunner(pipeline_b_step_1,test)", true, 1, 1},
+				{"ContainerRunner(pipeline_b_step_2,test)", true, 1, 1},
+				{"ContainerRunner(TempDirCleanUp,test)", true, 0, 0},
+			},
+		},
+		{
 			"partial_execution",
 			"gantry.def.yml",
 			"gantry.env.yml",
