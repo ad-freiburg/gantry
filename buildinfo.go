@@ -6,7 +6,7 @@ import (
 
 // BuildInfo represents the build-keyword in a docker-compse.yml.
 type BuildInfo struct {
-	Context    string                  `json:"context"`
-	Dockerfile string                  `json:"dockerfile"`
-	Args       types.MappingWithEquals `json:"args"`
+	Context    string          `json:"context"`
+	Dockerfile string          `json:"dockerfile"`
+	Args       types.StringMap `json:"args"`
 }

@@ -20,10 +20,10 @@ func TestPipelineEnvironmentCreatedTemplateParserDirectSubstitution(t *testing.T
 		in            string
 		out           string
 		err           bool
-		substitutions types.MappingWithEquals
+		substitutions types.StringMap
 	}{
-		{"{{ Foo }}", "", true, types.MappingWithEquals{}},
-		{"{{ Foo }}", "", false, types.MappingWithEquals{"Foo": nil}},
+		{"{{ Foo }}", "", true, types.StringMap{}},
+		{"{{ Foo }}", "", false, types.StringMap{"Foo": nil}},
 	}
 
 	for i, c := range cases {
@@ -67,14 +67,14 @@ func TestPipelineEnvironmentCreatedTemplateParserEnv(t *testing.T) {
 		in            string
 		out           string
 		err           bool
-		substitutions types.MappingWithEquals
+		substitutions types.StringMap
 	}{
-		{"{{ Env }}", "", true, types.MappingWithEquals{}},
-		{"{{ Env \"Foo\" }}", "", true, types.MappingWithEquals{}},
-		{"{{ Env \"Foo\" }}", baz, false, types.MappingWithEquals{"Foo": &baz}},
-		{"{{ Env \"Foo\" \"Bar\" }}", "Bar", false, types.MappingWithEquals{}},
-		{"{{ Env \"Foo\" \"Bar\" }}", baz, false, types.MappingWithEquals{"Foo": &baz}},
-		{"{{ Env \"Foo\" \"Bar\" \"X\" }}", "", true, types.MappingWithEquals{}},
+		{"{{ Env }}", "", true, types.StringMap{}},
+		{"{{ Env \"Foo\" }}", "", true, types.StringMap{}},
+		{"{{ Env \"Foo\" }}", baz, false, types.StringMap{"Foo": &baz}},
+		{"{{ Env \"Foo\" \"Bar\" }}", "Bar", false, types.StringMap{}},
+		{"{{ Env \"Foo\" \"Bar\" }}", baz, false, types.StringMap{"Foo": &baz}},
+		{"{{ Env \"Foo\" \"Bar\" \"X\" }}", "", true, types.StringMap{}},
 	}
 
 	for i, c := range cases {
@@ -121,16 +121,16 @@ func TestPipelineEnvironmentCreatedTemplateParserEnvDir(t *testing.T) {
 		in            string
 		out           string
 		err           bool
-		substitutions types.MappingWithEquals
+		substitutions types.StringMap
 	}{
-		{"{{ EnvDir }}", "", true, types.MappingWithEquals{}},
-		{"{{ EnvDir }}", "", true, types.MappingWithEquals{}},
-		{"{{ EnvDir \"Foo\" }}", "", true, types.MappingWithEquals{}},
-		{"{{ EnvDir \"Foo\" }}", cwd, false, types.MappingWithEquals{"Foo": &cwd}},
-		{"{{ EnvDir \"Foo\" \"I_WILL_NEVER_EXIST\" }}", "", true, types.MappingWithEquals{}},
-		{"{{ EnvDir \"Foo\" \"/tmp\" }}", "/tmp", false, types.MappingWithEquals{}},
-		{"{{ EnvDir \"Foo\" \"/tmp\" }}", cwd, false, types.MappingWithEquals{"Foo": &cwd}},
-		{"{{ EnvDir \"Foo\" \"/tmp\" \"X\" }}", "", true, types.MappingWithEquals{}},
+		{"{{ EnvDir }}", "", true, types.StringMap{}},
+		{"{{ EnvDir }}", "", true, types.StringMap{}},
+		{"{{ EnvDir \"Foo\" }}", "", true, types.StringMap{}},
+		{"{{ EnvDir \"Foo\" }}", cwd, false, types.StringMap{"Foo": &cwd}},
+		{"{{ EnvDir \"Foo\" \"I_WILL_NEVER_EXIST\" }}", "", true, types.StringMap{}},
+		{"{{ EnvDir \"Foo\" \"/tmp\" }}", "/tmp", false, types.StringMap{}},
+		{"{{ EnvDir \"Foo\" \"/tmp\" }}", cwd, false, types.StringMap{"Foo": &cwd}},
+		{"{{ EnvDir \"Foo\" \"/tmp\" \"X\" }}", "", true, types.StringMap{}},
 	}
 
 	for i, c := range cases {
@@ -173,11 +173,11 @@ func TestPipelineEnvironmentCreatedTemplateParserTmpDir(t *testing.T) {
 		in            string
 		prefix        string
 		err           bool
-		substitutions types.MappingWithEquals
+		substitutions types.StringMap
 	}{
-		{"{{ TempDir }}", "", false, types.MappingWithEquals{}},
-		{"{{ TempDir \"a\" }}", "a", false, types.MappingWithEquals{}},
-		{"{{ TempDir \"a\" \"b\" }}", "a_b", false, types.MappingWithEquals{}},
+		{"{{ TempDir }}", "", false, types.StringMap{}},
+		{"{{ TempDir \"a\" }}", "a", false, types.StringMap{}},
+		{"{{ TempDir \"a\" \"b\" }}", "a_b", false, types.StringMap{}},
 	}
 
 	for i, c := range cases {
@@ -216,7 +216,7 @@ func TestPipelineEnvironmentCreatedTemplateParserTmpDir(t *testing.T) {
 }
 
 func TestPipelineEnvironmentUpdateSubstitutions(t *testing.T) {
-	checkKeyAndValue := func(m types.MappingWithEquals, key string, value *string) error {
+	checkKeyAndValue := func(m types.StringMap, key string, value *string) error {
 		val, found := m[key]
 		if !found {
 			return fmt.Errorf("Unknown Substitution '%s'", key)
@@ -228,7 +228,7 @@ func TestPipelineEnvironmentUpdateSubstitutions(t *testing.T) {
 	}
 	bar := "bar"
 	baz := "baz"
-	e, err := NewPipelineEnvironment("", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	e, err := NewPipelineEnvironment("", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestPipelineEnvironmentUpdateSubstitutions(t *testing.T) {
 	}
 
 	// Add foo -> baz
-	e.updateSubstitutions(types.MappingWithEquals{"foo": &baz})
+	e.updateSubstitutions(types.StringMap{"foo": &baz})
 	if len(e.Substitutions) != 1 {
 		t.Errorf("Incorrect number of Substitutions entries, got: '%d', wanted: '%d'", len(e.Substitutions), 1)
 	}
@@ -248,7 +248,7 @@ func TestPipelineEnvironmentUpdateSubstitutions(t *testing.T) {
 	}
 
 	// Update foo -> bar
-	e.updateSubstitutions(types.MappingWithEquals{"foo": &bar})
+	e.updateSubstitutions(types.StringMap{"foo": &bar})
 	if len(e.Substitutions) != 1 {
 		t.Errorf("Incorrect number of Substitutions entries, got: '%d', wanted: '%d'", len(e.Substitutions), 1)
 	}
@@ -257,7 +257,7 @@ func TestPipelineEnvironmentUpdateSubstitutions(t *testing.T) {
 	}
 
 	// Update foo -> nil
-	e.updateSubstitutions(types.MappingWithEquals{"foo": nil})
+	e.updateSubstitutions(types.StringMap{"foo": nil})
 	if len(e.Substitutions) != 1 {
 		t.Errorf("Incorrect number of Substitutions entries, got: '%d', wanted: '%d'", len(e.Substitutions), 1)
 	}
@@ -287,7 +287,7 @@ func TestPipelineEnvironmentUpdateStepsMeta(t *testing.T) {
 		}
 		return nil
 	}
-	e, err := NewPipelineEnvironment("", types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+	e, err := NewPipelineEnvironment("", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatal(err)
 	}

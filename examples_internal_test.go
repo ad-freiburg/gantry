@@ -247,7 +247,7 @@ func TestExamples(t *testing.T) {
 		if err := os.Chdir(filepath.Join(cwd, "examples", example.dir)); err != nil {
 			log.Fatal(err)
 		}
-		p, err := NewPipeline(example.def, example.env, types.MappingWithEquals{}, types.StringSet{}, types.StringSet{})
+		p, err := NewPipeline(example.def, example.env, types.StringMap{}, types.StringSet{}, types.StringSet{})
 		if err != nil {
 			t.Errorf("Unexpected error creating pipeline for '%s': '%#v'", example.dir, err)
 		}

@@ -17,14 +17,14 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 		out           string
 		env           string
 		errors        bool
-		substitutions types.MappingWithEquals
+		substitutions types.StringMap
 	}{
 		{
 			"{{ NOT_DECLARED }}",
 			"",
 			"",
 			true,
-			types.MappingWithEquals{},
+			types.StringMap{},
 		},
 		{
 			"{{ NOT_DECLARED }}",
@@ -32,21 +32,21 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 			`substitutions:
   Foo: Baz`,
 			true,
-			types.MappingWithEquals{},
+			types.StringMap{},
 		},
 		{
 			"{{ EMPTY }}",
 			"",
 			"",
 			false,
-			types.MappingWithEquals{"EMPTY": nil},
+			types.StringMap{"EMPTY": nil},
 		},
 		{
 			"{{ Foo }}",
 			"Bar",
 			"",
 			false,
-			types.MappingWithEquals{"Foo": &bar},
+			types.StringMap{"Foo": &bar},
 		},
 		{
 			"{{ Foo }}",
@@ -54,7 +54,7 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 			`substitutions:
   Foo: Baz`,
 			false,
-			types.MappingWithEquals{},
+			types.StringMap{},
 		},
 		{
 			"{{ Foo }}",
@@ -62,7 +62,7 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 			`substitutions:
   Foo: Baz`,
 			false,
-			types.MappingWithEquals{"Foo": &bar},
+			types.StringMap{"Foo": &bar},
 		},
 	}
 	for _, c := range cases {

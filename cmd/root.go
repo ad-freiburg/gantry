@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 		for _, step := range args {
 			selectedSteps[step] = true
 		}
-		env := types.MappingWithEquals{}
+		env := types.StringMap{}
 		for _, v := range environment {
 			parts := strings.SplitN(v, "=", 2)
 			if len(parts) == 1 {

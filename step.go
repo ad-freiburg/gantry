@@ -18,7 +18,7 @@ type Service struct {
 	Image       string                    `json:"image"`
 	Ports       []string                  `json:"ports"`
 	Volumes     []string                  `json:"volumes"`
-	Environment types.MappingWithEquals   `json:"environment"`
+	Environment types.StringMap           `json:"environment"`
 	DependsOn   types.StringSet           `json:"depends_on"`
 	Restart     string                    `json:"restart"`
 	Name        string
