@@ -23,7 +23,6 @@ func (r *ServiceList) UnmarshalJSON(data []byte) error {
 		}
 		steps[name] = Step{
 			Service: step,
-			Detach:  true,
 		}
 	}
 	*r = steps

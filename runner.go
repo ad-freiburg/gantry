@@ -356,7 +356,7 @@ func (r *LocalRunner) ContainerRunner(step Step, network Network) func() error {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
-		return r.Exec(step.RunCommand(string(network)))
+		return r.Exec(step.RunCommand(network))
 	}
 }
 

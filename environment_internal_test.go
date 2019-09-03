@@ -57,7 +57,9 @@ func TestPipelineEnvironmentCreatedTemplateParserDirectSubstitution(t *testing.T
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
-		e.CleanUp(syscall.Signal(0))
+		if err := e.CleanUp(syscall.Signal(0)); err != nil {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
 	}
 }
 
@@ -108,7 +110,9 @@ func TestPipelineEnvironmentCreatedTemplateParserEnv(t *testing.T) {
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
-		e.CleanUp(syscall.Signal(0))
+		if err := e.CleanUp(syscall.Signal(0)); err != nil {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
 	}
 }
 
@@ -164,7 +168,9 @@ func TestPipelineEnvironmentCreatedTemplateParserEnvDir(t *testing.T) {
 		if res != c.out {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
 		}
-		e.CleanUp(syscall.Signal(0))
+		if err := e.CleanUp(syscall.Signal(0)); err != nil {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
 	}
 }
 
@@ -211,7 +217,9 @@ func TestPipelineEnvironmentCreatedTemplateParserTmpDir(t *testing.T) {
 		if !strings.HasPrefix(res, c.prefix) {
 			t.Errorf("Incorrect result in case '%d', got: '%s', wanted prefix: '%s'", i, res, c.prefix)
 		}
-		e.CleanUp(syscall.Signal(0))
+		if err := e.CleanUp(syscall.Signal(0)); err != nil {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
 	}
 }
 
