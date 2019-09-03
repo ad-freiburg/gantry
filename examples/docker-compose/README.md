@@ -1,22 +1,25 @@
 # Using docker-compose.yml
 
+* [docker-compose.yml](./gdocker-compose.yml)
+
+![pipeline.svg](./pipeline.svg)
+
 This is a slightly modified
 [docker-compose example](https://docs.docker.com/compose/wordpress/) as
 `docker-compose` supports different markup for environment variables and named
-volumes are not (yet) implemented into `gantry`.
-
-The structure of the example is visualized in [pipeline.svg](./pipeline.svg).
+volumes are not implemented into `gantry`.
 
 ## Running using docker-compose
-    docker-compose up
-This creates a default network, starts both containers, and attaches to them.
-For the same behaviour gantry provide the `-d` flag to detache from the
-containers.
+    docker-compose up -d
+This creates a default network, starts both containers, and detaches from
+them. The `-d` flag is provided to match the behavior of gantry which always
+detaches from service containers.
 
 To clean up stop the deployment using `docker-compose down`.
 
 ## Running using gantry
     gantry up
-This creates a default network and starts both containers detached. To clean up
-`gantry down` is used. The `up` command can be omitted from gantry to simplify
-running deployments.
+This creates a default network and starts both containers detached. The `up`
+command can be omitted from gantry to simplify running deployments.
+
+To clean up stop the deployment using `gantry down`.

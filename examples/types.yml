@@ -1,0 +1,7 @@
+services:
+  service:
+    image: alpine
+
+steps:
+  step:
+    image: alpine
