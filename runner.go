@@ -8,6 +8,7 @@ import (
 	"log"
 	"os/exec"
 	"os/user"
+	"sync"
 )
 
 func getContainerExecutable() string {
@@ -68,50 +69,135 @@ type Runner interface {
 	ContainerKiller(Step) func() (int, error)
 	ContainerRemover(Step) func() error
 	ContainerRunner(Step, Network) func() error
+	NetworkCreator(Network) func() error
+	NetworkRemover(Network) func() error
 }
 
 // NoopRunner is a runner that does nothing.
-type NoopRunner struct{}
+type NoopRunner struct {
+	silent bool
+	calls  map[string]int
+	called map[string]int
+	mutex  sync.RWMutex
+}
+
+// NewLocalRunner returns a NoopRunner.
+func NewNoopRunner(silent bool) *NoopRunner {
+	return &NoopRunner{
+		silent: silent,
+		calls:  make(map[string]int),
+		called: make(map[string]int),
+	}
+}
+
+// NumCalls returns how many functions with the given key were created.
+func (r *NoopRunner) NumCalls(key string) int {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.calls[key]
+}
+
+// NumCalled returns how many functions with the given key were executed.
+func (r *NoopRunner) NumCalled(key string) int {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.called[key]
+}
+
+func (r *NoopRunner) incrementCalls(key string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.calls[key] += 1
+}
+
+func (r *NoopRunner) incrementCalled(key string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.called[key] += 1
+}
 
 // ImageBuilder returns a function to build the image for the given step.
-func (r *NoopRunner) ImageBuilder(Step, bool) func() error {
+func (r *NoopRunner) ImageBuilder(step Step, force bool) func() error {
+	key := fmt.Sprintf("ImageBuilder(%s,%t)", step.Name, force)
+	r.incrementCalls(key)
 	return func() error {
+		if !r.silent {
+			pipelineLogger.Printf("- Building: %s!", step.ColoredContainerName())
+		}
+		r.incrementCalled(key)
 		return nil
 	}
 }
 
 // ImagePuller returns a function to pull the image for the given step.
-func (r *NoopRunner) ImagePuller(Step) func() error {
+func (r *NoopRunner) ImagePuller(step Step) func() error {
+	key := fmt.Sprintf("ImagePuller(%s)", step.Name)
+	r.incrementCalls(key)
 	return func() error {
+		r.incrementCalled(key)
 		return nil
 	}
 }
 
 // ImageExistenceChecker returns a function which checks if the image for the given step exists.
-func (r *NoopRunner) ImageExistenceChecker(Step) func() error {
+func (r *NoopRunner) ImageExistenceChecker(step Step) func() error {
+	key := fmt.Sprintf("ImageExistenceChecker(%s)", step.Name)
+	r.incrementCalls(key)
 	return func() error {
+		r.incrementCalled(key)
 		return nil
 	}
 }
 
 // ContainerKiller returns a function to kill the container for the given step.
-func (r *NoopRunner) ContainerKiller(Step) func() (int, error) {
+func (r *NoopRunner) ContainerKiller(step Step) func() (int, error) {
+	key := fmt.Sprintf("ContainerKiller(%s)", step.Name)
+	r.incrementCalls(key)
 	return func() (int, error) {
+		r.incrementCalled(key)
 		return 0, nil
 	}
 }
 
 // ContainerRemover returns a function to remove the container for the given step.
-func (r *NoopRunner) ContainerRemover(Step) func() error {
+func (r *NoopRunner) ContainerRemover(step Step) func() error {
+	key := fmt.Sprintf("ContainerRemover(%s)", step.Name)
+	r.incrementCalls(key)
 	return func() error {
+		r.incrementCalled(key)
 		return nil
 	}
 }
 
 // ContainerRunner returns a function to run the given step.
-func (r *NoopRunner) ContainerRunner(step Step, n Network) func() error {
+func (r *NoopRunner) ContainerRunner(step Step, network Network) func() error {
+	key := fmt.Sprintf("ContainerRunner(%s,%s)", step.Name, network)
+	r.incrementCalls(key)
 	return func() error {
-		pipelineLogger.Printf("- Skipping: %s!", step.ColoredContainerName())
+		r.incrementCalled(key)
+		if !r.silent {
+			pipelineLogger.Printf("- Skipping: %s!", step.ColoredContainerName())
+		}
+		return nil
+	}
+}
+
+// NetworkCreator returns a function to create the given network.
+func (r *NoopRunner) NetworkCreator(network Network) func() error {
+	key := fmt.Sprintf("NetworkCreator(%s)", network)
+	r.incrementCalls(key)
+	return func() error {
+		r.incrementCalled(key)
+		return nil
+	}
+}
+
+// NetworkRemover returns a function to create the given network.
+func (r *NoopRunner) NetworkRemover(network Network) func() error {
+	key := fmt.Sprintf("NetworkRemover(%s)", network)
+	r.incrementCalls(key)
+	return func() error {
+		r.incrementCalled(key)
 		return nil
 	}
 }
@@ -184,10 +270,12 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Search for image
 		out, err := r.Output([]string{"images", "--format", "{{.ID}};{{.Repository}}", step.ImageName()})
 		if err != nil {
 			return err
 		}
+		// Count found images
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		count := 0
@@ -197,6 +285,7 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		if err := scanner.Err(); err != nil {
 			return err
 		}
+		// If no image was found, raise error
 		if count == 0 {
 			return fmt.Errorf("Image not found '%s'", step.ImageName())
 		}
@@ -214,10 +303,12 @@ func (r *LocalRunner) ContainerKiller(step Step) func() (int, error) {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Get id(s) of container with name of step to kill
 		out, err := r.Output([]string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return counter, err
 		}
+		// Kill all found containers
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
@@ -239,10 +330,12 @@ func (r *LocalRunner) ContainerRemover(step Step) func() error {
 		r.prefix = step.ColoredContainerName()
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
+		// Get id(s) of container with name of step to remove
 		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
 		if err != nil {
 			return err
 		}
+		// Remove all found containers
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {

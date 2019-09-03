@@ -80,7 +80,9 @@ var rootCmd = &cobra.Command{
 		return upCmd.RunE(cmd, args)
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		pipeline.CleanUp(syscall.Signal(0))
+		if err := pipeline.CleanUp(syscall.Signal(0)); err != nil {
+			log.Fatal(err)
+		}
 	},
 	Version:                gantry.Version,
 	BashCompletionFunction: bashCompletionFunc,
@@ -132,10 +134,14 @@ func signalHandler() {
 	for s := range c {
 		switch s {
 		case syscall.SIGINT:
-			pipeline.CleanUp(s)
+			if err := pipeline.CleanUp(s); err != nil {
+				log.Fatal(err)
+			}
 			os.Exit(1)
 		case syscall.SIGKILL:
-			pipeline.CleanUp(s)
+			if err := pipeline.CleanUp(s); err != nil {
+				log.Fatal(err)
+			}
 			os.Exit(1)
 		case syscall.SIGCHLD:
 		default:

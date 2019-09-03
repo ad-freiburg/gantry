@@ -12,12 +12,10 @@ var upCmd = &cobra.Command{
 	Use:   "up [flags] [Service/Step...]",
 	Short: "Builds, (re)creates, and starts containers",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		err := pipeline.PullImages(false)
-		if err != nil {
+		if err := pipeline.PullImages(false); err != nil {
 			return err
 		}
-		err = buildCmd.RunE(cmd, args)
-		if err != nil {
+		if err := buildCmd.RunE(cmd, args); err != nil {
 			return err
 		}
 		return startCmd.RunE(cmd, args)

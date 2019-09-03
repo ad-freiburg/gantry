@@ -32,7 +32,8 @@ type Pipeline struct {
 	Definition  *PipelineDefinition
 	Environment *PipelineEnvironment
 	Network     Network
-	localRunner *LocalRunner
+	localRunner Runner
+	noopRunner  Runner
 }
 
 // NewPipeline creates a new Pipeline from given files which ignores the
@@ -53,21 +54,22 @@ func NewPipeline(definitionPath, environmentPath string, environment types.Mappi
 	// Load definition
 	p.Definition, err = NewPipelineDefinition(definitionPath, p.Environment)
 	p.localRunner = NewLocalRunner("pipeline", os.Stdout, os.Stderr)
+	p.noopRunner = NewNoopRunner(false)
 	return p, err
 }
 
 // CleanUp removes containers and temporary data.
-func (p *Pipeline) CleanUp(signal os.Signal) {
+func (p *Pipeline) CleanUp(signal os.Signal) error {
 	var keepNetworkAlive bool
 	// Stop all services which are not marked as keep-running
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	runner := NewLocalRunner("pipeline", os.Stdout, os.Stderr)
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
 			if step.Meta.KeepAlive == KeepAliveNo {
+				runner := p.GetRunnerForMeta(step.Meta)
 				if _, err := runner.ContainerKiller(step)(); err != nil {
 					pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
 				}
@@ -96,7 +98,7 @@ func (p *Pipeline) CleanUp(signal os.Signal) {
 			pipelineLogger.Printf("Error removing network %s: %s", string(p.Network), err)
 		}
 	}
-	p.Environment.CleanUp(signal)
+	return p.Environment.CleanUp(signal)
 }
 
 // Check validates Pipeline p, checks if all required information is present.
@@ -116,7 +118,7 @@ func (p Pipeline) Check() error {
 // GetRunnerForMeta selects a suitable runner given a ServiceMeta instance.
 func (p Pipeline) GetRunnerForMeta(meta ServiceMeta) Runner {
 	if meta.Ignore {
-		return &NoopRunner{}
+		return p.noopRunner
 	}
 	return p.localRunner
 }
