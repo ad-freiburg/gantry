@@ -1,6 +1,7 @@
 package gantry
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -298,38 +299,23 @@ func TestExamples(t *testing.T) {
 }
 
 func TestExamplesAutodetectDefFiles(t *testing.T) {
-	examples := []struct {
-		dir string
-	}{
-		{
-			"diamond",
-		},
-		{
-			"diamond_ignore_failure",
-		},
-		{
-			"docker-compose",
-		},
-		{
-			"partial_execution",
-		},
-		{
-			"qlever_e2e",
-		},
-		{
-			"selective_run",
-		},
-	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i, example := range examples {
-		if err := os.Chdir(filepath.Join(cwd, "examples", example.dir)); err != nil {
+	contents, err := ioutil.ReadDir(filepath.Join(cwd, "examples"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, entry := range contents {
+		if !entry.IsDir() {
+			continue
+		}
+		if err := os.Chdir(filepath.Join(cwd, "examples", entry.Name())); err != nil {
 			log.Fatal(err)
 		}
 		if _, err := NewPipeline("", "", types.StringMap{}, types.StringSet{}, types.StringSet{}); err != nil {
-			t.Errorf("Unexpected error creating pipeline for case '%d': '%s': '%#v'", i, example.dir, err)
+			t.Errorf("Unexpected error creating pipeline: '%s': '%#v'", entry.Name(), err)
 		}
 		if err := os.Chdir(cwd); err != nil {
 			log.Fatal(err)
