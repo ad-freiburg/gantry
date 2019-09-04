@@ -2,6 +2,9 @@ package gantry_test
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
@@ -148,4 +151,61 @@ func TestMetaServiceMetaList(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestServiceLogOpen(t *testing.T) {
+	sl := &gantry.ServiceLog{}
+	sl.Handler = gantry.LogHandlerDiscard
+	if err := sl.Open(os.Stderr); err != nil {
+		t.Errorf("Unexpected error '%s'", err)
+	}
+	sl.Handler = gantry.LogHandlerFile
+	if err := sl.Open(os.Stderr); err == nil {
+		t.Error("Expected error, got 'nil'")
+	}
+	sl.Path = "/I_will_Never_exist/out.log"
+	if err := sl.Open(os.Stderr); err == nil {
+		t.Error("Expected error, got 'nil'")
+	}
+	tmpFile, err := ioutil.TempFile("", "out.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	sl.Path = tmpFile.Name()
+	if err := sl.Open(os.Stderr); err != nil {
+		t.Errorf("Unexpected error '%s'", err)
+	}
+	sl.Close()
+}
+
+func TestServiceLogWrite(t *testing.T) {
+	const text string = "Test"
+	sl := &gantry.ServiceLog{}
+	sl.Handler = gantry.LogHandlerBoth
+	tmpFile, err := ioutil.TempFile("", "out.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	sl.Path = tmpFile.Name()
+	if err := sl.Open(os.Stderr); err != nil {
+		t.Errorf("Unexpected error '%s'", err)
+	}
+	n, err := sl.Write([]byte(text))
+	if err != nil {
+		t.Errorf("Unexpected error '%s'", err)
+	}
+	if n != len(text) {
+		t.Errorf("Unexpected length written, got '%d', wanted: '%d'", n, len(text))
+	}
+	sl.Close()
+	result, err := ioutil.ReadFile(tmpFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	if string(result) != text {
+		t.Errorf("Incorrect logfile contents, got: '%s', wanted: '%s'", result, text)
+	}
+
 }

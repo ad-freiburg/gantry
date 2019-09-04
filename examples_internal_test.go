@@ -1,6 +1,7 @@
 package gantry
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -290,6 +291,31 @@ func TestExamples(t *testing.T) {
 			if v := runner.NumCalled(c.key); v != c.called {
 				t.Errorf("Incorrect NumCalled for '%s' in '%s', got: '%d', wanted '%d'", c.key, example.dir, v, c.called)
 			}
+		}
+		if err := os.Chdir(cwd); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func TestExamplesAutodetectDefFiles(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	contents, err := ioutil.ReadDir(filepath.Join(cwd, "examples"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, entry := range contents {
+		if !entry.IsDir() {
+			continue
+		}
+		if err := os.Chdir(filepath.Join(cwd, "examples", entry.Name())); err != nil {
+			log.Fatal(err)
+		}
+		if _, err := NewPipeline("", "", types.StringMap{}, types.StringSet{}, types.StringSet{}); err != nil {
+			t.Errorf("Unexpected error creating pipeline: '%s': '%#v'", entry.Name(), err)
 		}
 		if err := os.Chdir(cwd); err != nil {
 			log.Fatal(err)
