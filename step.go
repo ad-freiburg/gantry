@@ -29,9 +29,7 @@ type Service struct {
 // Step provides an extended service.
 type Step struct {
 	Service
-	Role   string          `json:"role"`
-	After  types.StringSet `json:"after"`
-	Detach bool            `json:"detach"`
+	After types.StringSet `json:"after"`
 }
 
 // Dependencies returns all steps needed for running s.
@@ -44,6 +42,17 @@ func (s Step) Dependencies() types.StringSet {
 		r[dep] = true
 	}
 	return r
+}
+
+// Check validates Step s, returns nil if ok, otherwise returns found error.
+func (s Step) Check() error {
+	if s.Image == "" && s.BuildInfo.Context == "" && s.BuildInfo.Dockerfile == "" {
+		return fmt.Errorf("No container information for '%s'", s.ColoredName())
+	}
+	if len(s.Restart) > 0 && s.Restart != "no" && s.Meta.Type == ServiceTypeStep {
+		return fmt.Errorf("Invalid restart value '%s' for step '%s'", s.Restart, s.ColoredName())
+	}
+	return nil
 }
 
 // InitColor initializes the color of s.
@@ -110,15 +119,15 @@ func (s Step) BuildCommand(pull bool) []string {
 }
 
 // RunCommand returns the command to run an instance of step s.
-func (s Step) RunCommand(network string) []string {
+func (s Step) RunCommand(network Network) []string {
 	args := []string{
 		"run",
 		"--name", s.ContainerName(),
-		"--network", network,
+		"--network", string(network),
 		"--network-alias", s.RawContainerName(),
 		"--network-alias", s.ContainerName(),
 	}
-	if s.Detach {
+	if s.Meta.Type == ServiceTypeService {
 		args = append(args, "-d")
 	} else {
 		args = append(args, "--rm")

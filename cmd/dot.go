@@ -62,7 +62,7 @@ var dotCmd = &cobra.Command{
 			// Display services as ellipse, and steps as rectangle
 			shape := "rectangle"
 			style := "solid"
-			if step.Detach {
+			if step.Meta.Type == gantry.ServiceTypeService {
 				shape = "ellipse"
 			}
 			if step.Meta.Ignore {

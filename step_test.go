@@ -1,12 +1,37 @@
 package gantry_test
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
 	"github.com/ad-freiburg/gantry/types"
 )
+
+func TestStepCheck(t *testing.T) {
+	cases := []struct {
+		step gantry.Step
+		err  bool
+	}{
+		{gantry.Step{Service: gantry.Service{Name: "a"}}, true},
+		{gantry.Step{Service: gantry.Service{Name: "a", Image: "alpine"}}, false},
+		{gantry.Step{Service: gantry.Service{Name: "a", Image: "alpine", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}}, false},
+		{gantry.Step{Service: gantry.Service{Name: "a", Image: "alpine", Restart: "always", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}}, true},
+		{gantry.Step{Service: gantry.Service{Name: "a", Image: "alpine", Restart: "always", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeService}}}, false},
+	}
+
+	for i, c := range cases {
+		err := c.step.Check()
+		if err != nil && !c.err {
+			t.Errorf("Unexpected error for case '%d': '%#v', got: '%#v'", i, c.step, err)
+		}
+		if err == nil && c.err {
+			t.Errorf("Expected error for case '%d': '%#v', got: 'nil'", i, c.step)
+		}
+	}
+}
 
 func TestStepDependencies(t *testing.T) {
 	cases := []struct {
@@ -31,10 +56,10 @@ func TestStepDependencies(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
+	for i, c := range cases {
 		r := c.step.Dependencies()
 		if !reflect.DeepEqual(r, c.result) {
-			t.Errorf("Incorrect result for '%v', got: '%#v', wanted '%#v'", c.step, r, c.result)
+			t.Errorf("Incorrect result for case '%d': '%v', got: '%#v', wanted '%#v'", i, c.step, r, c.result)
 		}
 	}
 }
@@ -129,11 +154,36 @@ func TestStepBuildCommand(t *testing.T) {
 		pull   bool
 		result []string
 	}{
-		{gantry.Step{Service: gantry.Service{Image: "img"}}, false, []string{"build", "--tag", "img", "."}},
-		{gantry.Step{Service: gantry.Service{Image: "img"}}, true, []string{"build", "--tag", "img", "--pull", "."}},
-		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Dockerfile: "file"}}}, false, []string{"build", "--tag", "img", "--file", "file", "."}},
-		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Context: "./context"}}}, false, []string{"build", "--tag", "img", "./context"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"Foo": &bar}}}}, false, []string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "."}},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img"}},
+			false,
+			[]string{"build", "--tag", "img", "."},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img"}},
+			true,
+			[]string{"build", "--tag", "img", "--pull", "."},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Dockerfile: "file"}}},
+			false,
+			[]string{"build", "--tag", "img", "--file", "file", "."},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Context: "./context"}}},
+			false,
+			[]string{"build", "--tag", "img", "./context"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"Foo": &bar}}}},
+			false,
+			[]string{"build", "--tag", "img", "--build-arg", "Foo=Bar", "."},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", BuildInfo: gantry.BuildInfo{Args: map[string]*string{"USER": nil}}}},
+			false,
+			[]string{"build", "--tag", "img", "--build-arg", fmt.Sprintf("USER=%s", os.Getenv("USER")), "."},
+		},
 	}
 
 	for _, c := range cases {
@@ -148,25 +198,76 @@ func TestStepRunCommand(t *testing.T) {
 	bar := "Bar"
 	cases := []struct {
 		step    gantry.Step
-		network string
+		network gantry.Network
 		result  []string
 	}{
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name"}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img"}},
-		{gantry.Step{Service: gantry.Service{Image: "i", Name: "n"}, Detach: true}, "d", []string{"run", "--name", "T_n", "--network", "d", "--network-alias", "n", "--network-alias", "T_n", "-d", "i"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Ports: []string{"8080:5000"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-p", "8080:5000", "img"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]*string{"Foo": &bar}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", "Foo=Bar", "img"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Volumes: []string{"/tmp:/tmp"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-v", "/tmp:/tmp", "img"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do", "nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do", "nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"}},
-		{gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do nothing"}}}, "dummy", []string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"}},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "i", Name: "n", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeService}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_n", "--network", "dummy", "--network-alias", "n", "--network-alias", "T_n", "-d", "i"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Ports: []string{"8080:5000"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-p", "8080:5000", "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]*string{"Foo": &bar}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", "Foo=Bar", "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Environment: map[string]*string{"USER": nil}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-e", fmt.Sprintf("USER=%s", os.Getenv("USER")), "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Volumes: []string{"/tmp:/tmp"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "-v", "/tmp:/tmp", "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do", "nothing"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Command: types.StringOrStringSlice{"Do nothing"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "img", "Do", "nothing"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do", "nothing"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Entrypoint: types.StringOrStringSlice{"Do nothing"}, Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--entrypoint", "Do", "img", "nothing"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Restart: "never", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeStep}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "--rm", "--restart", "never", "img"},
+		},
+		{
+			gantry.Step{Service: gantry.Service{Image: "img", Name: "name", Restart: "unless-stopped", Meta: gantry.ServiceMeta{Type: gantry.ServiceTypeService}}},
+			gantry.Network("dummy"),
+			[]string{"run", "--name", "T_name", "--network", "dummy", "--network-alias", "name", "--network-alias", "T_name", "-d", "--restart", "unless-stopped", "img"},
+		},
 	}
 
 	gantry.ProjectName = "T"
-	for _, c := range cases {
+	for i, c := range cases {
 		r := c.step.RunCommand(c.network)
 		if !reflect.DeepEqual(r, c.result) {
-			t.Errorf("Incorrect result for '%v',network:'%s' , got: '%v', wanted '%v'", c.step, c.network, r, c.result)
+			t.Errorf("Incorrect result for test '%d': '%v',network:'%s' , got: '%v', wanted '%v'", i, c.step, c.network, r, c.result)
 		}
 	}
 }

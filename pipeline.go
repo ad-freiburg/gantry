@@ -108,8 +108,8 @@ func (p Pipeline) Check() error {
 		return err
 	}
 	for _, step := range pipelines.AllSteps() {
-		if step.Image == "" && step.BuildInfo.Context == "" && step.BuildInfo.Dockerfile == "" {
-			return fmt.Errorf("No container information for '%s'", step.ColoredName())
+		if err := step.Check(); err != nil {
+			return err
 		}
 	}
 	return nil
