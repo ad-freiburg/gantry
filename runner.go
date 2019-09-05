@@ -63,6 +63,7 @@ func isWharferInstalled() bool {
 
 // Runner represents generic container runners.
 type Runner interface {
+	Copy() Runner
 	ImageBuilder(Step, bool) func() error
 	ImagePuller(Step) func() error
 	ImageExistenceChecker(Step) func() error
@@ -88,6 +89,11 @@ func NewNoopRunner(silent bool) *NoopRunner {
 		calls:  make(map[string]int),
 		called: make(map[string]int),
 	}
+}
+
+// Copy returns the same instance.
+func (r *NoopRunner) Copy() Runner {
+	return r
 }
 
 // NumCalls returns how many functions with the given key were created.
@@ -211,12 +217,20 @@ type LocalRunner struct {
 
 // NewLocalRunner returns a LocalRunner using provided defaults.
 func NewLocalRunner(prefix string, stdout io.Writer, stderr io.Writer) *LocalRunner {
-	r := &LocalRunner{
+	return &LocalRunner{
 		prefix: prefix,
 		stdout: stdout,
 		stderr: stderr,
 	}
-	return r
+}
+
+// Copy returns a new Instance with copied values.
+func (r *LocalRunner) Copy() Runner {
+	return &LocalRunner{
+		prefix: r.prefix,
+		stdout: r.stdout,
+		stderr: r.stderr,
+	}
 }
 
 // Exec executes given arguments with the containerExecutable.
