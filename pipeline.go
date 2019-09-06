@@ -68,7 +68,15 @@ func (p *Pipeline) CleanUp(signal os.Signal) error {
 	}
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if step.Meta.KeepAlive == KeepAliveNo {
+			// If services are still running, keep the network
+			if step.Meta.Type == ServiceTypeService && step.Meta.KeepAlive != KeepAliveNo {
+				if Verbose {
+					log.Printf("Keeping network as '%s' can be still alive", step.ColoredName())
+				}
+				keepNetworkAlive = true
+			}
+			// Remove all steps and services marked as not to keep alive
+			if step.Meta.Type == ServiceTypeStep || step.Meta.KeepAlive == KeepAliveNo {
 				runner := p.GetRunnerForMeta(step.Meta)
 				if _, err := runner.ContainerKiller(step)(); err != nil {
 					pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
@@ -76,10 +84,6 @@ func (p *Pipeline) CleanUp(signal os.Signal) error {
 				if err := runner.ContainerRemover(step)(); err != nil {
 					pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
 				}
-				if Verbose {
-					log.Printf("Keeping network as '%s' can be still alive", step.ColoredName())
-				}
-				keepNetworkAlive = true
 			}
 			step.Meta.Close()
 		}

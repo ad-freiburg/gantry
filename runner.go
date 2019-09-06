@@ -392,7 +392,19 @@ func (r *LocalRunner) NetworkCreator(network Network) func() error {
 		if Verbose {
 			log.Printf("Create network '%s'", network)
 		}
-		return r.Exec([]string{"network", "create", string(network)})
+		if _, err := r.Output([]string{"network", "create", string(network)}); err != nil {
+			if err, ok := err.(*exec.ExitError); ok {
+				if strings.TrimSpace(string(err.Stderr)) != fmt.Sprintf("Error response from daemon: network with name %s already exists", string(network)) {
+					return err
+				}
+				if Verbose {
+					log.Printf("Network '%s' already exists", network)
+				}
+				return nil
+			}
+			return err
+		}
+		return nil
 	}
 }
 

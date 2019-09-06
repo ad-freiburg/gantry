@@ -785,3 +785,53 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 		}
 	}
 }
+
+func TestPipelineCheck(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
+	localRunner := NewNoopRunner(false)
+	p.localRunner = localRunner
+	noopRunner := NewNoopRunner(false)
+	p.noopRunner = noopRunner
+	if err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	if err := p.Check(); err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+}
+
+func TestPipelineCheckNoContainerInformation(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
+  a:
+`), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
+	localRunner := NewNoopRunner(false)
+	p.localRunner = localRunner
+	noopRunner := NewNoopRunner(false)
+	p.noopRunner = noopRunner
+	if err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	if err := p.Check(); err == nil {
+		t.Error("Unexpected error, got: 'nil'!")
+	}
+}
