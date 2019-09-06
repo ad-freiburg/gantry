@@ -12,17 +12,20 @@ import (
 	"sync"
 )
 
+const docker string = "docker"
+const wharfer string = "wharfer"
+
 func getContainerExecutable() string {
 	if ForceWharfer {
-		return "wharfer"
+		return wharfer
 	}
 	if isWharferInstalled() {
 		if isUserRoot() || isUserInDockerGroup() {
-			return "docker"
+			return docker
 		}
-		return "wharfer"
+		return wharfer
 	}
-	return "docker"
+	return docker
 }
 
 func isUserRoot() bool {
@@ -47,7 +50,7 @@ func isUserInDockerGroup() bool {
 		if err != nil {
 			return false
 		}
-		if group.Name == "docker" {
+		if group.Name == docker {
 			return true
 		}
 	}
@@ -55,7 +58,7 @@ func isUserInDockerGroup() bool {
 }
 
 func isWharferInstalled() bool {
-	cmd := exec.Command("wharfer", "--version")
+	cmd := exec.Command(wharfer, "--version")
 	if err := cmd.Run(); err != nil {
 		return false
 	}
