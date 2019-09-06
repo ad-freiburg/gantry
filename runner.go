@@ -12,17 +12,20 @@ import (
 	"sync"
 )
 
+const docker string = "docker"
+const wharfer string = "wharfer"
+
 func getContainerExecutable() string {
 	if ForceWharfer {
-		return "wharfer"
+		return wharfer
 	}
 	if isWharferInstalled() {
 		if isUserRoot() || isUserInDockerGroup() {
-			return "docker"
+			return docker
 		}
-		return "wharfer"
+		return wharfer
 	}
-	return "docker"
+	return docker
 }
 
 func isUserRoot() bool {
@@ -47,7 +50,7 @@ func isUserInDockerGroup() bool {
 		if err != nil {
 			return false
 		}
-		if group.Name == "docker" {
+		if group.Name == docker {
 			return true
 		}
 	}
@@ -55,7 +58,7 @@ func isUserInDockerGroup() bool {
 }
 
 func isWharferInstalled() bool {
-	cmd := exec.Command("wharfer", "--version")
+	cmd := exec.Command(wharfer, "--version")
 	if err := cmd.Run(); err != nil {
 		return false
 	}
@@ -114,13 +117,13 @@ func (r *NoopRunner) NumCalled(key string) int {
 func (r *NoopRunner) incrementCalls(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.calls[key] += 1
+	r.calls[key]++
 }
 
 func (r *NoopRunner) incrementCalled(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.called[key] += 1
+	r.called[key]++
 }
 
 // ImageBuilder returns a function to build the image for the given step.
@@ -310,7 +313,7 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		}
 		// If no image was found, raise error
 		if count == 0 {
-			return fmt.Errorf("Image not found '%s'", step.ImageName())
+			return fmt.Errorf("image not found '%s'", step.ImageName())
 		}
 		return nil
 	}

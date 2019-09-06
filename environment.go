@@ -16,6 +16,10 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+const undefinedArgumentFormat string = "argmuent '%s' not defined for '%s', no fallback provided"
+const missingArgumentFormat string = "missing argument(s) for '%s'. Need atleast %d argument"
+const tooManyArgumentsFormat string = "too many arguments for '%s'. Got %d want <= %d"
+
 type pipelineEnvironmentJSON struct {
 	Version            string          `json:"version"`
 	Substitutions      types.StringMap `json:"substitutions"`
@@ -60,7 +64,7 @@ func (e *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 	}
 	for name, meta := range parsedJSON.Steps {
 		if _, found := result.Steps[name]; found {
-			return fmt.Errorf("Duplicate step/service '%s'", name)
+			return fmt.Errorf("duplicate step/service '%s'", name)
 		}
 		meta.Type = ServiceTypeStep
 		meta.KeepAlive = KeepAliveNo
@@ -170,10 +174,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Usable as optional environment variable, can provide default value if not defined.
 	fm["Env"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", fmt.Errorf("Env: missing argument(s). Need atleast 1 argument")
+			return "", fmt.Errorf(missingArgumentFormat, "Env", 1)
 		}
 		if len(args) > 2 {
-			return "", fmt.Errorf("Env: too many arguments. Got %d want <=2", len(args))
+			return "", fmt.Errorf(tooManyArgumentsFormat, "Env", len(args), 2)
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -182,7 +186,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 		val, ok := e.Substitutions[parts[0]]
 		if !ok {
 			if len(parts) < 2 {
-				return "", fmt.Errorf("Env '%s' not defined, no fallback provided", parts[0])
+				return "", fmt.Errorf(undefinedArgumentFormat, parts[0], "Env")
 			}
 			return parts[1], nil
 		}
@@ -193,10 +197,10 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 	// Get Path from environment, converts to absolute path using filepath.Abs.
 	fm["EnvDir"] = func(args ...interface{}) (string, error) {
 		if len(args) < 1 {
-			return "", fmt.Errorf("EnvDir: missing argument(s). Need atleast 1 argument")
+			return "", fmt.Errorf(missingArgumentFormat, "EnvDir", 1)
 		}
 		if len(args) > 2 {
-			return "", fmt.Errorf("EnvDir: too many arguments. Got %d want <=2", len(args))
+			return "", fmt.Errorf(tooManyArgumentsFormat, "EnvDir", len(args), 2)
 		}
 		parts := make([]string, len(args))
 		for i, v := range args {
@@ -208,7 +212,7 @@ func (e *PipelineEnvironment) createTemplateParser() *template.Template {
 			path = *val
 		} else {
 			if len(parts) < 2 {
-				return "", fmt.Errorf("EnvDir '%s' not defined, no fallback provided", parts[0])
+				return "", fmt.Errorf(undefinedArgumentFormat, parts[0], "EnvDir")
 			}
 			path = parts[1]
 		}

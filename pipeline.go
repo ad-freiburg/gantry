@@ -199,7 +199,7 @@ func (p *PipelineDefinition) UnmarshalJSON(data []byte) error {
 	}
 	for name, step := range parsedJSON.Steps {
 		if _, found := result.Steps[name]; found {
-			return fmt.Errorf("Duplicate step/service '%s'", name)
+			return fmt.Errorf("duplicate step/service '%s'", name)
 		}
 		step.Meta = ServiceMeta{
 			Type:      ServiceTypeStep,
@@ -281,7 +281,7 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 			if step.Meta.Selected {
 				selectedSteps[name] = true
 				if step.Meta.Ignore {
-					return nil, fmt.Errorf("Instructed to ignore selected step '%s'", step.Name)
+					return nil, fmt.Errorf("instructed to ignore selected step '%s'", step.Name)
 				}
 			}
 		}

@@ -47,10 +47,10 @@ func (s Step) Dependencies() types.StringSet {
 // Check validates Step s, returns nil if ok, otherwise returns found error.
 func (s Step) Check() error {
 	if s.Image == "" && s.BuildInfo.Context == "" && s.BuildInfo.Dockerfile == "" {
-		return fmt.Errorf("No container information for '%s'", s.ColoredName())
+		return fmt.Errorf("no container information for '%s'", s.ColoredName())
 	}
 	if len(s.Restart) > 0 && s.Restart != "no" && s.Meta.Type == ServiceTypeStep {
-		return fmt.Errorf("Invalid restart value '%s' for step '%s'", s.Restart, s.ColoredName())
+		return fmt.Errorf("invalid restart value '%s' for step '%s'", s.Restart, s.ColoredName())
 	}
 	return nil
 }

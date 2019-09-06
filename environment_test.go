@@ -10,8 +10,10 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 )
 
+const barValue string = "Bar"
+
 func TestPipelineEnvironmentApplyTo(t *testing.T) {
-	bar := "Bar"
+	bar := barValue
 	cases := []struct {
 		in            string
 		out           string
@@ -43,7 +45,7 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 		},
 		{
 			"{{ Foo }}",
-			"Bar",
+			barValue,
 			"",
 			false,
 			types.StringMap{"Foo": &bar},
@@ -58,7 +60,7 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 		},
 		{
 			"{{ Foo }}",
-			"Bar",
+			barValue,
 			`substitutions:
   Foo: Baz`,
 			false,
