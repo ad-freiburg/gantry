@@ -114,13 +114,13 @@ func (r *NoopRunner) NumCalled(key string) int {
 func (r *NoopRunner) incrementCalls(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.calls[key] += 1
+	r.calls[key]++
 }
 
 func (r *NoopRunner) incrementCalled(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.called[key] += 1
+	r.called[key]++
 }
 
 // ImageBuilder returns a function to build the image for the given step.
@@ -389,7 +389,19 @@ func (r *LocalRunner) NetworkCreator(network Network) func() error {
 		if Verbose {
 			log.Printf("Create network '%s'", network)
 		}
-		return r.Exec([]string{"network", "create", string(network)})
+		if _, err := r.Output([]string{"network", "create", string(network)}); err != nil {
+			if err, ok := err.(*exec.ExitError); ok {
+				if strings.TrimSpace(string(err.Stderr)) != fmt.Sprintf("Error response from daemon: network with name %s already exists", string(network)) {
+					return err
+				}
+				if Verbose {
+					log.Printf("Network '%s' already exists", network)
+				}
+				return nil
+			}
+			return err
+		}
+		return nil
 	}
 }
 
