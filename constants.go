@@ -19,6 +19,8 @@ var (
 	Version = "no-version"
 	// Verbose is a global verbosity flag
 	Verbose = false
+	// ShowContainerCommands is a global flag to signal printing of commands run.
+	ShowContainerCommands = false
 	// ProjectName stores the global prefix for networks and containers.
 	ProjectName = ""
 	// ForceWharfer is a global flag to force the usage of wharfer even

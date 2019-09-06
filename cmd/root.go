@@ -113,6 +113,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&envFile, "global-environment", "g", "", fmt.Sprintf("Explicit %s to use", gantry.GantryEnv))
 	rootCmd.PersistentFlags().StringVarP(&gantry.ProjectName, "project-name", "p", "", "Spefify an alternate project name")
 	rootCmd.PersistentFlags().BoolVar(&gantry.Verbose, "verbose", false, "Verbose output")
+	rootCmd.PersistentFlags().BoolVar(&gantry.ShowContainerCommands, "show-container-commands", false, "Print commands used to interact with containers")
 	rootCmd.PersistentFlags().BoolVar(&gantry.ForceWharfer, "force-wharfer", false, "Force usage of wharfer")
 	rootCmd.PersistentFlags().StringArrayVarP(&stepsToIgnore, "ignore", "i", []string{}, "Ignore step/service with this name")
 	rootCmd.PersistentFlags().StringArrayVarP(&environment, "env", "e", []string{}, "Set environment variables")
