@@ -37,7 +37,7 @@ Binary releases are provided as
 
     cd /tmp
     rm gantry_$(uname -m).tar.bz2
-    wget https://github.com/ad-freiburg/gantry/releases/download/v0.3.0/gantry_$(uname -m).tar.bz2
+    wget https://github.com/ad-freiburg/gantry/releases/download/v0.4.0/gantry_$(uname -m).tar.bz2
     tar -xavf gantry_$(uname -m).tar.bz2
     sudo mv gantry_$(uname -m)/gantry /usr/local/bin/gantry
 
