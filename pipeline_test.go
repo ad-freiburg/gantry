@@ -87,17 +87,17 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 		{
 			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a"}}}},
 			"",
-			[][]rs{[]rs{rs{name: "a", ignore: false, selected: false}}},
+			[][]rs{{{name: "a", ignore: false, selected: false}}},
 		},
 		{
 			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Ignore: true}}}}},
 			"",
-			[][]rs{[]rs{rs{name: "a", ignore: true, selected: false}}},
+			[][]rs{{{name: "a", ignore: true, selected: false}}},
 		},
 		{
 			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Selected: true}}}}},
 			"",
-			[][]rs{[]rs{rs{name: "a", ignore: false, selected: true}}},
+			[][]rs{{{name: "a", ignore: false, selected: true}}},
 		},
 		{
 			gantry.PipelineDefinition{Steps: gantry.StepList{"a": gantry.Step{Service: gantry.Service{Name: "a", Meta: gantry.ServiceMeta{Ignore: true, Selected: true}}}}},
@@ -112,11 +112,11 @@ func TestPipelineDefinitionPipelines(t *testing.T) {
 				"d": gantry.Step{Service: gantry.Service{Name: "d", Meta: gantry.ServiceMeta{Selected: true}}, After: types.StringSet{"c": true}},
 			}},
 			"",
-			[][]rs{[]rs{
-				rs{name: "a", ignore: true, selected: false},
-				rs{name: "b", ignore: true, selected: false},
-				rs{name: "c", ignore: false, selected: true},
-				rs{name: "d", ignore: false, selected: true},
+			[][]rs{{
+				{name: "a", ignore: true, selected: false},
+				{name: "b", ignore: true, selected: false},
+				{name: "c", ignore: false, selected: true},
+				{name: "d", ignore: false, selected: true},
 			}},
 		},
 	}
