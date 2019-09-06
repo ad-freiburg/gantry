@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"syscall"
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
@@ -275,67 +274,5 @@ func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
 		if ignoreCount != c.numIgnore {
 			t.Errorf("Incorrect number of ignored steps for '%v','%v','%v', got: '%d', wanted '%d'", c.def, c.env, c.ignore, ignoreCount, c.numIgnore)
 		}
-	}
-}
-
-func TestPipelineCheck(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
-	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
-	}
-	if err := p.Check(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
-	}
-}
-
-func TestPipelineCheckNoContainerInformation(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
-  a:
-`), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
-	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
-	}
-	if err := p.Check(); err == nil {
-		t.Error("Unexpected error, got: 'nil'!")
-	}
-}
-
-func TestPipelineCleanUp(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	p, err := gantry.NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
-	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
-	}
-	if err := p.CleanUp(syscall.SIGKILL); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 }
