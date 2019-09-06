@@ -221,7 +221,7 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		ignoreCount := 0
 		for _, step := range pipelines.AllSteps() {
 			if step.Meta.Ignore {
-				ignoreCount += 1
+				ignoreCount++
 			}
 		}
 		if ignoreCount != c.numIgnore {
@@ -269,7 +269,7 @@ func TestPipelineNewPipelineWithoutEnvironemntFile(t *testing.T) {
 		ignoreCount := 0
 		for _, step := range pipelines.AllSteps() {
 			if step.Meta.Ignore {
-				ignoreCount += 1
+				ignoreCount++
 			}
 		}
 		if ignoreCount != c.numIgnore {

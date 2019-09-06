@@ -114,13 +114,13 @@ func (r *NoopRunner) NumCalled(key string) int {
 func (r *NoopRunner) incrementCalls(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.calls[key] += 1
+	r.calls[key]++
 }
 
 func (r *NoopRunner) incrementCalled(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.called[key] += 1
+	r.called[key]++
 }
 
 // ImageBuilder returns a function to build the image for the given step.
