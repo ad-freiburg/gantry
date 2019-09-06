@@ -313,7 +313,7 @@ func (r *LocalRunner) ImageExistenceChecker(step Step) func() error {
 		}
 		// If no image was found, raise error
 		if count == 0 {
-			return fmt.Errorf("Image not found '%s'", step.ImageName())
+			return fmt.Errorf("image not found '%s'", step.ImageName())
 		}
 		return nil
 	}

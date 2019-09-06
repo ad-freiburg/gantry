@@ -122,7 +122,7 @@ func (l *ServiceLog) Open(std *os.File) error {
 	l.std = std
 	if l.Handler != LogHandlerStdout && l.Handler != LogHandlerDiscard {
 		if l.Path == "" {
-			return errors.New("Missing 'path'")
+			return errors.New("missing 'path'")
 		}
 		p, err := filepath.Abs(l.Path)
 		if err != nil {
