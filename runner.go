@@ -8,6 +8,7 @@ import (
 	"log"
 	"os/exec"
 	"os/user"
+	"strings"
 	"sync"
 )
 
@@ -235,7 +236,11 @@ func (r *LocalRunner) Copy() Runner {
 
 // Exec executes given arguments with the containerExecutable.
 func (r *LocalRunner) Exec(args []string) error {
-	cmd := exec.Command(getContainerExecutable(), args...)
+	ce := getContainerExecutable()
+	if ShowContainerCommands {
+		log.Printf("Exec:   %s %s", ce, strings.Join(args, " "))
+	}
+	cmd := exec.Command(ce, args...)
 	stdout := NewPrefixedLogger(r.prefix, log.New(r.stdout, "", log.LstdFlags))
 	stderr := NewPrefixedLogger(r.prefix, log.New(r.stderr, "", log.LstdFlags))
 	cmd.Stdout = stdout
@@ -245,7 +250,11 @@ func (r *LocalRunner) Exec(args []string) error {
 
 // Output executes given arguments with the containerExecutable and returns the output.
 func (r *LocalRunner) Output(args []string) ([]byte, error) {
-	cmd := exec.Command(getContainerExecutable(), args...)
+	ce := getContainerExecutable()
+	if ShowContainerCommands {
+		log.Printf("Output: %s %s", ce, strings.Join(args, " "))
+	}
+	cmd := exec.Command(ce, args...)
 	return cmd.Output()
 }
 
@@ -318,7 +327,7 @@ func (r *LocalRunner) ContainerKiller(step Step) func() (int, error) {
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
 		// Get id(s) of container with name of step to kill
-		out, err := r.Output([]string{"ps", "-q", "--filter", "name=" + step.ContainerName()})
+		out, err := r.Output([]string{"ps", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
 		if err != nil {
 			return counter, err
 		}
@@ -345,7 +354,7 @@ func (r *LocalRunner) ContainerRemover(step Step) func() error {
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
 		// Get id(s) of container with name of step to remove
-		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", "name=" + step.ContainerName()})
+		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
 		if err != nil {
 			return err
 		}
