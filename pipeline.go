@@ -118,9 +118,9 @@ func (p Pipeline) Check() error {
 // GetRunnerForMeta selects a suitable runner given a ServiceMeta instance.
 func (p Pipeline) GetRunnerForMeta(meta ServiceMeta) Runner {
 	if meta.Ignore {
-		return p.noopRunner
+		return p.noopRunner.Copy()
 	}
-	return p.localRunner
+	return p.localRunner.Copy()
 }
 
 // Pipelines stores parallel and dependent steps/services.
@@ -593,7 +593,11 @@ func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *syn
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
 		if !step.Meta.IgnoreFailure {
-			close(abort)
+			select {
+			case <-abort:
+			default:
+				close(abort)
+			}
 		} else {
 			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
 		}
