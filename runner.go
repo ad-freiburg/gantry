@@ -74,6 +74,7 @@ type Runner interface {
 	ContainerKiller(Step) func() (int, error)
 	ContainerRemover(Step) func() error
 	ContainerRunner(Step, Network) func() error
+	ContainerLogReader(Step, bool) func() error
 	NetworkCreator(Network) func() error
 	NetworkRemover(Network) func() error
 }
@@ -192,6 +193,16 @@ func (r *NoopRunner) ContainerRunner(step Step, network Network) func() error {
 	}
 }
 
+// ContainerLogReader returns a function to ...
+func (r *NoopRunner) ContainerLogReader(step Step, follow bool) func() error {
+	key := fmt.Sprintf("ContainerLogReader(%s,%t)", step.Name, follow)
+	r.incrementCalls(key)
+	return func() error {
+		r.incrementCalled(key)
+		return nil
+	}
+}
+
 // NetworkCreator returns a function to create the given network.
 func (r *NoopRunner) NetworkCreator(network Network) func() error {
 	key := fmt.Sprintf("NetworkCreator(%s)", network)
@@ -244,10 +255,8 @@ func (r *LocalRunner) Exec(args []string) error {
 		log.Printf("Exec:   %s %s", ce, strings.Join(args, " "))
 	}
 	cmd := exec.Command(ce, args...)
-	stdout := NewPrefixedLogger(r.prefix, log.New(r.stdout, "", log.LstdFlags))
-	stderr := NewPrefixedLogger(r.prefix, log.New(r.stderr, "", log.LstdFlags))
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	cmd.Stdout = NewPrefixedLogger(r.prefix, log.New(r.stdout, "", log.LstdFlags))
+	cmd.Stderr = NewPrefixedLogger(r.prefix, log.New(r.stderr, "", log.LstdFlags))
 	return cmd.Run()
 }
 
@@ -383,6 +392,38 @@ func (r *LocalRunner) ContainerRunner(step Step, network Network) func() error {
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
 		return r.Exec(step.RunCommand(network))
+	}
+}
+
+// ContainerLogReader returns a function to ...
+func (r *LocalRunner) ContainerLogReader(step Step, follow bool) func() error {
+	return func() error {
+		if Verbose {
+			log.Printf("Opening logs for container '%s'", step.ContainerName())
+		}
+		r.prefix = step.ColoredContainerName()
+		args := []string{"logs"}
+		if follow {
+			args = append(args, "-f")
+		}
+
+		// Get id(s) of container with name of step
+		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
+		if err != nil {
+			return err
+		}
+		// Remove all found containers
+		scanner := bufio.NewScanner(bytes.NewReader(out))
+		scanner.Split(bufio.ScanWords)
+		found := false
+		for scanner.Scan() {
+			found = true
+			args = append(args, scanner.Text())
+		}
+		if !found {
+			return fmt.Errorf("no running instance for '%s' found", step.ColoredContainerName())
+		}
+		return r.Exec(args)
 	}
 }
 

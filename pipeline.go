@@ -351,7 +351,7 @@ func runParallelBuildImage(runner Runner, step Step, pull bool, durations *sync.
 
 	duration, err := executeF(runner.ImageBuilder(step, pull))
 	if err != nil {
-		pipelineLogger.Println(err)
+		pipelineLogger.Printf("%s", err)
 	}
 	durations.Store(step.Name, duration)
 }
@@ -408,7 +408,7 @@ func runParallelPullImage(runner Runner, step Step, force bool, durations *sync.
 	if err != nil || force {
 		duration2, err := executeF(runner.ImagePuller(step))
 		if err != nil {
-			pipelineLogger.Println(err)
+			pipelineLogger.Printf("%s", err)
 		}
 		duration += duration2
 	}
@@ -658,6 +658,34 @@ func (p Pipeline) ExecuteSteps() error {
 		return ok
 	})
 	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
+	return nil
+}
+
+func runParallelLog(runner Runner, step Step, follow bool, wg *sync.WaitGroup, s chan struct{}) {
+	defer wg.Done()
+	<-s
+
+	if err := runner.ContainerLogReader(step, follow)(); err != nil {
+		pipelineLogger.Printf("%s", err)
+	}
+}
+
+// Logs retrievs the logs of all containers.
+func (p Pipeline) Logs(follow bool) error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	runChannel := make(chan struct{})
+	var wg sync.WaitGroup
+
+	for _, step := range pipelines.AllSteps() {
+		wg.Add(1)
+		go runParallelLog(p.GetRunnerForMeta(step.Meta), step, follow, &wg, runChannel)
+	}
+
+	close(runChannel)
+	wg.Wait()
 	return nil
 }
 
