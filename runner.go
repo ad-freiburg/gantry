@@ -87,7 +87,7 @@ type NoopRunner struct {
 	mutex  sync.RWMutex
 }
 
-// NewLocalRunner returns a NoopRunner.
+// NewNoopRunner returns a NoopRunner.
 func NewNoopRunner(silent bool) *NoopRunner {
 	return &NoopRunner{
 		silent: silent,
@@ -193,7 +193,7 @@ func (r *NoopRunner) ContainerRunner(step Step, network Network) func() error {
 	}
 }
 
-// ContainerLogReader returns a function to ...
+// ContainerLogReader returns a function retrieving all logs for a given step.
 func (r *NoopRunner) ContainerLogReader(step Step, follow bool) func() error {
 	key := fmt.Sprintf("ContainerLogReader(%s,%t)", step.Name, follow)
 	r.incrementCalls(key)
@@ -339,20 +339,18 @@ func (r *LocalRunner) ContainerKiller(step Step) func() (int, error) {
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
 		// Get id(s) of container with name of step to kill
-		out, err := r.Output([]string{"ps", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
+		ids, err := r.getContainerIds(step, false)
 		if err != nil {
 			return counter, err
 		}
 		// Kill all found containers
-		scanner := bufio.NewScanner(bytes.NewReader(out))
-		scanner.Split(bufio.ScanWords)
-		for scanner.Scan() {
+		for _, id := range ids {
 			counter++
-			if err := r.Exec([]string{"kill", scanner.Text()}); err != nil {
+			if err := r.Exec([]string{"kill", id}); err != nil {
 				return counter, err
 			}
 		}
-		return counter, scanner.Err()
+		return counter, nil
 	}
 }
 
@@ -366,19 +364,17 @@ func (r *LocalRunner) ContainerRemover(step Step) func() error {
 		r.stdout = step.Meta.Stdout
 		r.stderr = step.Meta.Stderr
 		// Get id(s) of container with name of step to remove
-		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
+		ids, err := r.getContainerIds(step, true)
 		if err != nil {
 			return err
 		}
 		// Remove all found containers
-		scanner := bufio.NewScanner(bytes.NewReader(out))
-		scanner.Split(bufio.ScanWords)
-		for scanner.Scan() {
-			if err := r.Exec([]string{"rm", scanner.Text()}); err != nil {
+		for _, id := range ids {
+			if err := r.Exec([]string{"rm", id}); err != nil {
 				return err
 			}
 		}
-		return scanner.Err()
+		return nil
 	}
 }
 
@@ -395,7 +391,7 @@ func (r *LocalRunner) ContainerRunner(step Step, network Network) func() error {
 	}
 }
 
-// ContainerLogReader returns a function to ...
+// ContainerLogReader returns a function retrieving all logs for a given step.
 func (r *LocalRunner) ContainerLogReader(step Step, follow bool) func() error {
 	return func() error {
 		if Verbose {
@@ -408,21 +404,15 @@ func (r *LocalRunner) ContainerLogReader(step Step, follow bool) func() error {
 		}
 
 		// Get id(s) of container with name of step
-		out, err := r.Output([]string{"ps", "-a", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())})
+		ids, err := r.getContainerIds(step, true)
 		if err != nil {
 			return err
 		}
-		// Remove all found containers
-		scanner := bufio.NewScanner(bytes.NewReader(out))
-		scanner.Split(bufio.ScanWords)
-		found := false
-		for scanner.Scan() {
-			found = true
-			args = append(args, scanner.Text())
+		// Add all found containers
+		if len(ids) < 1 {
+			return fmt.Errorf("no instance for '%s' found", step.ColoredContainerName())
 		}
-		if !found {
-			return fmt.Errorf("no running instance for '%s' found", step.ColoredContainerName())
-		}
+		args = append(args, ids...)
 		return r.Exec(args)
 	}
 }
@@ -457,4 +447,24 @@ func (r *LocalRunner) NetworkRemover(network Network) func() error {
 		}
 		return r.Exec([]string{"network", "rm", string(network)})
 	}
+}
+
+// getContainerIds retrieves a list of ids for the step, if the all flag is set
+// stopped containers are returned aswell.
+func (r *LocalRunner) getContainerIds(step Step, all bool) ([]string, error) {
+	ids := []string{}
+	args := []string{"ps", "-q", "--filter", fmt.Sprintf("name=%s$", step.ContainerName())}
+	if all {
+		args = append(args, "-a")
+	}
+	out, err := r.Output(args)
+	if err != nil {
+		return ids, err
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	scanner.Split(bufio.ScanWords)
+	for scanner.Scan() {
+		ids = append(ids, scanner.Text())
+	}
+	return ids, scanner.Err()
 }
