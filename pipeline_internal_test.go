@@ -786,6 +786,59 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 	}
 }
 
+func TestPipelineLogs(t *testing.T) {
+	tmpDef, err := ioutil.TempFile("", "def")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpDef.Name())
+	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmpEnv, err := ioutil.TempFile("", "env")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpEnv.Name())
+	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	if err != nil {
+		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+	}
+	localRunner := NewNoopRunner(false)
+	p.localRunner = localRunner
+	noopRunner := NewNoopRunner(false)
+	p.noopRunner = noopRunner
+
+	cases := []struct {
+		key    string
+		runner *NoopRunner
+		calls  int
+		called int
+	}{
+		{"ContainerLogReader(a,false)", localRunner, 1, 1},
+		{"ContainerLogReader(b,false)", noopRunner, 1, 1},
+		{"ContainerLogReader(c,false)", localRunner, 1, 1},
+	}
+
+	if err := p.Logs(false); err != nil {
+		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	for _, c := range cases {
+		if v := c.runner.NumCalls(c.key); v != c.calls {
+			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
+		}
+		if v := c.runner.NumCalled(c.key); v != c.called {
+			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
+		}
+	}
+}
+
 func TestPipelineCheck(t *testing.T) {
 	tmpDef, err := ioutil.TempFile("", "def")
 	if err != nil {
