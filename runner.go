@@ -420,19 +420,27 @@ func (r *LocalRunner) ContainerLogReader(step Step, follow bool) func() error {
 // NetworkCreator returns a function to create the given network.
 func (r *LocalRunner) NetworkCreator(network Network) func() error {
 	return func() error {
+		// Check if network already exists
+		if Verbose {
+			log.Printf("Check if network '%s' already exists", network)
+		}
+		out, err := r.Output([]string{"network", "ls", "--format", "{{.Name}}", "--filter", fmt.Sprintf("name=%s$", network)})
+		if err != nil {
+			return err
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(out))
+		scanner.Split(bufio.ScanWords)
+		for scanner.Scan() {
+			if scanner.Text() == string(network) {
+				return nil
+			}
+		}
+
+		// It does not exist, create it
 		if Verbose {
 			log.Printf("Create network '%s'", network)
 		}
 		if _, err := r.Output([]string{"network", "create", string(network)}); err != nil {
-			if err, ok := err.(*exec.ExitError); ok {
-				if strings.TrimSpace(string(err.Stderr)) != fmt.Sprintf("Error response from daemon: network with name %s already exists", string(network)) {
-					return err
-				}
-				if Verbose {
-					log.Printf("Network '%s' already exists", network)
-				}
-				return nil
-			}
 			return err
 		}
 		return nil
