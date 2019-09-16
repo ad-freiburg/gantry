@@ -68,6 +68,8 @@ var rootCmd = &cobra.Command{
 		}
 		gantry.ProjectName = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(gantry.ProjectName), " ", "_"), ".", "")
 		pipeline.Network = gantry.Network(fmt.Sprintf("%s_gantry", gantry.ProjectName))
+		// We have valid data, silence generic usage information now.
+		cmd.SilenceUsage = true
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

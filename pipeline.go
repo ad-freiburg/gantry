@@ -345,13 +345,24 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	return p.pipelines, nil
 }
 
-func runParallelBuildImage(runner Runner, step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelBuildImage(runner Runner, step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, start chan struct{}, abort chan struct{}) {
 	defer wg.Done()
-	<-s
+	<-start
 
+	select {
+	case <-abort:
+		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
+		return
+	default:
+	}
 	duration, err := executeF(runner.ImageBuilder(step, pull))
 	if err != nil {
 		pipelineLogger.Printf("%s", err)
+		select {
+		case <-abort:
+		default:
+			close(abort)
+		}
 	}
 	durations.Store(step.Name, duration)
 }
@@ -362,6 +373,7 @@ func (p Pipeline) BuildImages(force bool) error {
 	if err != nil {
 		return err
 	}
+	abort := make(chan struct{})
 	runChannel := make(chan struct{})
 	var wg sync.WaitGroup
 	images := 0
@@ -372,7 +384,7 @@ func (p Pipeline) BuildImages(force bool) error {
 			continue
 		}
 		wg.Add(1)
-		go runParallelBuildImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel)
+		go runParallelBuildImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel, abort)
 		images++
 	}
 
@@ -397,18 +409,34 @@ func (p Pipeline) BuildImages(force bool) error {
 	if Verbose {
 		pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
 	}
+	select {
+	case <-abort:
+		return fmt.Errorf("error while preparing images (build)!")
+	default:
+	}
 	return nil
 }
 
-func runParallelPullImage(runner Runner, step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, s chan struct{}) {
+func runParallelPullImage(runner Runner, step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, start chan struct{}, abort chan struct{}) {
 	defer wg.Done()
-	<-s
+	<-start
 
+	select {
+	case <-abort:
+		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
+		return
+	default:
+	}
 	duration, err := executeF(runner.ImageExistenceChecker(step))
 	if err != nil || force {
 		duration2, err := executeF(runner.ImagePuller(step))
 		if err != nil {
 			pipelineLogger.Printf("%s", err)
+			select {
+			case <-abort:
+			default:
+				close(abort)
+			}
 		}
 		duration += duration2
 	}
@@ -421,6 +449,7 @@ func (p Pipeline) PullImages(force bool) error {
 	if err != nil {
 		return err
 	}
+	abort := make(chan struct{})
 	runChannel := make(chan struct{})
 	var wg sync.WaitGroup
 	images := 0
@@ -431,7 +460,7 @@ func (p Pipeline) PullImages(force bool) error {
 			continue
 		}
 		wg.Add(1)
-		go runParallelPullImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel)
+		go runParallelPullImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel, abort)
 		images++
 	}
 
@@ -455,6 +484,11 @@ func (p Pipeline) PullImages(force bool) error {
 	})
 	if Verbose {
 		pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
+	}
+	select {
+	case <-abort:
+		return fmt.Errorf("error while preparing images (pull)!")
+	default:
 	}
 	return nil
 }
@@ -562,9 +596,9 @@ func (p Pipeline) RemoveTempDirData() error {
 	return err
 }
 
-func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, o chan struct{}, abort chan struct{}) {
+func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, done chan struct{}, abort chan struct{}) {
 	defer wg.Done()
-	defer close(o)
+	defer close(done)
 	for i, c := range preconditions {
 		if Verbose {
 			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
