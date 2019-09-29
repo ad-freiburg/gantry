@@ -38,13 +38,14 @@ type ServiceMetaList map[string]ServiceMeta
 
 // ServiceMeta stores all metainformation for a step.
 type ServiceMeta struct {
-	KeepAlive     ServiceKeepAlive `json:"keep_alive"`
-	Stdout        ServiceLog       `json:"stdout"`
-	Stderr        ServiceLog       `json:"stderr"`
-	Type          ServiceType
-	Ignore        bool `json:"ignore"`
-	IgnoreFailure bool `json:"ignore_failure"`
-	Selected      bool
+	KeepAlive        ServiceKeepAlive `json:"keep_alive"`
+	Stdout           ServiceLog       `json:"stdout"`
+	Stderr           ServiceLog       `json:"stderr"`
+	Type             ServiceType
+	ExitCodeOverride int  `json:"exit_code_override"`
+	Ignore           bool `json:"ignore"`
+	IgnoreFailure    bool `json:"ignore_failure"`
+	Selected         bool
 }
 
 // Open handles output initialisation by setting defaults.
