@@ -63,6 +63,47 @@ func TestPipelineEnvironmentCreatedTemplateParserDirectSubstitution(t *testing.T
 	}
 }
 
+func parseAndCheckTemplate(t *testing.T, i int, c struct {
+	in            string
+	out           string
+	err           bool
+	substitutions types.StringMap
+}) {
+	var tpl *template.Template
+	e, err := NewPipelineEnvironment("", c.substitutions, types.StringSet{}, types.StringSet{})
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatal(err)
+	}
+
+	// Create parser and parse template
+	tpl, err = e.createTemplateParser().Parse(c.in)
+	if err != nil {
+		if !c.err {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
+		return
+	}
+
+	// Execute and check resutl
+	var b bytes.Buffer
+	bw := bufio.NewWriter(&b)
+	err = tpl.Execute(bw, e)
+	bw.Flush()
+	if err != nil {
+		if !c.err {
+			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+		}
+		return
+	}
+	res := b.String()
+	if res != c.out {
+		t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
+	}
+	if err := e.CleanUp(syscall.Signal(0)); err != nil {
+		t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
+	}
+}
+
 func TestPipelineEnvironmentCreatedTemplateParserEnv(t *testing.T) {
 	baz := "Baz"
 	cases := []struct {
@@ -80,39 +121,7 @@ func TestPipelineEnvironmentCreatedTemplateParserEnv(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		var tpl *template.Template
-		e, err := NewPipelineEnvironment("", c.substitutions, types.StringSet{}, types.StringSet{})
-		if err != nil && !os.IsNotExist(err) {
-			log.Fatal(err)
-		}
-
-		// Create parser and parse template
-		tpl, err = e.createTemplateParser().Parse(c.in)
-		if err != nil {
-			if !c.err {
-				t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-			}
-			continue
-		}
-
-		// Execute and check resutl
-		var b bytes.Buffer
-		bw := bufio.NewWriter(&b)
-		err = tpl.Execute(bw, e)
-		bw.Flush()
-		if err != nil {
-			if !c.err {
-				t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-			}
-			continue
-		}
-		res := b.String()
-		if res != c.out {
-			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
-		}
-		if err := e.CleanUp(syscall.Signal(0)); err != nil {
-			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-		}
+		parseAndCheckTemplate(t, i, c)
 	}
 }
 
@@ -138,39 +147,7 @@ func TestPipelineEnvironmentCreatedTemplateParserEnvDir(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		var tpl *template.Template
-		e, err := NewPipelineEnvironment("", c.substitutions, types.StringSet{}, types.StringSet{})
-		if err != nil && !os.IsNotExist(err) {
-			log.Fatal(err)
-		}
-
-		// Create parser and parse template
-		tpl, err = e.createTemplateParser().Parse(c.in)
-		if err != nil {
-			if !c.err {
-				t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-			}
-			continue
-		}
-
-		// Execute and check resutl
-		var b bytes.Buffer
-		bw := bufio.NewWriter(&b)
-		err = tpl.Execute(bw, e)
-		bw.Flush()
-		if err != nil {
-			if !c.err {
-				t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-			}
-			continue
-		}
-		res := b.String()
-		if res != c.out {
-			t.Errorf("Incorrect result in case '%d', got: '%s', wanted: '%s'", i, res, c.out)
-		}
-		if err := e.CleanUp(syscall.Signal(0)); err != nil {
-			t.Errorf("Unexpected error in case '%d', got: '%s'", i, err)
-		}
+		parseAndCheckTemplate(t, i, c)
 	}
 }
 

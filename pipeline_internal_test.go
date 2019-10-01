@@ -31,6 +31,15 @@ services:
     keep_alive: replace
 `
 
+func checkCallsAndCalled(t *testing.T, runner *NoopRunner, key string, calls int, called int) {
+	if c := runner.NumCalls(key); c != calls {
+		t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", key, c, calls)
+	}
+	if c := runner.NumCalled(key); c != called {
+		t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", key, c, called)
+	}
+}
+
 func TestPipelineGetRunnerForMeta(t *testing.T) {
 	tmpDef, err := ioutil.TempFile("", "def")
 	if err != nil {
@@ -118,12 +127,7 @@ func TestPipelineBuildImages(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -169,12 +173,7 @@ func TestPipelineBuildImagesForced(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -225,12 +224,7 @@ func TestPipelinePullImages(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -281,12 +275,7 @@ func TestPipelinePullImagesForced(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -337,12 +326,7 @@ func TestPipelineKillContainers(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -393,12 +377,7 @@ func TestPipelineKillContainersPreRun(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -446,12 +425,7 @@ func TestPipelineRemoveContainers(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -499,12 +473,7 @@ func TestPipelineRemoveContainersPreRun(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -551,12 +520,7 @@ func TestPipelineCreateNetwork(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -603,12 +567,7 @@ func TestPipelineRemoveNetwork(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -663,12 +622,7 @@ func TestPipelineExecuteSteps(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -721,12 +675,7 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -777,12 +726,7 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
@@ -830,12 +774,7 @@ func TestPipelineLogs(t *testing.T) {
 		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
-		if v := c.runner.NumCalls(c.key); v != c.calls {
-			t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", c.key, v, c.calls)
-		}
-		if v := c.runner.NumCalled(c.key); v != c.called {
-			t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", c.key, v, c.called)
-		}
+		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
 	}
 }
 
