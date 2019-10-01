@@ -6,6 +6,36 @@ import (
 	"github.com/ad-freiburg/gantry"
 )
 
+func performAndCheckTarjan(t *testing.T, ci int, c struct {
+	input  map[string]gantry.Step
+	result gantry.Pipelines
+}) {
+	r, err := gantry.NewTarjan(c.input)
+	result := *r
+	seen := make(map[string]bool)
+	if err != nil {
+		t.Errorf("Got error: %v", err)
+	}
+	if len(result) != len(c.result) {
+		t.Errorf("Incorrect length for '%d', got %d, wanted %d", ci, len(result), len(c.result))
+	}
+	for i := range result {
+		if len(result[i]) != len(c.result[i]) {
+			t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
+		}
+		// skip following check for invalid pipelines
+		if len(result[i]) > 1 {
+			continue
+		}
+		seen[result[i][0].Name] = true
+		for after := range result[i][0].After {
+			if !seen[after] {
+				t.Errorf("Unknown dependency '%s' for '%s' - wrong step order!", after, result[i][0].Name)
+			}
+		}
+	}
+}
+
 func TestNewTarjan(t *testing.T) {
 	// Diamond
 	stepA := gantry.Step{Service: gantry.Service{Name: "a"}}
@@ -80,30 +110,7 @@ func TestNewTarjan(t *testing.T) {
 		},
 	}
 	for ci, c := range cases {
-		r, err := gantry.NewTarjan(c.input)
-		result := *r
-		seen := make(map[string]bool)
-		if err != nil {
-			t.Errorf("Got error: %v", err)
-		}
-		if len(result) != len(c.result) {
-			t.Errorf("Incorrect length for '%d', got %d, wanted %d", ci, len(result), len(c.result))
-		}
-		for i := range result {
-			if len(result[i]) != len(c.result[i]) {
-				t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
-			}
-			// skip following check for invalid pipelines
-			if len(result[i]) > 1 {
-				continue
-			}
-			seen[result[i][0].Name] = true
-			for after := range result[i][0].After {
-				if !seen[after] {
-					t.Errorf("Unknown dependency '%s' for '%s' - wrong step order!", after, result[i][0].Name)
-				}
-			}
-		}
+		performAndCheckTarjan(t, ci, c)
 	}
 }
 
@@ -191,30 +198,7 @@ func TestNewTarjanDisjointPipelines(t *testing.T) {
 		},
 	}
 	for ci, c := range cases {
-		r, err := gantry.NewTarjan(c.input)
-		result := *r
-		seen := make(map[string]bool)
-		if err != nil {
-			t.Errorf("Got error: %v", err)
-		}
-		if len(result) != len(c.result) {
-			t.Errorf("Incorrect length for '%d', got %d, wanted %d", ci, len(result), len(c.result))
-		}
-		for i := range result {
-			if len(result[i]) != len(c.result[i]) {
-				t.Errorf("Incorrect length for '%d'@'%d', got %d, wanted %d", ci, i, len(result[i]), len(c.result[i]))
-			}
-			// skip following check for invalid pipelines
-			if len(result[i]) > 1 {
-				continue
-			}
-			seen[result[i][0].Name] = true
-			for after := range result[i][0].After {
-				if !seen[after] {
-					t.Errorf("Unknown dependency '%s' for '%s' - wrong step order!", after, result[i][0].Name)
-				}
-			}
-		}
+		performAndCheckTarjan(t, ci, c)
 	}
 }
 
