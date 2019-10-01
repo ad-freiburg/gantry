@@ -157,6 +157,9 @@ func signalHandler() {
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Println(err)
+		if e, ok := err.(gantry.ExecutionError); ok {
+			os.Exit(e.ExitCode())
+		}
 		os.Exit(1)
 	}
 }

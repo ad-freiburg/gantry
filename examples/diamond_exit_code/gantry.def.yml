@@ -1,0 +1,27 @@
+version: "0"
+
+steps:
+  a:
+    image: alpine
+    command: "echo \"Step a\""
+  b:
+    after:
+      - a
+    image: alpine
+    entrypoint: "/bin/sh"
+    command: ["-c", "echo \"Step b\" && exit 1"]
+  c:
+    after:
+      - a
+    image: alpine
+    entrypoint: "/bin/sh"
+    # Command will exit with exit code 1 but this will be overriden to 2 in
+    # the gantry.env.yml
+    command: ["-c", "echo \"Step c\" && exit 1"]
+  d:
+    after:
+      - b
+      - c
+    image: alpine
+    entrypoint: "/bin/sh"
+    command: ["-c", "echo \"Step d\" && exit 3"]

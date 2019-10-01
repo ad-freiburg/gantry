@@ -596,7 +596,7 @@ func (p Pipeline) RemoveTempDirData() error {
 	return err
 }
 
-func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, done chan struct{}, abort chan struct{}) {
+func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, done chan struct{}, abort chan error) {
 	defer wg.Done()
 	defer close(done)
 	for i, c := range preconditions {
@@ -609,11 +609,9 @@ func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *syn
 		}
 	}
 	// If an error was encountered previusly, skip the rest
-	select {
-	case <-abort:
+	if len(abort) > 0 {
 		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
 		return
-	default:
 	}
 	// Kill old container if KeepAlive_Replace
 	count, err := runner.ContainerKiller(step)()
@@ -631,10 +629,10 @@ func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *syn
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
 		if !step.Meta.IgnoreFailure {
-			select {
-			case <-abort:
-			default:
-				close(abort)
+			// If no previous error is stored, store the current error in the
+			// abort channel.
+			if len(abort) < 1 {
+				abort <- ExecutionError{err, step.Meta.ExitCodeOverride}
 			}
 		} else {
 			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
@@ -654,7 +652,7 @@ func (p Pipeline) ExecuteSteps() error {
 	var wg sync.WaitGroup
 	steps := 0
 	durations := &sync.Map{}
-	abort := make(chan struct{})
+	abort := make(chan error, 1)
 	runChannel := make(chan struct{})
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
@@ -692,6 +690,10 @@ func (p Pipeline) ExecuteSteps() error {
 		return ok
 	})
 	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
+	// If an error was stored in the abort channel, return it.
+	if len(abort) > 0 {
+		return <-abort
+	}
 	return nil
 }
 
