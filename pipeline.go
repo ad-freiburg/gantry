@@ -411,7 +411,7 @@ func (p Pipeline) BuildImages(force bool) error {
 	}
 	select {
 	case <-abort:
-		return fmt.Errorf("error while preparing images (build)!")
+		return fmt.Errorf("error while preparing images (build)")
 	default:
 	}
 	return nil
@@ -487,7 +487,7 @@ func (p Pipeline) PullImages(force bool) error {
 	}
 	select {
 	case <-abort:
-		return fmt.Errorf("error while preparing images (pull)!")
+		return fmt.Errorf("error while preparing images (pull)")
 	default:
 	}
 	return nil

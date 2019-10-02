@@ -40,27 +40,36 @@ func checkCallsAndCalled(t *testing.T, runner *NoopRunner, key string, calls int
 	}
 }
 
-func TestPipelineGetRunnerForMeta(t *testing.T) {
+func setupDefAndEnv(def string, env string) (string, string) {
 	tmpDef, err := ioutil.TempFile("", "def")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.Remove(tmpDef.Name())
 	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
 	if err != nil {
+		os.Remove(tmpDef.Name())
 		log.Fatal(err)
 	}
 	tmpEnv, err := ioutil.TempFile("", "env")
 	if err != nil {
+		os.Remove(tmpDef.Name())
 		log.Fatal(err)
 	}
-	defer os.Remove(tmpEnv.Name())
 	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
 	if err != nil {
+		os.Remove(tmpDef.Name())
+		os.Remove(tmpEnv.Name())
 		log.Fatal(err)
 	}
+	return tmpDef.Name(), tmpEnv.Name()
+}
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+func TestPipelineGetRunnerForMeta(t *testing.T) {
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
+
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -86,26 +95,11 @@ func TestPipelineGetRunnerForMeta(t *testing.T) {
 }
 
 func TestPipelineBuildImages(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -132,26 +126,11 @@ func TestPipelineBuildImages(t *testing.T) {
 }
 
 func TestPipelineBuildImagesForced(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -178,26 +157,11 @@ func TestPipelineBuildImagesForced(t *testing.T) {
 }
 
 func TestPipelinePullImages(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -229,26 +193,11 @@ func TestPipelinePullImages(t *testing.T) {
 }
 
 func TestPipelinePullImagesForced(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -280,26 +229,11 @@ func TestPipelinePullImagesForced(t *testing.T) {
 }
 
 func TestPipelineKillContainers(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -331,26 +265,11 @@ func TestPipelineKillContainers(t *testing.T) {
 }
 
 func TestPipelineKillContainersPreRun(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -382,26 +301,11 @@ func TestPipelineKillContainersPreRun(t *testing.T) {
 }
 
 func TestPipelineRemoveContainers(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -430,26 +334,11 @@ func TestPipelineRemoveContainers(t *testing.T) {
 }
 
 func TestPipelineRemoveContainersPreRun(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -478,26 +367,11 @@ func TestPipelineRemoveContainersPreRun(t *testing.T) {
 }
 
 func TestPipelineCreateNetwork(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -525,26 +399,11 @@ func TestPipelineCreateNetwork(t *testing.T) {
 }
 
 func TestPipelineRemoveNetwork(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -572,26 +431,11 @@ func TestPipelineRemoveNetwork(t *testing.T) {
 }
 
 func TestPipelineExecuteSteps(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -627,30 +471,15 @@ func TestPipelineExecuteSteps(t *testing.T) {
 }
 
 func TestPipelineRemoveTempDirData(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`steps:
   a:
     volumes:
     - {{ TempDir }}:/input
-`), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(""), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+`, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -680,28 +509,13 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 }
 
 func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`steps:
   a:
-`), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(""), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+`, "")
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -731,26 +545,11 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 }
 
 func TestPipelineLogs(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmpEnv, err := ioutil.TempFile("", "env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpEnv.Name())
-	err = ioutil.WriteFile(tmpEnv.Name(), []byte(env), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, env)
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), tmpEnv.Name(), types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
 		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
 	}
@@ -779,17 +578,11 @@ func TestPipelineLogs(t *testing.T) {
 }
 
 func TestPipelineCheck(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(def), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpDef, tmpEnv := setupDefAndEnv(def, "")
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, "", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
 	noopRunner := NewNoopRunner(false)
@@ -803,19 +596,13 @@ func TestPipelineCheck(t *testing.T) {
 }
 
 func TestPipelineCheckNoContainerInformation(t *testing.T) {
-	tmpDef, err := ioutil.TempFile("", "def")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDef.Name())
-	err = ioutil.WriteFile(tmpDef.Name(), []byte(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`steps:
   a:
-`), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+`, "")
+	defer os.Remove(tmpDef)
+	defer os.Remove(tmpEnv)
 
-	p, err := NewPipeline(tmpDef.Name(), "", types.StringMap{}, types.StringSet{}, types.StringSet{})
+	p, err := NewPipeline(tmpDef, "", types.StringMap{}, types.StringSet{}, types.StringSet{})
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
 	noopRunner := NewNoopRunner(false)
