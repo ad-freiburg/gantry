@@ -345,194 +345,204 @@ func (p *PipelineDefinition) Pipelines() (*Pipelines, error) {
 	return p.pipelines, nil
 }
 
-func runParallelBuildImage(runner Runner, step Step, pull bool, durations *sync.Map, wg *sync.WaitGroup, start chan struct{}, abort chan struct{}) {
-	defer wg.Done()
-	<-start
+type runConfig struct {
+	usePreconditions bool
+	selection        func(step Step) bool
+	pre              func(runner Runner, step Step) error
+	run              func(runner Runner, step Step) func() error
+	post             func(runner Runner, step Step) error
+}
 
-	select {
-	case <-abort:
+func runCommandParallel(config runConfig, runner Runner, step Step, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, done chan struct{}, abort chan error) {
+	defer wg.Done()
+	defer close(done)
+	for i, c := range preconditions {
+		if Verbose {
+			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
+		}
+		<-c
+		if Verbose {
+			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
+		}
+	}
+	// If an error was encountered previusly, skip the rest
+	if len(abort) > 0 {
 		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
 		return
-	default:
 	}
-	duration, err := executeF(runner.ImageBuilder(step, pull))
+
+	if err := config.pre(runner, step); err != nil {
+		pipelineLogger.Printf("Error in 'pre' for: %s: %s", step.ColoredName(), err)
+	}
+	duration, err := executeF(config.run(runner, step))
 	if err != nil {
-		pipelineLogger.Printf("%s", err)
-		select {
-		case <-abort:
-		default:
-			close(abort)
+		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
+		if !step.Meta.IgnoreFailure {
+			// If no previous error is stored, store the current error in the
+			// abort channel.
+			if len(abort) < 1 {
+				abort <- ExecutionError{err, step.Meta.ExitCodeOverride}
+			}
+		} else {
+			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
 		}
 	}
 	durations.Store(step.Name, duration)
+	if err := config.post(runner, step); err != nil {
+		pipelineLogger.Printf("Error in 'post' for: %s: %s", step.ColoredName(), err)
+	}
+}
+
+func (p Pipeline) runCommand(config runConfig) error {
+	pipelines, err := p.Definition.Pipelines()
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	steps := 0
+	durations := &sync.Map{}
+	abort := make(chan error, 1)
+	runChannel := make(chan struct{})
+	channels := make(map[string]chan struct{})
+	for _, pipeline := range *pipelines {
+		for _, step := range pipeline {
+			if !config.selection(step) {
+				continue
+			}
+			channels[step.Name] = make(chan struct{})
+			preChannels := make([]chan struct{}, 0)
+			if config.usePreconditions {
+				preChannels = append(preChannels, runChannel)
+				for pre := range step.Dependencies() {
+					if Verbose {
+						pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
+					}
+					val, ok := channels[pre]
+					if !ok {
+						log.Fatalf("Unknown precondition: %s", pre)
+					}
+					preChannels = append(preChannels, val)
+				}
+			}
+			wg.Add(1)
+			go runCommandParallel(config, p.GetRunnerForMeta(step.Meta), step, durations, &wg, preChannels, channels[step.Name], abort)
+			steps++
+		}
+	}
+
+	pipelineLogger.Printf("Execute:")
+	start := time.Now()
+	close(runChannel)
+	wg.Wait()
+	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
+	var totalElapsedTime time.Duration
+	durations.Range(func(key, value interface{}) bool {
+		duration, ok := value.(time.Duration)
+		if ok {
+			totalElapsedTime += duration
+		}
+		return ok
+	})
+	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
+	// If an error was stored in the abort channel, return it.
+	if len(abort) > 0 {
+		return <-abort
+	}
+	return nil
 }
 
 // BuildImages builds all buildable images of Pipeline p in parallel.
 func (p Pipeline) BuildImages(force bool) error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	abort := make(chan struct{})
-	runChannel := make(chan struct{})
-	var wg sync.WaitGroup
-	images := 0
-	durations := &sync.Map{}
-
-	for _, step := range pipelines.AllSteps() {
-		if step.IsPullable() {
-			continue
-		}
-		wg.Add(1)
-		go runParallelBuildImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel, abort)
-		images++
-	}
-
-	if Verbose {
-		pipelineLogger.Printf("Build Images:")
-	}
-	start := time.Now()
-	close(runChannel)
-	wg.Wait()
-
-	if Verbose {
-		pipelineLogger.Printf("Build %d images in %s", images, time.Since(start))
-	}
-	var totalElapsedTime time.Duration
-	durations.Range(func(key, value interface{}) bool {
-		duration, ok := value.(time.Duration)
-		if ok {
-			totalElapsedTime += duration
-		}
-		return ok
+	return p.runCommand(runConfig{
+		usePreconditions: false,
+		selection: func(step Step) bool {
+			return step.IsBuildable()
+		},
+		pre: func(runner Runner, step Step) error {
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return runner.ImageBuilder(step, force)
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
 	})
-	if Verbose {
-		pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
-	}
-	select {
-	case <-abort:
-		return fmt.Errorf("error while preparing images (build)")
-	default:
-	}
-	return nil
-}
-
-func runParallelPullImage(runner Runner, step Step, force bool, durations *sync.Map, wg *sync.WaitGroup, start chan struct{}, abort chan struct{}) {
-	defer wg.Done()
-	<-start
-
-	select {
-	case <-abort:
-		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
-		return
-	default:
-	}
-	duration, err := executeF(runner.ImageExistenceChecker(step))
-	if err != nil || force {
-		duration2, err := executeF(runner.ImagePuller(step))
-		if err != nil {
-			pipelineLogger.Printf("%s", err)
-			select {
-			case <-abort:
-			default:
-				close(abort)
-			}
-		}
-		duration += duration2
-	}
-	durations.Store(step.Name, duration)
 }
 
 // PullImages pulls all pullable images of Pipeline p in parallel.
 func (p Pipeline) PullImages(force bool) error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	abort := make(chan struct{})
-	runChannel := make(chan struct{})
-	var wg sync.WaitGroup
-	images := 0
-	durations := &sync.Map{}
-
-	for _, step := range pipelines.AllSteps() {
-		if step.IsBuildable() {
-			continue
-		}
-		wg.Add(1)
-		go runParallelPullImage(p.GetRunnerForMeta(step.Meta), step, force, durations, &wg, runChannel, abort)
-		images++
-	}
-
-	if Verbose {
-		pipelineLogger.Printf("Pull Images:")
-	}
-	start := time.Now()
-	close(runChannel)
-	wg.Wait()
-
-	if Verbose {
-		pipelineLogger.Printf("Pulled %d images in %s", images, time.Since(start))
-	}
-	var totalElapsedTime time.Duration
-	durations.Range(func(key, value interface{}) bool {
-		duration, ok := value.(time.Duration)
-		if ok {
-			totalElapsedTime += duration
-		}
-		return ok
+	return p.runCommand(runConfig{
+		usePreconditions: false,
+		selection: func(step Step) bool {
+			return step.IsPullable()
+		},
+		pre: func(runner Runner, step Step) error {
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return func() error {
+				if err := runner.ImageExistenceChecker(step)(); err != nil || force {
+					return runner.ImagePuller(step)()
+				}
+				return nil
+			}
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
 	})
-	if Verbose {
-		pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
-	}
-	select {
-	case <-abort:
-		return fmt.Errorf("error while preparing images (pull)")
-	default:
-	}
-	return nil
 }
 
 // KillContainers kills all running containers of Pipeline p.
 func (p Pipeline) KillContainers(preRun bool) error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	for _, pipeline := range *pipelines {
-		for _, step := range pipeline {
-			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
-				continue
+	return p.runCommand(runConfig{
+		usePreconditions: false,
+		selection: func(step Step) bool {
+			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
+		},
+		pre: func(runner Runner, step Step) error {
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return func() error {
+				if _, err := runner.ContainerKiller(step)(); err != nil {
+					pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
+				}
+				if err := runner.ContainerRemover(step)(); err != nil {
+					pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
+				}
+				return nil
 			}
-			runner := p.GetRunnerForMeta(step.Meta)
-			if _, err := runner.ContainerKiller(step)(); err != nil {
-				pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
-			}
-			if err := runner.ContainerRemover(step)(); err != nil {
-				pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
-			}
-		}
-	}
-	return nil
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
+	})
 }
 
 // RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers(preRun bool) error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	for _, pipeline := range *pipelines {
-		for _, step := range pipeline {
-			if preRun && step.Meta.KeepAlive == KeepAliveReplace {
-				continue
+	return p.runCommand(runConfig{
+		usePreconditions: false,
+		selection: func(step Step) bool {
+			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
+		},
+		pre: func(runner Runner, step Step) error {
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return func() error {
+				if err := p.GetRunnerForMeta(step.Meta).ContainerRemover(step)(); err != nil {
+					pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
+				}
+				return nil
 			}
-			if err := p.GetRunnerForMeta(step.Meta).ContainerRemover(step)(); err != nil {
-				pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
-			}
-		}
-	}
-	return nil
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
+	})
 }
 
 // CreateNetwork creates a network using the NetworkName of the Pipeline p.
@@ -645,56 +655,34 @@ func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *syn
 // ExecuteSteps runs all not ignored steps/services in the order defined by
 // there dependencies. Each step/service is run as soon as possible.
 func (p Pipeline) ExecuteSteps() error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	var wg sync.WaitGroup
-	steps := 0
-	durations := &sync.Map{}
-	abort := make(chan error, 1)
-	runChannel := make(chan struct{})
-	channels := make(map[string]chan struct{})
-	for _, pipeline := range *pipelines {
-		for _, step := range pipeline {
-			channels[step.Name] = make(chan struct{})
-			preChannels := make([]chan struct{}, 0)
-			preChannels = append(preChannels, runChannel)
-			for pre := range step.Dependencies() {
-				if Verbose {
-					pipelineLogger.Printf("Adding %s as precondition for %s", ApplyAnsiStyle(pre, AnsiStyleBold), step.ColoredContainerName())
-				}
-				val, ok := channels[pre]
-				if !ok {
-					log.Fatalf("Unknown precondition: %s", pre)
-				}
-				preChannels = append(preChannels, val)
+	return p.runCommand(runConfig{
+		usePreconditions: true,
+		selection: func(step Step) bool {
+			return true
+		},
+		pre: func(runner Runner, step Step) error {
+			count, err := runner.ContainerKiller(step)()
+			if err != nil {
+				pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
 			}
-			wg.Add(1)
-			go runParallelStep(p.GetRunnerForMeta(step.Meta), step, p, durations, &wg, preChannels, channels[step.Name], abort)
-			steps++
-		}
-	}
-
-	pipelineLogger.Printf("Execute:")
-	start := time.Now()
-	close(runChannel)
-	wg.Wait()
-	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
-	var totalElapsedTime time.Duration
-	durations.Range(func(key, value interface{}) bool {
-		duration, ok := value.(time.Duration)
-		if ok {
-			totalElapsedTime += duration
-		}
-		return ok
+			if count > 0 {
+				pipelineLogger.Printf("- Killed: %s", step.ColoredContainerName())
+			}
+			if err := runner.ContainerRemover(step)(); err != nil {
+				pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
+			}
+			pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return func() error {
+				return runner.ContainerRunner(step, p.Network)()
+			}
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
 	})
-	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
-	// If an error was stored in the abort channel, return it.
-	if len(abort) > 0 {
-		return <-abort
-	}
-	return nil
 }
 
 func runParallelLog(runner Runner, step Step, follow bool, wg *sync.WaitGroup, s chan struct{}) {
@@ -708,21 +696,23 @@ func runParallelLog(runner Runner, step Step, follow bool, wg *sync.WaitGroup, s
 
 // Logs retrievs the logs of all containers.
 func (p Pipeline) Logs(follow bool) error {
-	pipelines, err := p.Definition.Pipelines()
-	if err != nil {
-		return err
-	}
-	runChannel := make(chan struct{})
-	var wg sync.WaitGroup
-
-	for _, step := range pipelines.AllSteps() {
-		wg.Add(1)
-		go runParallelLog(p.GetRunnerForMeta(step.Meta), step, follow, &wg, runChannel)
-	}
-
-	close(runChannel)
-	wg.Wait()
-	return nil
+	return p.runCommand(runConfig{
+		usePreconditions: false,
+		selection: func(step Step) bool {
+			return true
+		},
+		pre: func(runner Runner, step Step) error {
+			return nil
+		},
+		run: func(runner Runner, step Step) func() error {
+			return func() error {
+				return runner.ContainerLogReader(step, follow)()
+			}
+		},
+		post: func(runner Runner, step Step) error {
+			return nil
+		},
+	})
 }
 
 func executeF(f func() error) (time.Duration, error) {
