@@ -606,52 +606,6 @@ func (p Pipeline) RemoveTempDirData() error {
 	return err
 }
 
-func runParallelStep(runner Runner, step Step, pipeline Pipeline, durations *sync.Map, wg *sync.WaitGroup, preconditions []chan struct{}, done chan struct{}, abort chan error) {
-	defer wg.Done()
-	defer close(done)
-	for i, c := range preconditions {
-		if Verbose {
-			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
-		}
-		<-c
-		if Verbose {
-			pipelineLogger.Printf("Precondition for %s satisfied %d remaining", step.ColoredContainerName(), len(preconditions)-i-1)
-		}
-	}
-	// If an error was encountered previusly, skip the rest
-	if len(abort) > 0 {
-		pipelineLogger.Printf("- Skipping %s: an error occurred previously", step.ColoredContainerName())
-		return
-	}
-	// Kill old container if KeepAlive_Replace
-	count, err := runner.ContainerKiller(step)()
-	if err != nil {
-		pipelineLogger.Printf("Error killing %s: %s", step.ColoredName(), err)
-	}
-	if count > 0 {
-		pipelineLogger.Printf("- Killed: %s", step.ColoredContainerName())
-	}
-	if err := runner.ContainerRemover(step)(); err != nil {
-		pipelineLogger.Printf("Error removing %s: %s", step.ColoredName(), err)
-	}
-	pipelineLogger.Printf("- Starting: %s", step.ColoredContainerName())
-	duration, err := executeF(runner.ContainerRunner(step, pipeline.Network))
-	if err != nil {
-		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
-		if !step.Meta.IgnoreFailure {
-			// If no previous error is stored, store the current error in the
-			// abort channel.
-			if len(abort) < 1 {
-				abort <- ExecutionError{err, step.Meta.ExitCodeOverride}
-			}
-		} else {
-			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
-		}
-	}
-	pipelineLogger.Printf("- Finished %s after %s", step.ColoredContainerName(), duration)
-	durations.Store(step.Name, duration)
-}
-
 // ExecuteSteps runs all not ignored steps/services in the order defined by
 // there dependencies. Each step/service is run as soon as possible.
 func (p Pipeline) ExecuteSteps() error {
@@ -683,15 +637,6 @@ func (p Pipeline) ExecuteSteps() error {
 			return nil
 		},
 	})
-}
-
-func runParallelLog(runner Runner, step Step, follow bool, wg *sync.WaitGroup, s chan struct{}) {
-	defer wg.Done()
-	<-s
-
-	if err := runner.ContainerLogReader(step, follow)(); err != nil {
-		pipelineLogger.Printf("%s", err)
-	}
 }
 
 // Logs retrievs the logs of all containers.
