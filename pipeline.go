@@ -402,13 +402,13 @@ func runCommandParallel(config runConfig, runner Runner, step Step, durations *s
 	}
 }
 
-func (p Pipeline) runCommand(config runConfig) error {
+func (p Pipeline) runCommand(config runConfig) (int, time.Duration, time.Duration, error) {
 	pipelines, err := p.Definition.Pipelines()
 	if err != nil {
-		return err
+		return 0, 0, 0, err
 	}
 	var wg sync.WaitGroup
-	steps := 0
+	count := 0
 	durations := &sync.Map{}
 	abort := make(chan error, 1)
 	runChannel := make(chan struct{})
@@ -436,15 +436,15 @@ func (p Pipeline) runCommand(config runConfig) error {
 			}
 			wg.Add(1)
 			go runCommandParallel(config, p.GetRunnerForMeta(step.Meta), step, durations, &wg, preChannels, channels[step.Name], abort)
-			steps++
+			count++
 		}
 	}
 
-	pipelineLogger.Printf("Execute:")
 	start := time.Now()
 	close(runChannel)
 	wg.Wait()
-	pipelineLogger.Printf("Executed %d steps in %s", steps, time.Since(start))
+	// Store timing information
+	elapsedTime := time.Since(start)
 	var totalElapsedTime time.Duration
 	durations.Range(func(key, value interface{}) bool {
 		duration, ok := value.(time.Duration)
@@ -453,17 +453,20 @@ func (p Pipeline) runCommand(config runConfig) error {
 		}
 		return ok
 	})
-	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
 	// If an error was stored in the abort channel, return it.
+	err = nil
 	if len(abort) > 0 {
-		return <-abort
+		err = <-abort
 	}
-	return nil
+	return count, elapsedTime, totalElapsedTime, err
 }
 
 // BuildImages builds all buildable images of Pipeline p in parallel.
 func (p Pipeline) BuildImages(force bool) error {
-	return p.runCommand(runConfig{
+	if Verbose {
+		pipelineLogger.Printf("Build Images:")
+	}
+	count, elapsedTime, totalElapsedTime, err := p.runCommand(runConfig{
 		selection: func(step Step) bool {
 			return step.IsBuildable()
 		},
@@ -471,11 +474,19 @@ func (p Pipeline) BuildImages(force bool) error {
 			return runner.ImageBuilder(step, force)
 		},
 	})
+	if Verbose {
+		pipelineLogger.Printf("Build %d images in %s", count, elapsedTime)
+		pipelineLogger.Printf("Total time spent building images: %s", totalElapsedTime)
+	}
+	return err
 }
 
 // PullImages pulls all pullable images of Pipeline p in parallel.
 func (p Pipeline) PullImages(force bool) error {
-	return p.runCommand(runConfig{
+	if Verbose {
+		pipelineLogger.Printf("Pull Images:")
+	}
+	count, elapsedTime, totalElapsedTime, err := p.runCommand(runConfig{
 		selection: func(step Step) bool {
 			return step.IsPullable()
 		},
@@ -488,11 +499,16 @@ func (p Pipeline) PullImages(force bool) error {
 			}
 		},
 	})
+	if Verbose {
+		pipelineLogger.Printf("Pulled %d images in %s", count, elapsedTime)
+		pipelineLogger.Printf("Total time spent pulling images: %s", totalElapsedTime)
+	}
+	return err
 }
 
 // KillContainers kills all running containers of Pipeline p.
 func (p Pipeline) KillContainers(preRun bool) error {
-	return p.runCommand(runConfig{
+	_, _, _, err := p.runCommand(runConfig{
 		selection: func(step Step) bool {
 			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
 		},
@@ -508,11 +524,12 @@ func (p Pipeline) KillContainers(preRun bool) error {
 			}
 		},
 	})
+	return err
 }
 
 // RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers(preRun bool) error {
-	return p.runCommand(runConfig{
+	_, _, _, err := p.runCommand(runConfig{
 		selection: func(step Step) bool {
 			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
 		},
@@ -525,6 +542,7 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 			}
 		},
 	})
+	return err
 }
 
 // CreateNetwork creates a network using the NetworkName of the Pipeline p.
@@ -591,7 +609,8 @@ func (p Pipeline) RemoveTempDirData() error {
 // ExecuteSteps runs all not ignored steps/services in the order defined by
 // there dependencies. Each step/service is run as soon as possible.
 func (p Pipeline) ExecuteSteps() error {
-	return p.runCommand(runConfig{
+	pipelineLogger.Printf("Execute:")
+	count, elapsedTime, totalElapsedTime, err := p.runCommand(runConfig{
 		usePreconditions: true,
 		pre: func(runner Runner, step Step) error {
 			count, err := runner.ContainerKiller(step)()
@@ -613,17 +632,21 @@ func (p Pipeline) ExecuteSteps() error {
 			}
 		},
 	})
+	pipelineLogger.Printf("Executed %d steps in %s", count, elapsedTime)
+	pipelineLogger.Printf("Total time spent inside steps: %s", totalElapsedTime)
+	return err
 }
 
 // Logs retrievs the logs of all containers.
 func (p Pipeline) Logs(follow bool) error {
-	return p.runCommand(runConfig{
+	_, _, _, err := p.runCommand(runConfig{
 		run: func(runner Runner, step Step) func() error {
 			return func() error {
 				return runner.ContainerLogReader(step, follow)()
 			}
 		},
 	})
+	return err
 }
 
 func executeF(f func() error) (time.Duration, error) {
