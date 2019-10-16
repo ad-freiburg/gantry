@@ -358,7 +358,7 @@ func runCommandParallel(config runConfig, runner Runner, step Step, durations *s
 	defer close(done)
 	for i, c := range preconditions {
 		if Verbose {
-			pipelineLogger.Printf("%s waiting for %d preconditions", step.ColoredContainerName(), len(preconditions)-i)
+			pipelineLogger.Printf("%s waiting for %d precondition(s)", step.ColoredContainerName(), len(preconditions)-i)
 		}
 		<-c
 		if Verbose {
@@ -371,9 +371,14 @@ func runCommandParallel(config runConfig, runner Runner, step Step, durations *s
 		return
 	}
 
-	if err := config.pre(runner, step); err != nil {
-		pipelineLogger.Printf("Error in 'pre' for: %s: %s", step.ColoredName(), err)
+	// Execute pre for step if provided
+	if config.pre != nil {
+		if err := config.pre(runner, step); err != nil {
+			pipelineLogger.Printf("Error in 'pre' for: %s: %s", step.ColoredName(), err)
+		}
 	}
+
+	// Execute run for step
 	duration, err := executeF(config.run(runner, step))
 	if err != nil {
 		pipelineLogger.Printf("  %s: %s", step.ColoredContainerName(), err)
@@ -388,8 +393,12 @@ func runCommandParallel(config runConfig, runner Runner, step Step, durations *s
 		}
 	}
 	durations.Store(step.Name, duration)
-	if err := config.post(runner, step); err != nil {
-		pipelineLogger.Printf("Error in 'post' for: %s: %s", step.ColoredName(), err)
+
+	// Execute post for step if provided
+	if config.post != nil {
+		if err := config.post(runner, step); err != nil {
+			pipelineLogger.Printf("Error in 'post' for: %s: %s", step.ColoredName(), err)
+		}
 	}
 }
 
@@ -406,7 +415,8 @@ func (p Pipeline) runCommand(config runConfig) error {
 	channels := make(map[string]chan struct{})
 	for _, pipeline := range *pipelines {
 		for _, step := range pipeline {
-			if !config.selection(step) {
+			// If selection is set and not applicable, skip this step
+			if config.selection != nil && !config.selection(step) {
 				continue
 			}
 			channels[step.Name] = make(chan struct{})
@@ -454,18 +464,11 @@ func (p Pipeline) runCommand(config runConfig) error {
 // BuildImages builds all buildable images of Pipeline p in parallel.
 func (p Pipeline) BuildImages(force bool) error {
 	return p.runCommand(runConfig{
-		usePreconditions: false,
 		selection: func(step Step) bool {
 			return step.IsBuildable()
 		},
-		pre: func(runner Runner, step Step) error {
-			return nil
-		},
 		run: func(runner Runner, step Step) func() error {
 			return runner.ImageBuilder(step, force)
-		},
-		post: func(runner Runner, step Step) error {
-			return nil
 		},
 	})
 }
@@ -473,12 +476,8 @@ func (p Pipeline) BuildImages(force bool) error {
 // PullImages pulls all pullable images of Pipeline p in parallel.
 func (p Pipeline) PullImages(force bool) error {
 	return p.runCommand(runConfig{
-		usePreconditions: false,
 		selection: func(step Step) bool {
 			return step.IsPullable()
-		},
-		pre: func(runner Runner, step Step) error {
-			return nil
 		},
 		run: func(runner Runner, step Step) func() error {
 			return func() error {
@@ -488,21 +487,14 @@ func (p Pipeline) PullImages(force bool) error {
 				return nil
 			}
 		},
-		post: func(runner Runner, step Step) error {
-			return nil
-		},
 	})
 }
 
 // KillContainers kills all running containers of Pipeline p.
 func (p Pipeline) KillContainers(preRun bool) error {
 	return p.runCommand(runConfig{
-		usePreconditions: false,
 		selection: func(step Step) bool {
 			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
-		},
-		pre: func(runner Runner, step Step) error {
-			return nil
 		},
 		run: func(runner Runner, step Step) func() error {
 			return func() error {
@@ -515,21 +507,14 @@ func (p Pipeline) KillContainers(preRun bool) error {
 				return nil
 			}
 		},
-		post: func(runner Runner, step Step) error {
-			return nil
-		},
 	})
 }
 
 // RemoveContainers removes all stopped containers of Pipeline p.
 func (p Pipeline) RemoveContainers(preRun bool) error {
 	return p.runCommand(runConfig{
-		usePreconditions: false,
 		selection: func(step Step) bool {
 			return !preRun || step.Meta.KeepAlive != KeepAliveReplace
-		},
-		pre: func(runner Runner, step Step) error {
-			return nil
 		},
 		run: func(runner Runner, step Step) func() error {
 			return func() error {
@@ -538,9 +523,6 @@ func (p Pipeline) RemoveContainers(preRun bool) error {
 				}
 				return nil
 			}
-		},
-		post: func(runner Runner, step Step) error {
-			return nil
 		},
 	})
 }
@@ -611,9 +593,6 @@ func (p Pipeline) RemoveTempDirData() error {
 func (p Pipeline) ExecuteSteps() error {
 	return p.runCommand(runConfig{
 		usePreconditions: true,
-		selection: func(step Step) bool {
-			return true
-		},
 		pre: func(runner Runner, step Step) error {
 			count, err := runner.ContainerKiller(step)()
 			if err != nil {
@@ -633,29 +612,16 @@ func (p Pipeline) ExecuteSteps() error {
 				return runner.ContainerRunner(step, p.Network)()
 			}
 		},
-		post: func(runner Runner, step Step) error {
-			return nil
-		},
 	})
 }
 
 // Logs retrievs the logs of all containers.
 func (p Pipeline) Logs(follow bool) error {
 	return p.runCommand(runConfig{
-		usePreconditions: false,
-		selection: func(step Step) bool {
-			return true
-		},
-		pre: func(runner Runner, step Step) error {
-			return nil
-		},
 		run: func(runner Runner, step Step) func() error {
 			return func() error {
 				return runner.ContainerLogReader(step, follow)()
 			}
-		},
-		post: func(runner Runner, step Step) error {
-			return nil
 		},
 	})
 }
