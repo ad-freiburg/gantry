@@ -68,6 +68,7 @@ func isWharferInstalled() bool {
 // Runner represents generic container runners.
 type Runner interface {
 	Copy() Runner
+	PrintContainerExecutable() func() error
 	ImageBuilder(Step, bool) func() error
 	ImagePuller(Step) func() error
 	ImageExistenceChecker(Step) func() error
@@ -125,6 +126,20 @@ func (r *NoopRunner) incrementCalled(key string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.called[key]++
+}
+
+// PrintContainerExecutable returns a function printing the used container executable.
+// For the noop runnner "none" is printed.
+func (r *NoopRunner) PrintContainerExecutable() func() error {
+	key := "PrintContainerExecutable()"
+	r.incrementCalls(key)
+	return func() error {
+		if !r.silent {
+			pipelineLogger.Printf("Using container-executable: %s", "none")
+		}
+		r.incrementCalled(key)
+		return nil
+	}
 }
 
 // ImageBuilder returns a function to build the image for the given step.
@@ -268,6 +283,15 @@ func (r *LocalRunner) Output(args []string) ([]byte, error) {
 	}
 	cmd := exec.Command(ce, args...)
 	return cmd.Output()
+}
+
+// PrintContainerExecutable returns a function printing the used container executable.
+// This prints the result of getContainerExecutable().
+func (r *LocalRunner) PrintContainerExecutable() func() error {
+	return func() error {
+		pipelineLogger.Printf("Using container-executable: %s", getContainerExecutable())
+		return nil
+	}
 }
 
 // ImageBuilder returns a function to build the image for the given step.
