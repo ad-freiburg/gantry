@@ -15,11 +15,13 @@ func init() {
 	rootCmd.AddCommand(dotCmd)
 	dotCmd.Flags().StringVar(&dotOutput, "output", "gantry.dot", "File to store .dot output")
 	dotCmd.Flags().BoolVar(&hideIgnored, "hide-ignored", false, "Hide ignored steps in .dot output")
+	dotCmd.Flags().BoolVar(&arrowToPrecondition, "arrow-to-precondition", false, "Draw arrows from step to precondition")
 }
 
 var (
-	dotOutput   string
-	hideIgnored bool
+	dotOutput           string
+	hideIgnored         bool
+	arrowToPrecondition bool
 )
 
 func getActiveDependencies(steps gantry.StepList, stepname string) []string {
@@ -51,7 +53,11 @@ var dotCmd = &cobra.Command{
 		}
 
 		w := bufio.NewWriter(f)
-		if _, err := w.WriteString("digraph gantry {\nrankdir=\"BT\"\n"); err != nil {
+		rankdir := "TB"
+		if arrowToPrecondition {
+			rankdir = "BT"
+		}
+		if _, err := w.WriteString(fmt.Sprintf("digraph gantry {\nrankdir=\"%s\"\n", rankdir)); err != nil {
 			log.Printf("Error writing graph header: %s", err)
 		}
 		for _, step := range pipelines.AllSteps() {
@@ -75,7 +81,13 @@ var dotCmd = &cobra.Command{
 				if hideIgnored && pipeline.Definition.Steps[name].Meta.Ignore {
 					continue
 				}
-				if _, err := w.WriteString(fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_"))); err != nil {
+				var connection string
+				if arrowToPrecondition {
+					connection = fmt.Sprintf("%s -> %s\n", sName, strings.ReplaceAll(name, "-", "_"))
+				} else {
+					connection = fmt.Sprintf("%s -> %s\n", strings.ReplaceAll(name, "-", "_"), sName)
+				}
+				if _, err := w.WriteString(connection); err != nil {
 					log.Printf("Error writing connection: %s", err)
 				}
 			}
