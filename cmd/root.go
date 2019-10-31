@@ -70,6 +70,12 @@ var rootCmd = &cobra.Command{
 		pipeline.Network = gantry.Network(fmt.Sprintf("%s_gantry", gantry.ProjectName))
 		// We have valid data, silence generic usage information now.
 		cmd.SilenceUsage = true
+		// Print used container executable
+		for _, runner := range pipeline.GetAllRunners() {
+			if err := runner.PrintContainerExecutable()(); err != nil {
+				return err
+			}
+		}
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

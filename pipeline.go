@@ -127,6 +127,13 @@ func (p Pipeline) GetRunnerForMeta(meta ServiceMeta) Runner {
 	return p.localRunner.Copy()
 }
 
+// GetAllRunner returns a list of all runners
+func (p Pipeline) GetAllRunners() []Runner {
+	res := []Runner{}
+	res = append(res, p.localRunner.Copy())
+	return res
+}
+
 // Pipelines stores parallel and dependent steps/services.
 type Pipelines [][]Step
 
