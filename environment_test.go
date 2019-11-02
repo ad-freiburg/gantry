@@ -18,52 +18,45 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 		in            string
 		out           string
 		env           string
-		errors        bool
 		substitutions types.StringMap
 	}{
 		{
-			"{{ NOT_DECLARED }}",
+			"${NOT_DECLARED}",
 			"",
 			"",
-			true,
 			types.StringMap{},
 		},
 		{
-			"{{ NOT_DECLARED }}",
+			"${NOT_DECLARED}",
 			"",
 			`substitutions:
   Foo: Baz`,
-			true,
 			types.StringMap{},
 		},
 		{
-			"{{ EMPTY }}",
+			"${EMPTY}",
 			"",
 			"",
-			false,
 			types.StringMap{"EMPTY": nil},
 		},
 		{
-			"{{ Foo }}",
+			"${Foo}",
 			barValue,
 			"",
-			false,
 			types.StringMap{"Foo": &bar},
 		},
 		{
-			"{{ Foo }}",
+			"${Foo}",
 			"Baz",
 			`substitutions:
   Foo: Baz`,
-			false,
 			types.StringMap{},
 		},
 		{
-			"{{ Foo }}",
+			"${Foo}",
 			barValue,
 			`substitutions:
   Foo: Baz`,
-			false,
 			types.StringMap{"Foo": &bar},
 		},
 	}
@@ -90,18 +83,12 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 			}
 		}
 		resBytes, err := e.ApplyTo([]byte(c.in))
-		if err != nil && !c.errors {
+		if err != nil {
 			t.Error(err)
 		}
-		if err == nil {
-			if c.errors {
-				t.Errorf("No error cought for '%s', wanted: error", c.in)
-				continue
-			}
-			resString := string(resBytes)
-			if resString != c.out {
-				t.Errorf("Incorrect transformation of '%s': got: '%s', wanted: '%s'", c.in, resString, c.out)
-			}
+		resString := string(resBytes)
+		if resString != c.out {
+			t.Errorf("Incorrect transformation of '%s': got: '%s', wanted: '%s'", c.in, resString, c.out)
 		}
 	}
 }
