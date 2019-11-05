@@ -62,13 +62,27 @@ func TestProcessPreprocessorLines(t *testing.T) {
 	tempDir := os.TempDir()
 	cases := []struct {
 		line         string
-		hasError     bool
 		errorMessage string
 	}{
 		{
 			"",
-			true,
 			"empty preprocessor line found!",
+		},
+		{
+			"FUNCTION_WITHOUT_VAR_OR_ARG",
+			"unknown preprocessor directive: 'FUNCTION_WITHOUT_VAR_OR_ARG'",
+		},
+		{
+			"FUNCTION INVALID_VAR",
+			"invalid variable in: 'FUNCTION INVALID_VAR'",
+		},
+		{
+			"SET_IF_EMPTY ${X} Foo",
+			"",
+		},
+		{
+			"CHECK_IF_DIR_EXISTS ${TEMPDIR}",
+			"",
 		},
 	}
 	for i, c := range cases {
@@ -80,7 +94,7 @@ func TestProcessPreprocessorLines(t *testing.T) {
 			},
 		}
 		err := processPreprocessorLines([]string{c.line}, env)
-		if c.hasError {
+		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
 				continue
@@ -94,6 +108,113 @@ func TestProcessPreprocessorLines(t *testing.T) {
 	}
 }
 
+func TestParsePreprocessorLine(t *testing.T) {
+	empty := ""
+	tempDir := os.TempDir()
+	cases := []struct {
+		line         string
+		inst         *preprocessorInstruction
+		errorMessage string
+	}{
+		{
+			"FUNCTION_WITHOUT_VAR_OR_ARG",
+			&preprocessorInstruction{
+				function: "FUNCTION_WITHOUT_VAR_OR_ARG",
+			},
+			"",
+		},
+		{
+			"FUNCTION VARIABLE",
+			&preprocessorInstruction{
+				function: "FUNCTION",
+				variable: "VARIABLE",
+			},
+			"invalid variable in: 'FUNCTION VARIABLE'",
+		},
+		{
+			"FUNCTION ${VARIABLE}",
+			&preprocessorInstruction{
+				function:          "FUNCTION",
+				variable:          "VARIABLE",
+				currentValueFound: false,
+			},
+			"",
+		},
+		{
+			"FUNCTION ${NIL}",
+			&preprocessorInstruction{
+				function:          "FUNCTION",
+				variable:          "NIL",
+				currentValue:      nil,
+				currentValueFound: true,
+			},
+			"",
+		},
+		{
+			"FUNCTION ${VARIABLE} ARG0",
+			&preprocessorInstruction{
+				function:  "FUNCTION",
+				variable:  "VARIABLE",
+				arguments: []string{"ARG0"},
+			},
+			"",
+		},
+		{
+			"FUNCTION ${VARIABLE} ARG0 ARG1 ARG2",
+			&preprocessorInstruction{
+				function:  "FUNCTION",
+				variable:  "VARIABLE",
+				arguments: []string{"ARG0", "ARG1", "ARG2"},
+			},
+			"",
+		},
+	}
+	for i, c := range cases {
+		env := &PipelineEnvironment{
+			Substitutions: map[string]*string{
+				"NIL":     nil,
+				"EMPTY":   &empty,
+				"TEMPDIR": &tempDir,
+			},
+		}
+		inst, err := parsePreprocessorLine(c.line, env)
+		if len(c.errorMessage) > 0 {
+			if err == nil {
+				t.Errorf("expected error @%d, got nil", i)
+				continue
+			}
+			if err.Error() != c.errorMessage {
+				t.Errorf("incorrect error @%d, got: '%s', wanted: '%s'", i, err, c.errorMessage)
+			}
+			continue
+		} else if err != nil {
+			t.Errorf("unexpected error @%d: '%s'", i, err)
+			continue
+		}
+		if inst.function != c.inst.function {
+			t.Errorf("incorrect inst.function, got: %s, wanted: %s", inst.function, c.inst.function)
+		}
+		if inst.variable != c.inst.variable {
+			t.Errorf("incorrect inst.variable, got: %s, wanted: %s", inst.variable, c.inst.variable)
+		}
+		if inst.currentValue != c.inst.currentValue {
+			t.Errorf("incorrect inst.currentValue, got: %v, wanted: %v", inst.currentValue, c.inst.currentValue)
+		}
+		if inst.currentValueFound != c.inst.currentValueFound {
+			t.Errorf("incorrect inst.currentValueFound, got: %t, wanted: %t", inst.currentValueFound, c.inst.currentValueFound)
+		}
+		if len(inst.arguments) != len(c.inst.arguments) {
+			t.Errorf("incorrect inst.arguments length, got: %d, wanted: %d", len(inst.arguments), len(c.inst.arguments))
+			continue
+		}
+		for j, arg := range inst.arguments {
+			if arg != c.inst.arguments[j] {
+				t.Errorf("incorrect inst.arguments @%d, got: %s, wanted: %s", j, arg, c.inst.arguments[j])
+			}
+		}
+	}
+}
+
 func TestProcessCheckIfDirExists(t *testing.T) {
 	empty := ""
 	iDoNotExist := "/iDoNotExist"
@@ -101,14 +222,12 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 	tempDir := os.TempDir()
 	cases := []struct {
 		instruction  *preprocessorInstruction
-		hasError     bool
 		errorMessage string
 	}{
 		{
 			&preprocessorInstruction{
 				function: "FUNCTION",
 			},
-			true,
 			"missing variable in FUNCTION",
 		},
 		{
@@ -118,7 +237,6 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 				currentValue:      nil,
 				currentValueFound: true,
 			},
-			true,
 			"empty variable in FUNCTION for NIL",
 		},
 		{
@@ -128,7 +246,6 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 				currentValue:      &empty,
 				currentValueFound: true,
 			},
-			true,
 			"empty variable in FUNCTION for EMPTY",
 		},
 		{
@@ -138,7 +255,6 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 				currentValue:      &iDoNotExist,
 				currentValueFound: true,
 			},
-			true,
 			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
 		},
 		{
@@ -148,7 +264,6 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 				currentValue:      &notAPath,
 				currentValueFound: true,
 			},
-			true,
 			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
 		},
 		{
@@ -158,8 +273,17 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 				currentValue:      &tempDir,
 				currentValueFound: true,
 			},
-			false,
 			"",
+		},
+		{
+			&preprocessorInstruction{
+				function:          "FUNCTION",
+				variable:          "TEMPDIR",
+				arguments:         []string{"ARGUMENT"},
+				currentValue:      &tempDir,
+				currentValueFound: true,
+			},
+			"too many arguments in FUNCTION for TEMPDIR",
 		},
 	}
 	for i, c := range cases {
@@ -173,7 +297,7 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 			},
 		}
 		err := processCheckIfDirExists(c.instruction, env)
-		if c.hasError {
+		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
 				continue
@@ -208,7 +332,7 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
 	}
 
-	// missing value
+	// missing arguments
 	err = processSetIfEmpty(&preprocessorInstruction{
 		function:     "FUNCTION",
 		variable:     "TEMPDIR",
@@ -217,7 +341,22 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
-	e = "missing value in FUNCTION for TEMPDIR"
+	e = "missing argument in FUNCTION for TEMPDIR"
+	if err.Error() != e {
+		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
+	}
+
+	// too many arguments
+	err = processSetIfEmpty(&preprocessorInstruction{
+		function:     "FUNCTION",
+		variable:     "TEMPDIR",
+		arguments:    []string{"foo", "bar"},
+		currentValue: &tempDir,
+	}, env)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	e = "too many arguments in FUNCTION for TEMPDIR"
 	if err.Error() != e {
 		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
 	}

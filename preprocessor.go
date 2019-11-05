@@ -70,7 +70,7 @@ func processCheckIfDirExists(inst *preprocessorInstruction, env *PipelineEnviron
 		return fmt.Errorf("missing variable in %s", inst.function)
 	}
 	if len(inst.arguments) > 0 {
-		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+		return fmt.Errorf("too many arguments in %s for %s", inst.function, inst.variable)
 	}
 	if !inst.currentValueFound || inst.currentValue == nil || len(*inst.currentValue) < 1 {
 		return fmt.Errorf("empty variable in %s for %s", inst.function, inst.variable)
@@ -94,10 +94,10 @@ func processSetIfEmpty(inst *preprocessorInstruction, env *PipelineEnvironment) 
 		return fmt.Errorf("missing variable in %s", inst.function)
 	}
 	if len(inst.arguments) == 0 {
-		return fmt.Errorf("missing value in %s for %s", inst.function, inst.variable)
+		return fmt.Errorf("missing argument in %s for %s", inst.function, inst.variable)
 	}
 	if len(inst.arguments) > 1 {
-		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+		return fmt.Errorf("too many arguments in %s for %s", inst.function, inst.variable)
 	}
 	// If environment variable set and not empty, do not create it!
 	if inst.currentValueFound && inst.currentValue != nil && len(*inst.currentValue) > 0 {
@@ -112,7 +112,7 @@ func processTempDirIfEmpty(inst *preprocessorInstruction, env *PipelineEnvironme
 		return fmt.Errorf("missing variable in %s", inst.function)
 	}
 	if len(inst.arguments) > 0 {
-		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+		return fmt.Errorf("too many arguments in %s for %s", inst.function, inst.variable)
 	}
 	if inst.currentValueFound && inst.currentValue != nil && len(*inst.currentValue) > 0 {
 		path, err := filepath.Abs(*inst.currentValue)
