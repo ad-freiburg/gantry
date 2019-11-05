@@ -12,7 +12,7 @@ import (
 
 const barValue string = "Bar"
 
-func TestPipelineEnvironmentApplyTo(t *testing.T) {
+func TestPreprocessYAML(t *testing.T) {
 	bar := barValue
 	cases := []struct {
 		in            string
@@ -82,7 +82,7 @@ func TestPipelineEnvironmentApplyTo(t *testing.T) {
 				log.Fatal(err)
 			}
 		}
-		resBytes, err := e.ApplyTo([]byte(c.in))
+		resBytes, err := gantry.PreprocessYAML([]byte(c.in), e)
 		if err != nil {
 			t.Error(err)
 		}
