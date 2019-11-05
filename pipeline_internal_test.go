@@ -471,7 +471,7 @@ func TestPipelineExecuteSteps(t *testing.T) {
 }
 
 func TestPipelineRemoveTempDirData(t *testing.T) {
-	tmpDef, tmpEnv := setupDefAndEnv(`#! TEMP_DIR ${TEMP_STORAGE}
+	tmpDef, tmpEnv := setupDefAndEnv(`#! TEMP_DIR_IF_EMPTY ${TEMP_STORAGE}
 steps:
   a:
     volumes:

@@ -5,91 +5,152 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func extractPreprocessorStatements(lines []string) ([]string, []string) {
-	preprocessorStatements := []string{}
-	normalLines := []string{}
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if len(trimmedLine) < 2 || trimmedLine[0] != '#' {
-			normalLines = append(normalLines, line)
-			continue
-		}
-		if trimmedLine[1] != '!' {
-			continue
-		}
-		preprocessorStatements = append(preprocessorStatements, strings.TrimSpace(trimmedLine[2:]))
-	}
-	return preprocessorStatements, normalLines
+const setIfEmpty = "SET_IF_EMPTY"
+const checkIfDirExists = "CHECK_IF_DIR_EXISTS"
+const tempDirIfEmpty = "TEMP_DIR_IF_EMPTY"
+
+type preprocessorInstruction struct {
+	function          string
+	variable          string
+	arguments         []string
+	currentValue      *string
+	currentValueFound bool
 }
 
-func processPreprocessorStatements(statements []string, env *PipelineEnvironment) error {
-	for _, statement := range statements {
-		parts := strings.Split(statement, " ")
-		if len(parts[0]) < 1 {
-			return fmt.Errorf("empty preprocessor statement found!")
+func parsePreprocessorLine(line string, env *PipelineEnvironment) (*preprocessorInstruction, error) {
+	result := &preprocessorInstruction{}
+	parts := strings.Split(line, " ")
+	if len(parts[0]) < 1 {
+		return result, fmt.Errorf("empty preprocessor line found!")
+	}
+	result.function = parts[0]
+	if len(parts) < 2 {
+		return result, nil
+	}
+	// Remove ${ } from variable
+	if !strings.HasPrefix(parts[1], "${") || !strings.HasSuffix(parts[1], "}") {
+		return result, fmt.Errorf("invalid variable in: '%s'", line)
+	}
+	result.variable = parts[1][2 : len(parts[1])-1]
+	// Store arguments
+	if len(parts) > 2 {
+		result.arguments = parts[2:]
+	}
+	// Lookup substitution value
+	val, ok := env.Substitutions[result.variable]
+	result.currentValue = val
+	result.currentValueFound = ok
+	return result, nil
+}
+
+func extractPreprocessorLines(lines []string) ([]string, []string) {
+	preprocessor := []string{}
+	normal := []string{}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if len(trimmed) < 2 || trimmed[0] != '#' {
+			normal = append(normal, line)
+			continue
 		}
-		if len(parts) < 2 {
-			return fmt.Errorf("missing variable name for: '%s'", statement)
+		if trimmed[1] != '!' {
+			continue
 		}
-		// Lookup substitution value
-		key := parts[1][2 : len(parts[1])-1]
-		val, ok := env.Substitutions[key]
-		log.Printf("%#v", parts)
-		switch parts[0] {
-		case "CHECK_IF_DIR_EXISTS":
-			// If environment variable is empty or not set, abort!
-			if !ok || val == nil || len(*val) < 1 {
-				return fmt.Errorf("empty variable for CHECK_IF_DIR_EXISTS: '%s'", key)
-			}
-			path, err := filepath.Abs(*val)
-			if err != nil {
-				return fmt.Errorf("path error for CHECK_IF_DIR_EXISTS '%s': err: '%s'", key, err)
-			}
-			fi, err := os.Stat(path)
-			if os.IsNotExist(err) {
-				return fmt.Errorf("path error for CHECK_IF_DIR_EXISTS '%s': err: '%s'", key, err)
-			}
-			if !fi.Mode().IsDir() {
-				return fmt.Errorf("path error for CHECK_IF_DIR_EXISTS '%s': not a directory '%s'", key, path)
-			}
-		case "SET_IF_EMPTY":
-			if len(parts) < 3 {
-				return fmt.Errorf("invalid syntax SET_IF_EMPTY '%s': missing value", key)
-			}
-			// If environment variable set and not empty, do not create it!
-			if ok && val != nil && len(*val) > 0 {
-				continue
-			}
-			env.Substitutions[key] = &parts[2]
-		case "TEMP_DIR":
-			// If environment variable for temp dir is set, do not create it!
-			if ok && val != nil && len(*val) > 0 {
-				path, err := filepath.Abs(*val)
-				if err != nil {
-					return fmt.Errorf("path error for TEMP_DIR '%s': err: '%s'", key, err)
-				}
-				fi, err := os.Stat(path)
-				if os.IsNotExist(err) {
-					return fmt.Errorf("path error for TEMP_DIR '%s': err: '%s'", key, err)
-				}
-				if !fi.Mode().IsDir() {
-					return fmt.Errorf("path error for CHECK_IF_DIR_EXISTS '%s': not a directory", key)
-				}
-			}
-			// We have an empty value or a new variable: create the directory.
-			path, err := env.getOrCreateTempDir(key)
-			if err != nil {
-				return err
-			}
-			env.Substitutions[key] = &path
+		preprocessor = append(preprocessor, strings.TrimSpace(trimmed[2:]))
+	}
+	return preprocessor, normal
+}
+
+func processCheckIfDirExists(inst *preprocessorInstruction, env *PipelineEnvironment) error {
+	if len(inst.variable) == 0 {
+		return fmt.Errorf("missing variable in %s", inst.function)
+	}
+	if len(inst.arguments) > 0 {
+		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+	}
+	if !inst.currentValueFound || inst.currentValue == nil || len(*inst.currentValue) < 1 {
+		return fmt.Errorf("empty variable in %s for %s", inst.function, inst.variable)
+	}
+	path, err := filepath.Abs(*inst.currentValue)
+	if err != nil {
+		return fmt.Errorf("path error in %s for %s: err: '%s'", inst.function, inst.variable, err)
+	}
+	fi, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("path error in %s for %s: err: '%s'", inst.function, inst.variable, err)
+	}
+	if !fi.Mode().IsDir() {
+		return fmt.Errorf("path error in %s for %s: not a directory '%s'", inst.function, inst.variable, path)
+	}
+	return nil
+}
+
+func processSetIfEmpty(inst *preprocessorInstruction, env *PipelineEnvironment) error {
+	if len(inst.variable) == 0 {
+		return fmt.Errorf("missing variable in %s", inst.function)
+	}
+	if len(inst.arguments) == 0 {
+		return fmt.Errorf("missing value in %s for %s", inst.function, inst.variable)
+	}
+	if len(inst.arguments) > 1 {
+		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+	}
+	// If environment variable set and not empty, do not create it!
+	if inst.currentValueFound && inst.currentValue != nil && len(*inst.currentValue) > 0 {
+		return nil
+	}
+	env.Substitutions[inst.variable] = &inst.arguments[0]
+	return nil
+}
+
+func processTempDirIfEmpty(inst *preprocessorInstruction, env *PipelineEnvironment) error {
+	if len(inst.variable) == 0 {
+		return fmt.Errorf("missing variable in %s", inst.function)
+	}
+	if len(inst.arguments) > 0 {
+		return fmt.Errorf("too many values in %s for %s", inst.function, inst.variable)
+	}
+	if inst.currentValueFound && inst.currentValue != nil && len(*inst.currentValue) > 0 {
+		path, err := filepath.Abs(*inst.currentValue)
+		if err != nil {
+			return fmt.Errorf("path error in %s for %s: err: '%s'", inst.function, inst.variable, err)
+		}
+		fi, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("path error in %s for %s: err: '%s'", inst.function, inst.variable, err)
+		}
+		if !fi.Mode().IsDir() {
+			return fmt.Errorf("path error in %s for %s: not a directory '%s'", inst.function, inst.variable, path)
+		}
+	}
+	// We have an empty value or a new variable: create the directory.
+	path, err := env.getOrCreateTempDir(inst.variable)
+	if err != nil {
+		return err
+	}
+	env.Substitutions[inst.variable] = &path
+	return nil
+}
+
+func processPreprocessorLines(lines []string, env *PipelineEnvironment) error {
+	for _, line := range lines {
+		instruction, err := parsePreprocessorLine(line, env)
+		if err != nil {
+			return err
+		}
+		switch instruction.function {
+		case checkIfDirExists:
+			return processCheckIfDirExists(instruction, env)
+		case setIfEmpty:
+			return processSetIfEmpty(instruction, env)
+		case tempDirIfEmpty:
+			return processTempDirIfEmpty(instruction, env)
 		default:
-			return fmt.Errorf("unknown preprocessor directive: '%s'", parts[0])
+			return fmt.Errorf("unknown preprocessor directive: '%s'", instruction.function)
 		}
 	}
 	return nil
@@ -133,11 +194,11 @@ func PreprocessYAML(rawFile []byte, env *PipelineEnvironment) ([]byte, error) {
 		lineBytesBuffer.Reset()
 	}
 	// Run preprocessor steps
-	statements, normalLines := extractPreprocessorStatements(lines)
-	if err := processPreprocessorStatements(statements, env); err != nil {
+	preprocessor, normal := extractPreprocessorLines(lines)
+	if err := processPreprocessorLines(preprocessor, env); err != nil {
 		return []byte(""), err
 	}
-	lines = expandVariables(normalLines, env)
+	lines = expandVariables(normal, env)
 	// Reconvert to byte slice
 	var b bytes.Buffer
 	bw := bufio.NewWriter(&b)

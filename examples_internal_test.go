@@ -291,6 +291,7 @@ func TestExamples(t *testing.T) {
 		p, err := NewPipeline(example.def, example.env, types.StringMap{}, types.StringSet{}, types.StringSet{})
 		if err != nil {
 			t.Errorf("Unexpected error creating pipeline for '%s': '%#v'", example.dir, err)
+			continue
 		}
 		localRunner := NewNoopRunner(false)
 		noopRunner := NewNoopRunner(false)
