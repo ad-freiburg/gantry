@@ -12,11 +12,26 @@ const networkName string = "network"
 
 func checkCallsAndCalled(t *testing.T, runner *gantry.NoopRunner, key string, calls int, called int) {
 	if c := runner.NumCalls(key); c != calls {
-		t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", key, c, calls)
+		t.Errorf("incorrect NumCalls for '%s', got: '%d', wanted '%d'", key, c, calls)
 	}
 	if c := runner.NumCalled(key); c != called {
-		t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", key, c, called)
+		t.Errorf("incorrect NumCalled for '%s', got: '%d', wanted '%d'", key, c, called)
 	}
+}
+
+func TestNoopRunnerPrintContainerExecutable(t *testing.T) {
+	runner := gantry.NewNoopRunner(true)
+
+	key := "PrintContainerExecutable()"
+	checkCallsAndCalled(t, runner, key, 0, 0)
+
+	f := runner.PrintContainerExecutable()
+	checkCallsAndCalled(t, runner, key, 1, 0)
+
+	if err := f(); err != nil {
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
+	}
+	checkCallsAndCalled(t, runner, key, 1, 1)
 }
 
 func TestNoopRunnerImageBuilder(t *testing.T) {
@@ -30,7 +45,7 @@ func TestNoopRunnerImageBuilder(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -46,7 +61,7 @@ func TestNoopRunnerImageBuilderForcePull(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -62,7 +77,7 @@ func TestNoopRunnerImagePuller(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -78,7 +93,7 @@ func TestNoopRunnerImageExistenceChecker(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -95,10 +110,10 @@ func TestNoopRunnerContainerKiller(t *testing.T) {
 
 	num, err := f()
 	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	if num != 0 {
-		t.Errorf("Incorrect number of killed containers, got: '%#v', wanted '0'", num)
+		t.Errorf("incorrect number of killed containers, got: '%#v', wanted '0'", num)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -114,7 +129,7 @@ func TestNoopRunnerContainerRemover(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -131,7 +146,7 @@ func TestNoopRunnerContainerRunner(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -146,7 +161,7 @@ func TestNoopRunnerNetworkCreator(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
@@ -161,7 +176,7 @@ func TestNoopRunnerNetworkRemover(t *testing.T) {
 	checkCallsAndCalled(t, runner, key, 1, 0)
 
 	if err := f(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	checkCallsAndCalled(t, runner, key, 1, 1)
 }
