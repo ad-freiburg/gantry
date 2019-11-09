@@ -393,7 +393,10 @@ func runCommandParallel(config runConfig, runner Runner, step Step, durations *s
 			// If no previous error is stored, store the current error in the
 			// abort channel.
 			if len(abort) < 1 {
-				abort <- ExecutionError{err, step.Meta.ExitCodeOverride}
+				abort <- ExecutionError{
+					err:              err,
+					exitCodeOverride: step.Meta.ExitCodeOverride,
+				}
 			}
 		} else {
 			pipelineLogger.Printf("  Ignoring error of: %s", step.ColoredContainerName())
