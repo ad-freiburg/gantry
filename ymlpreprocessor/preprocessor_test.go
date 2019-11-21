@@ -1,4 +1,4 @@
-package gantry_test
+package ymlpreprocessor_test
 
 import (
 	"io/ioutil"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/ad-freiburg/gantry"
 	"github.com/ad-freiburg/gantry/types"
+	"github.com/ad-freiburg/gantry/ymlpreprocessor"
 )
 
 const barValue string = "Bar"
@@ -82,7 +83,7 @@ func TestPreprocessYAML(t *testing.T) {
 				log.Fatal(err)
 			}
 		}
-		resBytes, err := gantry.PreprocessYAML([]byte(c.in), e)
+		resBytes, err := ymlpreprocessor.PreprocessYAML([]byte(c.in), e)
 		if err != nil {
 			t.Error(err)
 		}

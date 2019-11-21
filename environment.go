@@ -122,6 +122,15 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.StringMap)
 	}
 }
 
+func (e *PipelineEnvironment) GetSubstitution(key string) (*string, bool) {
+	value, ok := e.Substitutions[key]
+	return value, ok
+}
+
+func (e *PipelineEnvironment) SetSubstitution(key string, value *string) {
+	e.Substitutions[key] = value
+}
+
 func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, selectedSteps types.StringSet) {
 	for name := range ignoredSteps {
 		if _, found := e.Steps[name]; !found {
@@ -160,7 +169,7 @@ func (e *PipelineEnvironment) CleanUp(signal os.Signal) error {
 	return nil
 }
 
-func (e *PipelineEnvironment) getOrCreateTempDir(prefix string) (string, error) {
+func (e *PipelineEnvironment) GetOrCreateTempDir(prefix string) (string, error) {
 	val, ok := e.tempPaths[prefix]
 	if ok {
 		return val, nil

@@ -1,10 +1,25 @@
-package gantry
+package ymlpreprocessor
 
 import (
 	"fmt"
 	"os"
 	"testing"
 )
+
+type testEnv map[string]*string
+
+func (e testEnv) GetSubstitution(key string) (*string, bool) {
+	value, ok := e[key]
+	return value, ok
+}
+
+func (e testEnv) SetSubstitution(key string, value *string) {
+	e[key] = value
+}
+
+func (e testEnv) GetOrCreateTempDir(key string) (string, error) {
+	return key, nil
+}
 
 func TestExtractPreprocessorStatements(t *testing.T) {
 	input := []string{
@@ -86,14 +101,12 @@ func TestProcessPreprocessorLines(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		env := &PipelineEnvironment{
-			Substitutions: map[string]*string{
-				"NIL":     nil,
-				"EMPTY":   &empty,
-				"TEMPDIR": &tempDir,
-			},
+		env := testEnv{
+			"NIL":     nil,
+			"EMPTY":   &empty,
+			"TEMPDIR": &tempDir,
 		}
-		err := processPreprocessorLines([]string{c.line}, env)
+		err := processPreprocessorLines([]string{c.line}, &env)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -108,76 +121,74 @@ func TestProcessPreprocessorLines(t *testing.T) {
 	}
 }
 
-func TestParsePreprocessorLine(t *testing.T) {
+func TestNewPreprocessorInstruction(t *testing.T) {
 	empty := ""
 	tempDir := os.TempDir()
 	cases := []struct {
 		line         string
-		inst         *preprocessorInstruction
+		inst         *PreprocessorInstruction
 		errorMessage string
 	}{
 		{
 			"FUNCTION_WITHOUT_VAR_OR_ARG",
-			&preprocessorInstruction{
-				function: "FUNCTION_WITHOUT_VAR_OR_ARG",
+			&PreprocessorInstruction{
+				Function: "FUNCTION_WITHOUT_VAR_OR_ARG",
 			},
 			"",
 		},
 		{
 			"FUNCTION VARIABLE",
-			&preprocessorInstruction{
-				function: "FUNCTION",
-				variable: "VARIABLE",
+			&PreprocessorInstruction{
+				Function: "FUNCTION",
+				Variable: "VARIABLE",
 			},
 			"invalid variable in: 'FUNCTION VARIABLE'",
 		},
 		{
 			"FUNCTION ${VARIABLE}",
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "VARIABLE",
-				currentValueFound: false,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "VARIABLE",
+				CurrentValueFound: false,
 			},
 			"",
 		},
 		{
 			"FUNCTION ${NIL}",
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "NIL",
-				currentValue:      nil,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "NIL",
+				CurrentValue:      nil,
+				CurrentValueFound: true,
 			},
 			"",
 		},
 		{
 			"FUNCTION ${VARIABLE} ARG0",
-			&preprocessorInstruction{
-				function:  "FUNCTION",
-				variable:  "VARIABLE",
-				arguments: []string{"ARG0"},
+			&PreprocessorInstruction{
+				Function:  "FUNCTION",
+				Variable:  "VARIABLE",
+				Arguments: []string{"ARG0"},
 			},
 			"",
 		},
 		{
 			"FUNCTION ${VARIABLE} ARG0 ARG1 ARG2",
-			&preprocessorInstruction{
-				function:  "FUNCTION",
-				variable:  "VARIABLE",
-				arguments: []string{"ARG0", "ARG1", "ARG2"},
+			&PreprocessorInstruction{
+				Function:  "FUNCTION",
+				Variable:  "VARIABLE",
+				Arguments: []string{"ARG0", "ARG1", "ARG2"},
 			},
 			"",
 		},
 	}
 	for i, c := range cases {
-		env := &PipelineEnvironment{
-			Substitutions: map[string]*string{
-				"NIL":     nil,
-				"EMPTY":   &empty,
-				"TEMPDIR": &tempDir,
-			},
+		env := testEnv{
+			"NIL":     nil,
+			"EMPTY":   &empty,
+			"TEMPDIR": &tempDir,
 		}
-		inst, err := parsePreprocessorLine(c.line, env)
+		inst, err := NewPreprocessorInstruction(c.line, &env)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -191,25 +202,25 @@ func TestParsePreprocessorLine(t *testing.T) {
 			t.Errorf("unexpected error @%d: '%s'", i, err)
 			continue
 		}
-		if inst.function != c.inst.function {
-			t.Errorf("incorrect inst.function, got: %s, wanted: %s", inst.function, c.inst.function)
+		if inst.Function != c.inst.Function {
+			t.Errorf("incorrect inst.Function, got: %s, wanted: %s", inst.Function, c.inst.Function)
 		}
-		if inst.variable != c.inst.variable {
-			t.Errorf("incorrect inst.variable, got: %s, wanted: %s", inst.variable, c.inst.variable)
+		if inst.Variable != c.inst.Variable {
+			t.Errorf("incorrect inst.Variable, got: %s, wanted: %s", inst.Variable, c.inst.Variable)
 		}
-		if inst.currentValue != c.inst.currentValue {
-			t.Errorf("incorrect inst.currentValue, got: %v, wanted: %v", inst.currentValue, c.inst.currentValue)
+		if inst.CurrentValue != c.inst.CurrentValue {
+			t.Errorf("incorrect inst.CurrentValue, got: %v, wanted: %v", inst.CurrentValue, c.inst.CurrentValue)
 		}
-		if inst.currentValueFound != c.inst.currentValueFound {
-			t.Errorf("incorrect inst.currentValueFound, got: %t, wanted: %t", inst.currentValueFound, c.inst.currentValueFound)
+		if inst.CurrentValueFound != c.inst.CurrentValueFound {
+			t.Errorf("incorrect inst.CurrentValueFound, got: %t, wanted: %t", inst.CurrentValueFound, c.inst.CurrentValueFound)
 		}
-		if len(inst.arguments) != len(c.inst.arguments) {
-			t.Errorf("incorrect inst.arguments length, got: %d, wanted: %d", len(inst.arguments), len(c.inst.arguments))
+		if len(inst.Arguments) != len(c.inst.Arguments) {
+			t.Errorf("incorrect inst.Arguments length, got: %d, wanted: %d", len(inst.Arguments), len(c.inst.Arguments))
 			continue
 		}
-		for j, arg := range inst.arguments {
-			if arg != c.inst.arguments[j] {
-				t.Errorf("incorrect inst.arguments @%d, got: %s, wanted: %s", j, arg, c.inst.arguments[j])
+		for j, arg := range inst.Arguments {
+			if arg != c.inst.Arguments[j] {
+				t.Errorf("incorrect inst.Arguments @%d, got: %s, wanted: %s", j, arg, c.inst.Arguments[j])
 			}
 		}
 	}
@@ -221,82 +232,80 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 	notAPath := os.Args[0]
 	tempDir := os.TempDir()
 	cases := []struct {
-		instruction  *preprocessorInstruction
+		instruction  *PreprocessorInstruction
 		errorMessage string
 	}{
 		{
-			&preprocessorInstruction{
-				function: "FUNCTION",
+			&PreprocessorInstruction{
+				Function: "FUNCTION",
 			},
 			"missing variable in FUNCTION",
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "NIL",
-				currentValue:      nil,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "NIL",
+				CurrentValue:      nil,
+				CurrentValueFound: true,
 			},
 			"empty variable in FUNCTION for NIL",
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "EMPTY",
-				currentValue:      &empty,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "EMPTY",
+				CurrentValue:      &empty,
+				CurrentValueFound: true,
 			},
 			"empty variable in FUNCTION for EMPTY",
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "I_DO_NOT_EXIST",
-				currentValue:      &iDoNotExist,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "I_DO_NOT_EXIST",
+				CurrentValue:      &iDoNotExist,
+				CurrentValueFound: true,
 			},
 			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "NOT_A_PATH",
-				currentValue:      &notAPath,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "NOT_A_PATH",
+				CurrentValue:      &notAPath,
+				CurrentValueFound: true,
 			},
 			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "TEMPDIR",
-				currentValue:      &tempDir,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "TEMPDIR",
+				CurrentValue:      &tempDir,
+				CurrentValueFound: true,
 			},
 			"",
 		},
 		{
-			&preprocessorInstruction{
-				function:          "FUNCTION",
-				variable:          "TEMPDIR",
-				arguments:         []string{"ARGUMENT"},
-				currentValue:      &tempDir,
-				currentValueFound: true,
+			&PreprocessorInstruction{
+				Function:          "FUNCTION",
+				Variable:          "TEMPDIR",
+				Arguments:         []string{"ARGUMENT"},
+				CurrentValue:      &tempDir,
+				CurrentValueFound: true,
 			},
 			"too many arguments in FUNCTION for TEMPDIR",
 		},
 	}
 	for i, c := range cases {
-		env := &PipelineEnvironment{
-			Substitutions: map[string]*string{
-				"NIL":            nil,
-				"EMPTY":          &empty,
-				"TEMPDIR":        &tempDir,
-				"I_DO_NOT_EXIST": &iDoNotExist,
-				"NOT_A_PATH":     &notAPath,
-			},
+		env := testEnv{
+			"NIL":            nil,
+			"EMPTY":          &empty,
+			"TEMPDIR":        &tempDir,
+			"I_DO_NOT_EXIST": &iDoNotExist,
+			"NOT_A_PATH":     &notAPath,
 		}
-		err := processCheckIfDirExists(c.instruction, env)
+		err := processCheckIfDirExists(c.instruction, &env)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -316,14 +325,12 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	tempDir := os.TempDir()
 
 	// missing variable
-	env := &PipelineEnvironment{
-		Substitutions: map[string]*string{
-			"TEMPDIR": &tempDir,
-		},
+	env := testEnv{
+		"TEMPDIR": &tempDir,
 	}
-	err := processSetIfEmpty(&preprocessorInstruction{
-		function: "FUNCTION",
-	}, env)
+	err := processSetIfEmpty(&PreprocessorInstruction{
+		Function: "FUNCTION",
+	}, &env)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
@@ -333,11 +340,11 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	}
 
 	// missing arguments
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:     "FUNCTION",
-		variable:     "TEMPDIR",
-		currentValue: &tempDir,
-	}, env)
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:     "FUNCTION",
+		Variable:     "TEMPDIR",
+		CurrentValue: &tempDir,
+	}, &env)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
@@ -347,12 +354,12 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	}
 
 	// too many arguments
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:     "FUNCTION",
-		variable:     "TEMPDIR",
-		arguments:    []string{"foo", "bar"},
-		currentValue: &tempDir,
-	}, env)
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:     "FUNCTION",
+		Variable:     "TEMPDIR",
+		Arguments:    []string{"foo", "bar"},
+		CurrentValue: &tempDir,
+	}, &env)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
@@ -362,37 +369,35 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	}
 
 	// non-empty variable
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:          "FUNCTION",
-		variable:          "TEMPDIR",
-		arguments:         []string{"foo"},
-		currentValue:      &tempDir,
-		currentValueFound: true,
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:          "FUNCTION",
+		Variable:          "TEMPDIR",
+		Arguments:         []string{"foo"},
+		CurrentValue:      &tempDir,
+		CurrentValueFound: true,
 	}, env)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
-	if env.Substitutions["TEMPDIR"] != &tempDir {
-		t.Errorf("unexpected value change, got: '%s', wanted: '%s'", *env.Substitutions["TEMPDIR"], tempDir)
+	if env["TEMPDIR"] != &tempDir {
+		t.Errorf("unexpected value change, got: '%s', wanted: '%s'", *env["TEMPDIR"], tempDir)
 	}
 
 	// nil variable
-	env = &PipelineEnvironment{
-		Substitutions: map[string]*string{
-			"NIL": nil,
-		},
+	env = testEnv{
+		"NIL": nil,
 	}
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:          "FUNCTION",
-		variable:          "NIL",
-		arguments:         []string{"foo"},
-		currentValue:      nil,
-		currentValueFound: true,
-	}, env)
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:          "FUNCTION",
+		Variable:          "NIL",
+		Arguments:         []string{"foo"},
+		CurrentValue:      nil,
+		CurrentValueFound: true,
+	}, &env)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
-	if val, ok := env.Substitutions["NIL"]; !ok {
+	if val, ok := env["NIL"]; !ok {
 		t.Errorf("key error, 'NIL' lost")
 	} else {
 		if val == nil {
@@ -404,26 +409,24 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	}
 
 	// empty variable
-	env = &PipelineEnvironment{
-		Substitutions: map[string]*string{
-			"EMPTY": &empty,
-		},
+	env = testEnv{
+		"EMPTY": &empty,
 	}
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:     "FUNCTION",
-		variable:     "EMPTY",
-		arguments:    []string{"foo"},
-		currentValue: &empty,
-	}, env)
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:     "FUNCTION",
+		Variable:     "EMPTY",
+		Arguments:    []string{"foo"},
+		CurrentValue: &empty,
+	}, &env)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
-	if *env.Substitutions["EMPTY"] == "" {
+	if *env["EMPTY"] == "" {
 		t.Errorf("incorrect value change, got: '', wanted: 'foo'")
-	} else if *env.Substitutions["EMPTY"] != "foo" {
-		t.Errorf("incorrect value change, got: '%s', wanted: 'foo'", *env.Substitutions["EMPTY"])
+	} else if *env["EMPTY"] != "foo" {
+		t.Errorf("incorrect value change, got: '%s', wanted: 'foo'", *env["EMPTY"])
 	}
-	if val, ok := env.Substitutions["EMPTY"]; !ok {
+	if val, ok := env["EMPTY"]; !ok {
 		t.Errorf("key error, 'EMPTY' lost")
 	} else {
 		if val == nil {
@@ -435,19 +438,17 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	}
 
 	// undefined variable
-	env = &PipelineEnvironment{
-		Substitutions: map[string]*string{},
-	}
-	err = processSetIfEmpty(&preprocessorInstruction{
-		function:     "FUNCTION",
-		variable:     "UNDEFINED",
-		arguments:    []string{"foo"},
-		currentValue: nil,
-	}, env)
+	env = testEnv{}
+	err = processSetIfEmpty(&PreprocessorInstruction{
+		Function:     "FUNCTION",
+		Variable:     "UNDEFINED",
+		Arguments:    []string{"foo"},
+		CurrentValue: nil,
+	}, &env)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
-	if val, ok := env.Substitutions["UNDEFINED"]; !ok {
+	if val, ok := env["UNDEFINED"]; !ok {
 		t.Errorf("variable creation error, 'UNDEFINED' not created")
 	} else {
 		if val == nil {
@@ -461,11 +462,9 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 
 func TestExpandVariables(t *testing.T) {
 	baz := "baz"
-	env := &PipelineEnvironment{
-		Substitutions: map[string]*string{
-			"Foo": nil,
-			"BAR": &baz,
-		},
+	env := testEnv{
+		"Foo": nil,
+		"BAR": &baz,
 	}
 	cases := []struct {
 		input    []string
@@ -557,7 +556,7 @@ func TestExpandVariables(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		r := expandVariables(c.input, env)
+		r := expandVariables(c.input, &env)
 		if len(r) != len(c.expected) {
 			t.Errorf("incorrect result size @%d, got: %d, wanted: %d", i, len(r), len(c.expected))
 			continue

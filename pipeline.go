@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ad-freiburg/gantry/types"
+	"github.com/ad-freiburg/gantry/ymlpreprocessor"
 	"github.com/ghodss/yaml"
 )
 
@@ -248,7 +249,7 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		return nil, err
 	}
 	// Apply environment to yaml
-	data, err = PreprocessYAML(data, env)
+	data, err = ymlpreprocessor.PreprocessYAML(data, env)
 	if err != nil {
 		return nil, err
 	}
