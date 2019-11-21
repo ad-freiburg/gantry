@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -15,6 +16,9 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 	"github.com/ghodss/yaml"
 )
+
+const DockerComposeFileFormatMajorMin int = 2
+const DockerComposeFileFormatMinorMin int = 0
 
 var (
 	pipelineLogger *PrefixedLogger
@@ -253,7 +257,12 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		return nil, err
 	}
 	d := &PipelineDefinition{}
-	err = yaml.Unmarshal(data, d)
+	if err := yaml.Unmarshal(data, d); err != nil {
+		return d, err
+	}
+	if err := d.checkVersion(); err != nil {
+		return d, err
+	}
 	// Update with specific meta if defined
 	for name, meta := range env.Steps {
 		s, ok := d.Steps[name]
@@ -275,7 +284,29 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		}
 		d.Steps[n] = step
 	}
-	return d, err
+	return d, nil
+}
+
+func (p *PipelineDefinition) checkVersion() error {
+	// docker-compose file format versions are MAJOR.MINOR only
+	parts := strings.SplitN(p.Version, ".", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid compose file format version: %s", p.Version)
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return err
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	if major < DockerComposeFileFormatMajorMin {
+		return fmt.Errorf("not supported compose file format version: got: %s want >= %d.%d", p.Version, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
+	} else if major == DockerComposeFileFormatMajorMin && minor < DockerComposeFileFormatMinorMin {
+		return fmt.Errorf("not supported compose file format version: got: %s want >= %d.%d", p.Version, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
+	}
+	return nil
 }
 
 // Pipelines calculates and verifies dependencies and ordering for steps
