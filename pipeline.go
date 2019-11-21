@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ad-freiburg/gantry/preprocessor"
 	"github.com/ad-freiburg/gantry/types"
-	"github.com/ad-freiburg/gantry/ymlpreprocessor"
 	"github.com/ghodss/yaml"
 )
 
@@ -249,11 +249,11 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		return nil, err
 	}
 	// Apply environment to yaml
-	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	preproc, err := preprocessor.NewPreprocessor()
 	if err != nil {
 		return nil, err
 	}
-	data, err = preprocessor.Process(data, env)
+	data, err = preproc.Process(data, env)
 	if err != nil {
 		return nil, err
 	}

@@ -1,14 +1,14 @@
-package ymlpreprocessor_test
+package preprocessor_test
 
 import (
 	"testing"
 
-	"github.com/ad-freiburg/gantry/ymlpreprocessor"
+	"github.com/ad-freiburg/gantry/preprocessor"
 )
 
 func TestFunctionCheck(t *testing.T) {
-	f := ymlpreprocessor.Function{}
-	i := ymlpreprocessor.Instruction{}
+	f := preprocessor.Function{}
+	i := preprocessor.Instruction{}
 	if err := f.Check(i); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
@@ -47,35 +47,35 @@ func TestFunctionCheck(t *testing.T) {
 
 func TestFunctionUsage(t *testing.T) {
 	cases := []struct {
-		function ymlpreprocessor.Function
+		function preprocessor.Function
 		result   string
 	}{
 		{
-			ymlpreprocessor.Function{},
+			preprocessor.Function{},
 			"",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names: []string{"FOO"},
 			},
 			"#! FOO",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names: []string{"FOO", "bar"},
 			},
 			`#! FOO
 #! bar`,
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:         []string{"FOO"},
 				NeedsVariable: true,
 			},
 			"#! FOO ${VAR}",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:         []string{"FOO"},
 				NeedsVariable: true,
 				NumArgsMin:    1,
@@ -84,7 +84,7 @@ func TestFunctionUsage(t *testing.T) {
 			"#! FOO ${VAR} ARG0",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:         []string{"FOO"},
 				NeedsVariable: true,
 				NumArgsMin:    1,
@@ -93,7 +93,7 @@ func TestFunctionUsage(t *testing.T) {
 			"#! FOO ${VAR} ARG0 [ ARG1 ]",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:         []string{"FOO"},
 				NeedsVariable: true,
 				NumArgsMin:    0,
@@ -102,7 +102,7 @@ func TestFunctionUsage(t *testing.T) {
 			"#! FOO ${VAR} [ ARG0 ARG1 ]",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:         []string{"FOO"},
 				NeedsVariable: true,
 				NumArgsMin:    2,
@@ -111,7 +111,7 @@ func TestFunctionUsage(t *testing.T) {
 			"#! FOO ${VAR} ARG0 ARG1",
 		},
 		{
-			ymlpreprocessor.Function{
+			preprocessor.Function{
 				Names:       []string{"FOO"},
 				Description: "Lorem ipsum dolor.",
 			},

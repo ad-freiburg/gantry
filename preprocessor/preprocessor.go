@@ -1,4 +1,4 @@
-package ymlpreprocessor
+package preprocessor
 
 import (
 	"bufio"

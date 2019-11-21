@@ -3,7 +3,7 @@ package cmd // import "github.com/ad-freiburg/gantry/cmd"
 import (
 	"fmt"
 
-	"github.com/ad-freiburg/gantry/ymlpreprocessor"
+	"github.com/ad-freiburg/gantry/preprocessor"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ var preprocessorCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("Available preprocessor functions:")
-		p, err := ymlpreprocessor.NewPreprocessor()
+		p, err := preprocessor.NewPreprocessor()
 		if err != nil {
 			return err
 		}

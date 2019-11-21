@@ -1,4 +1,4 @@
-package ymlpreprocessor_test
+package preprocessor_test
 
 import (
 	"fmt"
@@ -8,25 +8,25 @@ import (
 	"testing"
 
 	"github.com/ad-freiburg/gantry"
+	"github.com/ad-freiburg/gantry/preprocessor"
 	"github.com/ad-freiburg/gantry/types"
-	"github.com/ad-freiburg/gantry/ymlpreprocessor"
 )
 
 const barValue string = "Bar"
 
 func TestPreprocessorRegister(t *testing.T) {
-	p, err := ymlpreprocessor.NewPreprocessor()
+	p, err := preprocessor.NewPreprocessor()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	smallF1 := &ymlpreprocessor.Function{
+	smallF1 := &preprocessor.Function{
 		Names: []string{"f1"},
 	}
-	bigF1 := &ymlpreprocessor.Function{
+	bigF1 := &preprocessor.Function{
 		Names: []string{"F1"},
 	}
-	bigF2andBigF1 := &ymlpreprocessor.Function{
+	bigF2andBigF1 := &preprocessor.Function{
 		Names: []string{"F2", "F1"},
 	}
 	if err := p.Register(smallF1); err != nil {
@@ -96,7 +96,7 @@ ${EMPTY}`,
 			types.StringMap{"Foo": &bar},
 		},
 	}
-	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	preprocessor, err := preprocessor.NewPreprocessor()
 	if err != nil {
 		t.Error(err)
 		return
@@ -157,12 +157,12 @@ func TestPreprocessorProcessErrors(t *testing.T) {
 			types.StringMap{},
 		},
 	}
-	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	preproc, err := preprocessor.NewPreprocessor()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = preprocessor.Register(&ymlpreprocessor.Function{
+	err = preproc.Register(&preprocessor.Function{
 		Names:      []string{"DEFECTIVE_CHECK"},
 		NumArgsMin: 1,
 	})
@@ -192,7 +192,7 @@ func TestPreprocessorProcessErrors(t *testing.T) {
 				log.Fatal(err)
 			}
 		}
-		resBytes, err := preprocessor.Process([]byte(c.in), e)
+		resBytes, err := preproc.Process([]byte(c.in), e)
 		if err == nil {
 			t.Error("expected error, got nil")
 		}
@@ -207,13 +207,13 @@ func TestPreprocessorProcessErrors(t *testing.T) {
 }
 
 func TestPreprocessorFunctions(t *testing.T) {
-	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	preproc, err := preprocessor.NewPreprocessor()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	numFunctions := len(preprocessor.Functions())
-	err = preprocessor.Register(&ymlpreprocessor.Function{
+	numFunctions := len(preproc.Functions())
+	err = preproc.Register(&preprocessor.Function{
 		Names:      []string{"DEFECTIVE_CHECK"},
 		NumArgsMin: 1,
 	})
@@ -221,7 +221,7 @@ func TestPreprocessorFunctions(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	updatedNumFunctions := len(preprocessor.Functions())
+	updatedNumFunctions := len(preproc.Functions())
 	if numFunctions+1 != updatedNumFunctions {
 		t.Errorf("incorrect number of functions, got: %d, wanted: %d", updatedNumFunctions, numFunctions+1)
 	}
