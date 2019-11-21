@@ -2,6 +2,7 @@ package ymlpreprocessor
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -19,6 +20,21 @@ func (e testEnv) SetSubstitution(key string, value *string) {
 
 func (e testEnv) GetOrCreateTempDir(key string) (string, error) {
 	return key, nil
+}
+
+type testDefectiveEnv map[string]*string
+
+func (e testDefectiveEnv) GetSubstitution(key string) (*string, bool) {
+	value, ok := e[key]
+	return value, ok
+}
+
+func (e testDefectiveEnv) SetSubstitution(key string, value *string) {
+	e[key] = value
+}
+
+func (e testDefectiveEnv) GetOrCreateTempDir(key string) (string, error) {
+	return key, fmt.Errorf("error")
 }
 
 func TestExtractPreprocessorStatements(t *testing.T) {
@@ -72,73 +88,26 @@ func TestExtractPreprocessorStatements(t *testing.T) {
 	}
 }
 
-func TestProcessPreprocessorLines(t *testing.T) {
+func TestNewInstruction(t *testing.T) {
 	empty := ""
-	tempDir := os.TempDir()
-	cases := []struct {
-		line         string
-		errorMessage string
-	}{
-		{
-			"",
-			"empty preprocessor line found!",
-		},
-		{
-			"FUNCTION_WITHOUT_VAR_OR_ARG",
-			"unknown preprocessor directive: 'FUNCTION_WITHOUT_VAR_OR_ARG'",
-		},
-		{
-			"FUNCTION INVALID_VAR",
-			"invalid variable in: 'FUNCTION INVALID_VAR'",
-		},
-		{
-			"SET_IF_EMPTY ${X} Foo",
-			"",
-		},
-		{
-			"CHECK_IF_DIR_EXISTS ${TEMPDIR}",
-			"",
-		},
-	}
-	for i, c := range cases {
-		env := testEnv{
-			"NIL":     nil,
-			"EMPTY":   &empty,
-			"TEMPDIR": &tempDir,
-		}
-		err := processPreprocessorLines([]string{c.line}, &env)
-		if len(c.errorMessage) > 0 {
-			if err == nil {
-				t.Errorf("expected error @%d, got nil", i)
-				continue
-			}
-			if err.Error() != c.errorMessage {
-				t.Errorf("incorrect error @%d, got: '%s', wanted: '%s'", i, err, c.errorMessage)
-			}
-		} else if err != nil {
-			t.Errorf("unexpected error @%d: '%s'", i, err)
-		}
-	}
-}
+	tempDir, _ := ioutil.TempDir("", "newInstruction")
+	defer os.RemoveAll(tempDir)
 
-func TestNewPreprocessorInstruction(t *testing.T) {
-	empty := ""
-	tempDir := os.TempDir()
 	cases := []struct {
 		line         string
-		inst         *PreprocessorInstruction
+		inst         *Instruction
 		errorMessage string
 	}{
 		{
 			"FUNCTION_WITHOUT_VAR_OR_ARG",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function: "FUNCTION_WITHOUT_VAR_OR_ARG",
 			},
 			"",
 		},
 		{
 			"FUNCTION VARIABLE",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function: "FUNCTION",
 				Variable: "VARIABLE",
 			},
@@ -146,7 +115,7 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 		},
 		{
 			"FUNCTION ${VARIABLE}",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function:          "FUNCTION",
 				Variable:          "VARIABLE",
 				CurrentValueFound: false,
@@ -155,7 +124,7 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 		},
 		{
 			"FUNCTION ${NIL}",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function:          "FUNCTION",
 				Variable:          "NIL",
 				CurrentValue:      nil,
@@ -165,7 +134,7 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 		},
 		{
 			"FUNCTION ${VARIABLE} ARG0",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function:  "FUNCTION",
 				Variable:  "VARIABLE",
 				Arguments: []string{"ARG0"},
@@ -174,7 +143,7 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 		},
 		{
 			"FUNCTION ${VARIABLE} ARG0 ARG1 ARG2",
-			&PreprocessorInstruction{
+			&Instruction{
 				Function:  "FUNCTION",
 				Variable:  "VARIABLE",
 				Arguments: []string{"ARG0", "ARG1", "ARG2"},
@@ -188,7 +157,7 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 			"EMPTY":   &empty,
 			"TEMPDIR": &tempDir,
 		}
-		inst, err := NewPreprocessorInstruction(c.line, &env)
+		inst, err := NewInstruction(c.line, &env)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -226,41 +195,25 @@ func TestNewPreprocessorInstruction(t *testing.T) {
 	}
 }
 
-func TestProcessCheckIfDirExists(t *testing.T) {
+func TestCheckIfDirExists(t *testing.T) {
 	empty := ""
 	iDoNotExist := "/iDoNotExist"
-	notAPath := os.Args[0]
-	tempDir := os.TempDir()
+	tempFile, err := ioutil.TempFile("", "tempDirIfEmptyFile")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	notAPath := tempFile.Name()
+	tempDir, _ := ioutil.TempDir("", "checkIfDirExists")
+	defer os.RemoveAll(tempDir)
+
 	cases := []struct {
-		instruction  *PreprocessorInstruction
+		instruction  Instruction
 		errorMessage string
 	}{
 		{
-			&PreprocessorInstruction{
-				Function: "FUNCTION",
-			},
-			"missing variable in FUNCTION",
-		},
-		{
-			&PreprocessorInstruction{
-				Function:          "FUNCTION",
-				Variable:          "NIL",
-				CurrentValue:      nil,
-				CurrentValueFound: true,
-			},
-			"empty variable in FUNCTION for NIL",
-		},
-		{
-			&PreprocessorInstruction{
-				Function:          "FUNCTION",
-				Variable:          "EMPTY",
-				CurrentValue:      &empty,
-				CurrentValueFound: true,
-			},
-			"empty variable in FUNCTION for EMPTY",
-		},
-		{
-			&PreprocessorInstruction{
+			Instruction{
 				Function:          "FUNCTION",
 				Variable:          "I_DO_NOT_EXIST",
 				CurrentValue:      &iDoNotExist,
@@ -269,7 +222,7 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
 		},
 		{
-			&PreprocessorInstruction{
+			Instruction{
 				Function:          "FUNCTION",
 				Variable:          "NOT_A_PATH",
 				CurrentValue:      &notAPath,
@@ -278,23 +231,13 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
 		},
 		{
-			&PreprocessorInstruction{
+			Instruction{
 				Function:          "FUNCTION",
 				Variable:          "TEMPDIR",
 				CurrentValue:      &tempDir,
 				CurrentValueFound: true,
 			},
 			"",
-		},
-		{
-			&PreprocessorInstruction{
-				Function:          "FUNCTION",
-				Variable:          "TEMPDIR",
-				Arguments:         []string{"ARGUMENT"},
-				CurrentValue:      &tempDir,
-				CurrentValueFound: true,
-			},
-			"too many arguments in FUNCTION for TEMPDIR",
 		},
 	}
 	for i, c := range cases {
@@ -305,7 +248,7 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 			"I_DO_NOT_EXIST": &iDoNotExist,
 			"NOT_A_PATH":     &notAPath,
 		}
-		err := processCheckIfDirExists(c.instruction, &env)
+		err := checkIfDirExists(c.instruction, env)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -320,56 +263,16 @@ func TestProcessCheckIfDirExists(t *testing.T) {
 	}
 }
 
-func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
+func TestSetIfEmpty(t *testing.T) {
 	empty := ""
-	tempDir := os.TempDir()
+	tempDir, _ := ioutil.TempDir("", "setIfEmpty")
+	defer os.RemoveAll(tempDir)
 
-	// missing variable
 	env := testEnv{
 		"TEMPDIR": &tempDir,
 	}
-	err := processSetIfEmpty(&PreprocessorInstruction{
-		Function: "FUNCTION",
-	}, &env)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	}
-	e := "missing variable in FUNCTION"
-	if err.Error() != e {
-		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
-	}
-
-	// missing arguments
-	err = processSetIfEmpty(&PreprocessorInstruction{
-		Function:     "FUNCTION",
-		Variable:     "TEMPDIR",
-		CurrentValue: &tempDir,
-	}, &env)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	}
-	e = "missing argument in FUNCTION for TEMPDIR"
-	if err.Error() != e {
-		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
-	}
-
-	// too many arguments
-	err = processSetIfEmpty(&PreprocessorInstruction{
-		Function:     "FUNCTION",
-		Variable:     "TEMPDIR",
-		Arguments:    []string{"foo", "bar"},
-		CurrentValue: &tempDir,
-	}, &env)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	}
-	e = "too many arguments in FUNCTION for TEMPDIR"
-	if err.Error() != e {
-		t.Errorf("incorrect error, got: '%s', wanted: '%s'", err, e)
-	}
-
 	// non-empty variable
-	err = processSetIfEmpty(&PreprocessorInstruction{
+	err := setIfEmpty(Instruction{
 		Function:          "FUNCTION",
 		Variable:          "TEMPDIR",
 		Arguments:         []string{"foo"},
@@ -387,7 +290,7 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	env = testEnv{
 		"NIL": nil,
 	}
-	err = processSetIfEmpty(&PreprocessorInstruction{
+	err = setIfEmpty(Instruction{
 		Function:          "FUNCTION",
 		Variable:          "NIL",
 		Arguments:         []string{"foo"},
@@ -412,7 +315,7 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 	env = testEnv{
 		"EMPTY": &empty,
 	}
-	err = processSetIfEmpty(&PreprocessorInstruction{
+	err = setIfEmpty(Instruction{
 		Function:     "FUNCTION",
 		Variable:     "EMPTY",
 		Arguments:    []string{"foo"},
@@ -439,7 +342,7 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 
 	// undefined variable
 	env = testEnv{}
-	err = processSetIfEmpty(&PreprocessorInstruction{
+	err = setIfEmpty(Instruction{
 		Function:     "FUNCTION",
 		Variable:     "UNDEFINED",
 		Arguments:    []string{"foo"},
@@ -456,6 +359,183 @@ func TestProcessPreprocessorStatementsSetIfEmpty(t *testing.T) {
 		}
 		if *val != "foo" {
 			t.Errorf("incorrect value, got: '%s', wanted: 'foo'", *val)
+		}
+	}
+}
+
+func TestProcessPreprocessorLines(t *testing.T) {
+	empty := ""
+	tempDir, _ := ioutil.TempDir("", "processPreprocessorLines")
+	defer os.RemoveAll(tempDir)
+
+	cases := []struct {
+		line         string
+		errorMessage string
+	}{
+		{
+			"",
+			"empty preprocessor line found!",
+		},
+		{
+			"FUNCTION_WITHOUT_VAR_OR_ARG",
+			"unknown preprocessor directive: 'FUNCTION_WITHOUT_VAR_OR_ARG'",
+		},
+		{
+			"FUNCTION INVALID_VAR",
+			"invalid variable in: 'FUNCTION INVALID_VAR'",
+		},
+		{
+			"SET_IF_EMPTY ${X} Foo",
+			"",
+		},
+		{
+			"CHECK_IF_DIR_EXISTS ${TEMPDIR}",
+			"",
+		},
+		{
+			"DEFECTIVE_CHECK",
+			"missing argument(s) in DEFECTIVE_CHECK for , wanted: 1, got: 0",
+		},
+	}
+	preprocessor := NewPreprocessor()
+	preprocessor.Register(&Function{
+		Names:      []string{"DEFECTIVE_CHECK"},
+		NumArgsMin: 1,
+	})
+	for i, c := range cases {
+		env := testEnv{
+			"NIL":     nil,
+			"EMPTY":   &empty,
+			"TEMPDIR": &tempDir,
+		}
+		err := preprocessor.processPreprocessorLines([]string{c.line}, &env)
+		if len(c.errorMessage) > 0 {
+			if err == nil {
+				t.Errorf("expected error @%d, got nil", i)
+				continue
+			}
+			if err.Error() != c.errorMessage {
+				t.Errorf("incorrect error @%d, got: '%s', wanted: '%s'", i, err, c.errorMessage)
+			}
+		} else if err != nil {
+			t.Errorf("unexpected error @%d: '%s'", i, err)
+		}
+	}
+}
+
+func TestTempDirIfEmpty(t *testing.T) {
+	empty := ""
+	iDoNotExist := "/iDoNotExist"
+	tempFile, err := ioutil.TempFile("", "tempDirIfEmptyFile")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	notAPath := tempFile.Name()
+	tempDir, err := ioutil.TempDir("", "tempDirIfEmpty")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	cases := []struct {
+		instruction  Instruction
+		errorMessage string
+	}{
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "EMPTY",
+				CurrentValue:      &empty,
+				CurrentValueFound: true,
+			},
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "TEMPDIR",
+				CurrentValue:      &tempDir,
+				CurrentValueFound: true,
+			},
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "NIL",
+				CurrentValue:      nil,
+				CurrentValueFound: true,
+			},
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "UNDEFINED",
+				CurrentValue:      nil,
+				CurrentValueFound: false,
+			},
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "I_DO_NOT_EXIST",
+				CurrentValue:      &iDoNotExist,
+				CurrentValueFound: true,
+			},
+			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "NOT_A_PATH",
+				CurrentValue:      &notAPath,
+				CurrentValueFound: true,
+			},
+			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
+		},
+	}
+	for i, c := range cases {
+		env := testEnv{
+			"NIL":            nil,
+			"EMPTY":          &empty,
+			"TEMPDIR":        &tempDir,
+			"I_DO_NOT_EXIST": &iDoNotExist,
+			"NOT_A_PATH":     &notAPath,
+		}
+		err := tempDirIfEmpty(c.instruction, env)
+		if len(c.errorMessage) > 0 {
+			if err == nil {
+				t.Errorf("expected error @%d, got nil", i)
+				continue
+			}
+			if err.Error() != c.errorMessage {
+				t.Errorf("incorrect error @%d, got: '%s', wanted: '%s'", i, err, c.errorMessage)
+				continue
+			}
+		} else if err != nil {
+			t.Errorf("unexpected error @%d: '%s'", i, err)
+		}
+	}
+	{
+		env := testDefectiveEnv{
+			"NIL":            nil,
+			"EMPTY":          &empty,
+			"TEMPDIR":        &tempDir,
+			"I_DO_NOT_EXIST": &iDoNotExist,
+			"NOT_A_PATH":     &notAPath,
+		}
+		c := cases[0]
+		err = tempDirIfEmpty(c.instruction, env)
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if err.Error() != "error" {
+			t.Errorf("unexpected error, got: %s, wanted: error", err.Error())
 		}
 	}
 }
