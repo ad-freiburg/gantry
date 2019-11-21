@@ -15,7 +15,11 @@ import (
 const barValue string = "Bar"
 
 func TestPreprocessorRegister(t *testing.T) {
-	p := ymlpreprocessor.Preprocessor{}
+	p, err := ymlpreprocessor.NewPreprocessor()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	smallF1 := &ymlpreprocessor.Function{
 		Names: []string{"f1"},
 	}
@@ -92,7 +96,11 @@ ${EMPTY}`,
 			types.StringMap{"Foo": &bar},
 		},
 	}
-	preprocessor := ymlpreprocessor.NewPreprocessor()
+	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for _, c := range cases {
 		path := ""
 		if len(c.env) > 0 {
@@ -149,11 +157,19 @@ func TestPreprocessorProcessErrors(t *testing.T) {
 			types.StringMap{},
 		},
 	}
-	preprocessor := ymlpreprocessor.NewPreprocessor()
-	preprocessor.Register(&ymlpreprocessor.Function{
+	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = preprocessor.Register(&ymlpreprocessor.Function{
 		Names:      []string{"DEFECTIVE_CHECK"},
 		NumArgsMin: 1,
 	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for _, c := range cases {
 		path := ""
 		if len(c.env) > 0 {
@@ -190,41 +206,23 @@ func TestPreprocessorProcessErrors(t *testing.T) {
 	}
 }
 
-func TestPreprocessorFunctionCheck(t *testing.T) {
-	f := ymlpreprocessor.Function{}
-	i := ymlpreprocessor.Instruction{}
-	if err := f.Check(i); err != nil {
-		t.Errorf("unexpected error: %s", err)
+func TestPreprocessorFunctions(t *testing.T) {
+	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	if err != nil {
+		t.Error(err)
+		return
 	}
-
-	f.NeedsVariable = true
-	if err := f.Check(i); err == nil {
-		t.Errorf("expected error, got nil")
+	numFunctions := len(preprocessor.Functions())
+	err = preprocessor.Register(&ymlpreprocessor.Function{
+		Names:      []string{"DEFECTIVE_CHECK"},
+		NumArgsMin: 1,
+	})
+	if err != nil {
+		t.Error(err)
+		return
 	}
-
-	i.Variable = "var"
-	if err := f.Check(i); err != nil {
-		t.Errorf("unexpected error: %s", err)
-	}
-
-	f.NumArgsMin = 1
-	f.NumArgsMax = 99
-	if err := f.Check(i); err == nil {
-		t.Errorf("expected error, got nil")
-	}
-
-	i.Arguments = []string{"arg0", "arg1"}
-	if err := f.Check(i); err != nil {
-		t.Errorf("unexpected error: %s", err)
-	}
-
-	f.NumArgsMax = 1
-	if err := f.Check(i); err == nil {
-		t.Errorf("expected error, got nil")
-	}
-
-	i.Arguments = []string{"arg0"}
-	if err := f.Check(i); err != nil {
-		t.Errorf("unexpected error: %s", err)
+	updatedNumFunctions := len(preprocessor.Functions())
+	if numFunctions+1 != updatedNumFunctions {
+		t.Errorf("incorrect number of functions, got: %d, wanted: %d", updatedNumFunctions, numFunctions+1)
 	}
 }

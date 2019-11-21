@@ -249,7 +249,10 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 		return nil, err
 	}
 	// Apply environment to yaml
-	preprocessor := ymlpreprocessor.NewPreprocessor()
+	preprocessor, err := ymlpreprocessor.NewPreprocessor()
+	if err != nil {
+		return nil, err
+	}
 	data, err = preprocessor.Process(data, env)
 	if err != nil {
 		return nil, err

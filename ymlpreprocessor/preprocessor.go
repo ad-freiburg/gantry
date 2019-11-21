@@ -17,72 +17,6 @@ type Environment interface {
 	GetOrCreateTempDir(string) (string, error)
 }
 
-// PreprocessorInstruction is a parsed line
-type Instruction struct {
-	Function          string
-	Variable          string
-	Arguments         []string
-	CurrentValue      *string
-	CurrentValueFound bool
-}
-
-// NewInstruction parses a line and looks up the current value from the environment
-func NewInstruction(line string, env Environment) (Instruction, error) {
-	result := Instruction{}
-	parts := strings.Split(line, " ")
-	if len(parts[0]) < 1 {
-		return result, fmt.Errorf("empty preprocessor line found!")
-	}
-	result.Function = parts[0]
-	if len(parts) < 2 {
-		return result, nil
-	}
-	// Remove ${ } from variable
-	if !strings.HasPrefix(parts[1], "${") || !strings.HasSuffix(parts[1], "}") {
-		return result, fmt.Errorf("invalid variable in: '%s'", line)
-	}
-	result.Variable = parts[1][2 : len(parts[1])-1]
-	// Store arguments
-	if len(parts) > 2 {
-		result.Arguments = parts[2:]
-	}
-	// Lookup substitution value
-	result.CurrentValue, result.CurrentValueFound = env.GetSubstitution(result.Variable)
-	return result, nil
-}
-
-// Function is a function executable by the preprocessor
-type Function struct {
-	Func          func(Instruction, Environment) error
-	Names         []string
-	Description   string
-	NumArgsMin    int
-	NumArgsMax    int
-	NeedsVariable bool
-}
-
-// Check performs basic checks, e.g. to enforce correct number of arguments
-func (f Function) Check(i Instruction) error {
-	if f.NeedsVariable && len(i.Variable) == 0 {
-		return fmt.Errorf("missing variable in %s", i.Function)
-	}
-	if len(i.Arguments) < f.NumArgsMin {
-		return fmt.Errorf("missing argument(s) in %s for %s, wanted: %d, got: %d", i.Function, i.Variable, f.NumArgsMin, len(i.Arguments))
-	}
-	if len(i.Arguments) > f.NumArgsMax {
-		return fmt.Errorf("too many arguments in %s for %s, wanted: %d, got: %d", i.Function, i.Variable, f.NumArgsMax, len(i.Arguments))
-	}
-	return nil
-}
-
-// Execute executes the function for the given instruction and environment
-func (f Function) Execute(i Instruction, e Environment) error {
-	if err := f.Check(i); err != nil {
-		return err
-	}
-	return f.Func(i, e)
-}
-
 func checkIfDirExists(i Instruction, e Environment) error {
 	path, err := filepath.Abs(*i.CurrentValue)
 	if err != nil {
@@ -124,20 +58,29 @@ func tempDirIfEmpty(i Instruction, e Environment) error {
 }
 
 // Preprocessor preprocesses yml files and manipulates the environment.
-type Preprocessor map[string]*Function
+type Preprocessor struct {
+	mapping   map[string]*Function
+	functions []*Function
+}
 
 // NewPreprocessor returns a new Preprocessor with basic functions preregistered.
-func NewPreprocessor() Preprocessor {
-	p := Preprocessor{}
-	p.Register(&Function{
+func NewPreprocessor() (Preprocessor, error) {
+	p := Preprocessor{
+		mapping:   map[string]*Function{},
+		functions: []*Function{},
+	}
+	if err := p.Register(&Function{
 		Names: []string{
 			"CHECK_IF_DIR_EXISTS",
 			"check_if_dir_exists",
 		},
 		NeedsVariable: true,
 		Func:          checkIfDirExists,
-	})
-	p.Register(&Function{
+		Description:   "Checks if ${VAR} points to a directory, aborts execution on failure.",
+	}); err != nil {
+		return p, err
+	}
+	if err := p.Register(&Function{
 		Names: []string{
 			"SET_IF_EMPTY",
 			"set_if_empty",
@@ -146,8 +89,11 @@ func NewPreprocessor() Preprocessor {
 		NumArgsMin:    1,
 		NumArgsMax:    1,
 		Func:          setIfEmpty,
-	})
-	p.Register(&Function{
+		Description:   "Sets ${VAR} to ARG0 if ${VAR} is empty or not set.",
+	}); err != nil {
+		return p, err
+	}
+	if err := p.Register(&Function{
 		Names: []string{
 			"TEMP_DIR_IF_EMPTY",
 			"temp_dir_if_empty",
@@ -155,19 +101,27 @@ func NewPreprocessor() Preprocessor {
 		},
 		NeedsVariable: true,
 		Func:          tempDirIfEmpty,
-	})
-	return p
+	}); err != nil {
+		return p, err
+	}
+	return p, nil
 }
 
 // Register adds a PreprocessorFunction, raises error if a name is already in use.
-func (p Preprocessor) Register(f *Function) error {
+func (p *Preprocessor) Register(f *Function) error {
 	for _, name := range f.Names {
-		if v, found := p[name]; found {
+		if v, found := p.mapping[name]; found {
 			return fmt.Errorf("name %s for function %s already defined by %s", name, f.Names, v.Names)
 		}
-		p[name] = f
+		p.mapping[name] = f
 	}
+	p.functions = append(p.functions, f)
 	return nil
+}
+
+// Functions returns all registered functions.
+func (p Preprocessor) Functions() []*Function {
+	return p.functions
 }
 
 // Process processes a raw file with a given environment.
@@ -222,7 +176,7 @@ func (p Preprocessor) processPreprocessorLines(lines []string, env Environment) 
 		if err != nil {
 			return err
 		}
-		if f, ok := p[instruction.Function]; ok {
+		if f, ok := p.mapping[instruction.Function]; ok {
 			if err := f.Execute(instruction, env); err != nil {
 				return err
 			}

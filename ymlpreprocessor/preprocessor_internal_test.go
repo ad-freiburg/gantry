@@ -397,11 +397,19 @@ func TestProcessPreprocessorLines(t *testing.T) {
 			"missing argument(s) in DEFECTIVE_CHECK for , wanted: 1, got: 0",
 		},
 	}
-	preprocessor := NewPreprocessor()
-	preprocessor.Register(&Function{
+	preprocessor, err := NewPreprocessor()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = preprocessor.Register(&Function{
 		Names:      []string{"DEFECTIVE_CHECK"},
 		NumArgsMin: 1,
 	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for i, c := range cases {
 		env := testEnv{
 			"NIL":     nil,
