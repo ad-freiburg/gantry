@@ -1,4 +1,4 @@
-version: "0"
+version: "2.0"
 
 #! TEMP_DIR_IF_EMPTY ${TEMP_STORAGE}
 #! SET_IF_EMPTY ${QLEVER_INDEX} index
