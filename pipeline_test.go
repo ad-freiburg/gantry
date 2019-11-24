@@ -12,7 +12,8 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 )
 
-const def = `steps:
+const def = `version: "2.0"
+steps:
   a:
     image: alpine
   b:

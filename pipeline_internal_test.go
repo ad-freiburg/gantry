@@ -1,6 +1,7 @@
 package gantry
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -9,7 +10,8 @@ import (
 	"github.com/ad-freiburg/gantry/types"
 )
 
-const def = `steps:
+const def = `version: "2.0"
+steps:
   a:
     image: alpine
   b:
@@ -33,10 +35,10 @@ services:
 
 func checkCallsAndCalled(t *testing.T, runner *NoopRunner, key string, calls int, called int) {
 	if c := runner.NumCalls(key); c != calls {
-		t.Errorf("Incorrect NumCalls for '%s', got: '%d', wanted '%d'", key, c, calls)
+		t.Errorf("incorrect NumCalls for '%s', got: '%d', wanted '%d'", key, c, calls)
 	}
 	if c := runner.NumCalled(key); c != called {
-		t.Errorf("Incorrect NumCalled for '%s', got: '%d', wanted '%d'", key, c, called)
+		t.Errorf("incorrect NumCalled for '%s', got: '%d', wanted '%d'", key, c, called)
 	}
 }
 
@@ -71,7 +73,7 @@ func TestPipelineGetRunnerForMeta(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -89,7 +91,7 @@ func TestPipelineGetRunnerForMeta(t *testing.T) {
 
 	for _, c := range cases {
 		if v := p.GetRunnerForMeta(p.Definition.Steps[c.stepname].Meta); v != c.runner {
-			t.Errorf("Incorrect runner for '%s', got: '%#v', wanted '%#v'", c.stepname, v, c.runner)
+			t.Errorf("incorrect runner for '%s', got: '%#v', wanted '%#v'", c.stepname, v, c.runner)
 		}
 	}
 }
@@ -101,7 +103,7 @@ func TestPipelineBuildImages(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -118,7 +120,7 @@ func TestPipelineBuildImages(t *testing.T) {
 	}
 
 	if err := p.BuildImages(false); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -132,7 +134,7 @@ func TestPipelineBuildImagesForced(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -149,7 +151,7 @@ func TestPipelineBuildImagesForced(t *testing.T) {
 	}
 
 	if err := p.BuildImages(true); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -163,7 +165,7 @@ func TestPipelinePullImages(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -185,7 +187,7 @@ func TestPipelinePullImages(t *testing.T) {
 	}
 
 	if err := p.PullImages(false); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -199,7 +201,7 @@ func TestPipelinePullImagesForced(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -221,7 +223,7 @@ func TestPipelinePullImagesForced(t *testing.T) {
 	}
 
 	if err := p.PullImages(true); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -235,7 +237,7 @@ func TestPipelineKillContainers(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -257,7 +259,7 @@ func TestPipelineKillContainers(t *testing.T) {
 	}
 
 	if err := p.KillContainers(false); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -271,7 +273,7 @@ func TestPipelineKillContainersPreRun(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -293,7 +295,7 @@ func TestPipelineKillContainersPreRun(t *testing.T) {
 	}
 
 	if err := p.KillContainers(true); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -307,7 +309,7 @@ func TestPipelineRemoveContainers(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -326,7 +328,7 @@ func TestPipelineRemoveContainers(t *testing.T) {
 	}
 
 	if err := p.RemoveContainers(false); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -340,7 +342,7 @@ func TestPipelineRemoveContainersPreRun(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -359,7 +361,7 @@ func TestPipelineRemoveContainersPreRun(t *testing.T) {
 	}
 
 	if err := p.RemoveContainers(true); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -373,7 +375,7 @@ func TestPipelineCreateNetwork(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -391,7 +393,7 @@ func TestPipelineCreateNetwork(t *testing.T) {
 	}
 
 	if err := p.CreateNetwork(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -405,7 +407,7 @@ func TestPipelineRemoveNetwork(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -423,7 +425,7 @@ func TestPipelineRemoveNetwork(t *testing.T) {
 	}
 
 	if err := p.RemoveNetwork(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -437,7 +439,7 @@ func TestPipelineExecuteSteps(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -463,7 +465,7 @@ func TestPipelineExecuteSteps(t *testing.T) {
 	}
 
 	if err := p.ExecuteSteps(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -471,7 +473,8 @@ func TestPipelineExecuteSteps(t *testing.T) {
 }
 
 func TestPipelineRemoveTempDirData(t *testing.T) {
-	tmpDef, tmpEnv := setupDefAndEnv(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`version: "2.0"
+steps:
   a:
     volumes:
     - {{ TempDir }}:/input
@@ -481,7 +484,7 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -501,7 +504,7 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 	}
 
 	if err := p.RemoveTempDirData(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -509,7 +512,8 @@ func TestPipelineRemoveTempDirData(t *testing.T) {
 }
 
 func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
-	tmpDef, tmpEnv := setupDefAndEnv(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`version: "2.0"
+steps:
   a:
 `, "")
 	defer os.Remove(tmpDef)
@@ -517,7 +521,7 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -537,7 +541,7 @@ func TestPipelineRemoveTempDirDataNoTempDirs(t *testing.T) {
 	}
 
 	if err := p.RemoveTempDirData(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -551,7 +555,7 @@ func TestPipelineLogs(t *testing.T) {
 
 	p, err := NewPipeline(tmpDef, tmpEnv, types.StringMap{}, types.StringSet{}, types.StringSet{})
 	if err != nil {
-		t.Errorf("Unexpected error creating pipeline: '%#v'", err)
+		t.Errorf("unexpected error creating pipeline: '%#v'", err)
 	}
 	localRunner := NewNoopRunner(false)
 	p.localRunner = localRunner
@@ -570,7 +574,7 @@ func TestPipelineLogs(t *testing.T) {
 	}
 
 	if err := p.Logs(false); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	for _, c := range cases {
 		checkCallsAndCalled(t, c.runner, c.key, c.calls, c.called)
@@ -588,15 +592,16 @@ func TestPipelineCheck(t *testing.T) {
 	noopRunner := NewNoopRunner(false)
 	p.noopRunner = noopRunner
 	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	if err := p.Check(); err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 }
 
 func TestPipelineCheckNoContainerInformation(t *testing.T) {
-	tmpDef, tmpEnv := setupDefAndEnv(`steps:
+	tmpDef, tmpEnv := setupDefAndEnv(`version: "2.0"
+steps:
   a:
 `, "")
 	defer os.Remove(tmpDef)
@@ -608,9 +613,65 @@ func TestPipelineCheckNoContainerInformation(t *testing.T) {
 	noopRunner := NewNoopRunner(false)
 	p.noopRunner = noopRunner
 	if err != nil {
-		t.Errorf("Unexpected error, got: '%#v', wanted 'nil'", err)
+		t.Errorf("unexpected error, got: '%#v', wanted 'nil'", err)
 	}
 	if err := p.Check(); err == nil {
-		t.Error("Unexpected error, got: 'nil'!")
+		t.Errorf("expected error, got: nil")
+	}
+}
+
+func TestPipelineDefinitionCheckVersion(t *testing.T) {
+	p := PipelineDefinition{}
+	cases := []struct {
+		version string
+		err     string
+	}{
+		{
+			version: "",
+			err:     "invalid compose file format version: ",
+		},
+		{
+			version: "foo",
+			err:     "invalid compose file format version: foo",
+		},
+		{
+			version: "x.y",
+			err:     "strconv.Atoi: parsing \"x\": invalid syntax",
+		},
+		{
+			version: "0.y",
+			err:     "strconv.Atoi: parsing \"y\": invalid syntax",
+		},
+		{
+			version: "1.0",
+			err:     fmt.Sprintf("not supported compose file format version: got: 1.0 want >= %d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
+		},
+		{
+			version: "2.-1",
+			err:     fmt.Sprintf("not supported compose file format version: got: 2.-1 want >= %d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
+		},
+		{
+			version: fmt.Sprintf("%d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
+			err:     "",
+		},
+		{
+			version: fmt.Sprintf("%d.%d", DockerComposeFileFormatMajorMin+1, DockerComposeFileFormatMinorMin),
+			err:     "",
+		},
+		{
+			version: fmt.Sprintf("%d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin+1),
+			err:     "",
+		},
+	}
+	for i, c := range cases {
+		p.Version = c.version
+		err := p.checkVersion()
+		if c.err != "" && err == nil {
+			t.Errorf("expected error @%d, got: nil", i)
+			continue
+		}
+		if c.err != "" && c.err != err.Error() {
+			t.Errorf("incorrect error @%d, got: '%s', wanted: '%s'", i, err.Error(), c.err)
+		}
 	}
 }
