@@ -26,6 +26,9 @@ archives:
     386: i386
     amd64: x86_64
     s390x: s390x
+    7: 7l
+    6: 6l
+    arm64: aarch64
   wrap_in_directory: true
   files:
     - LICENSE
