@@ -1,16 +1,12 @@
 package gantry
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
-	"text/template"
 
 	"github.com/ad-freiburg/gantry/types"
 	"github.com/ghodss/yaml"
@@ -58,6 +54,9 @@ func (e *PipelineEnvironment) UnmarshalJSON(data []byte) error {
 	result.TempDirPath = parsedJSON.TempDirPath
 	result.TempDirNoAutoClean = parsedJSON.TempDirNoAutoClean
 	result.ProjectName = parsedJSON.ProjectName
+	if result.Substitutions == nil {
+		result.Substitutions = types.StringMap{}
+	}
 	for name, meta := range parsedJSON.Services {
 		meta.Type = ServiceTypeService
 		result.Steps[name] = meta
@@ -123,6 +122,15 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.StringMap)
 	}
 }
 
+func (e *PipelineEnvironment) GetSubstitution(key string) (*string, bool) {
+	value, ok := e.Substitutions[key]
+	return value, ok
+}
+
+func (e *PipelineEnvironment) SetSubstitution(key string, value *string) {
+	e.Substitutions[key] = value
+}
+
 func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, selectedSteps types.StringSet) {
 	for name := range ignoredSteps {
 		if _, found := e.Steps[name]; !found {
@@ -146,133 +154,6 @@ func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, sele
 	}
 }
 
-func (e *PipelineEnvironment) createTemplateParser() *template.Template {
-	fm := template.FuncMap{}
-
-	// {{ Key }}
-	// Required substitution value, if not defined it will not be found as
-	// function and raise an error.
-	for k, v := range e.createTemplateParserDirectReplacementFuncMap() {
-		fm[k] = v
-	}
-
-	// {{ Env "Key" ["Default"] }}
-	// Usable as optional environment variable, can provide default value if not defined.
-	fm["Env"] = e.createTemplateParserEnvFunction()
-
-	// {{ EnvDir "Key" ["Default"] }}
-	// Get Path from environment, converts to absolute path using filepath.Abs.
-	fm["EnvDir"] = e.createTemplateParserEnvDirFunction()
-
-	// {{ TempDir ["optional" ["optional" ... ]] }}
-	// Calls to TempDir with equivalent arguments result in the same directory.
-	// This allows to share temporary directories between steps/services.
-	fm["TempDir"] = e.createTemplateParserTempDirFunction()
-
-	return template.New("PipelineEnvironment").Funcs(fm)
-}
-
-func (e *PipelineEnvironment) createTemplateParserDirectReplacementFuncMap() template.FuncMap {
-	fm := template.FuncMap{}
-	for k, v := range e.Substitutions {
-		if v == nil {
-			// If no explicit value is set, return the empty string.
-			fm[k] = func() string {
-				return ""
-			}
-		} else {
-			// Ensure that each key uses it's own function, as otherwise all
-			// keys would report the last defined value.
-			fm[k] = func(v string) func() string {
-				return func() string {
-					return v
-				}
-			}(*v)
-
-		}
-	}
-	return fm
-}
-
-func (e *PipelineEnvironment) createTemplateParserEnvFunction() func(args ...interface{}) (string, error) {
-	return func(args ...interface{}) (string, error) {
-		if len(args) < 1 {
-			return "", fmt.Errorf(missingArgumentFormat, "Env", 1)
-		}
-		if len(args) > 2 {
-			return "", fmt.Errorf(tooManyArgumentsFormat, "Env", len(args), 2)
-		}
-		parts := make([]string, len(args))
-		for i, v := range args {
-			parts[i] = fmt.Sprint(v)
-		}
-		val, ok := e.Substitutions[parts[0]]
-		if !ok {
-			if len(parts) < 2 {
-				return "", fmt.Errorf(undefinedArgumentFormat, parts[0], "Env")
-			}
-			return parts[1], nil
-		}
-		return *val, nil
-	}
-}
-
-func (e *PipelineEnvironment) createTemplateParserEnvDirFunction() func(args ...interface{}) (string, error) {
-	return func(args ...interface{}) (string, error) {
-		if len(args) < 1 {
-			return "", fmt.Errorf(missingArgumentFormat, "EnvDir", 1)
-		}
-		if len(args) > 2 {
-			return "", fmt.Errorf(tooManyArgumentsFormat, "EnvDir", len(args), 2)
-		}
-		parts := make([]string, len(args))
-		for i, v := range args {
-			parts[i] = fmt.Sprint(v)
-		}
-		var path string
-		val, ok := e.Substitutions[parts[0]]
-		if ok {
-			path = *val
-		} else {
-			if len(parts) < 2 {
-				return "", fmt.Errorf(undefinedArgumentFormat, parts[0], "EnvDir")
-			}
-			path = parts[1]
-		}
-		path, err := filepath.Abs(path)
-		if err != nil {
-			return path, err
-		}
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return path, err
-		}
-		return path, nil
-	}
-}
-
-func (e *PipelineEnvironment) createTemplateParserTempDirFunction() func(args ...interface{}) (string, error) {
-	return func(args ...interface{}) (string, error) {
-		parts := make([]string, len(args))
-		for i, v := range args {
-			parts[i] = fmt.Sprint(v)
-		}
-		return e.getOrCreateTempDir(strings.Join(parts, "_"))
-	}
-}
-
-// ApplyTo executes the environment template parser on the provided data.
-func (e *PipelineEnvironment) ApplyTo(rawFile []byte) ([]byte, error) {
-	var b bytes.Buffer
-	bw := bufio.NewWriter(&b)
-	t, err := e.createTemplateParser().Parse(string(rawFile))
-	if err != nil {
-		return []byte(""), err
-	}
-	err = t.Execute(bw, e)
-	bw.Flush()
-	return b.Bytes(), err
-}
-
 // CleanUp tries to remove all managed temporary files and directories.
 func (e *PipelineEnvironment) CleanUp(signal os.Signal) error {
 	for _, file := range e.tempFiles {
@@ -288,7 +169,7 @@ func (e *PipelineEnvironment) CleanUp(signal os.Signal) error {
 	return nil
 }
 
-func (e *PipelineEnvironment) getOrCreateTempDir(prefix string) (string, error) {
+func (e *PipelineEnvironment) GetOrCreateTempDir(prefix string) (string, error) {
 	val, ok := e.tempPaths[prefix]
 	if ok {
 		return val, nil
