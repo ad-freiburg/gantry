@@ -1,0 +1,45 @@
+# This is an example goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+before:
+  hooks:
+    - go mod tidy
+builds:
+- main: ./cmd/gantry/gantry.go
+  env:
+    - CGO_ENABLED=0
+  goos:
+    - linux
+  goarch:
+    - amd64
+    - arm
+    - arm64
+    - ppc64le
+    - s390x
+  goarm:
+    - 6
+    - 7
+  ldflags:
+    - -X "github.com/ad-freiburg/gantry.Version={{ .Env.GANTRY_VERSION }}"
+archives:
+- name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  replacements:
+    386: i386
+    amd64: x86_64
+    s390x: s390x
+    7: 7l
+    6: 6l
+    arm64: aarch64
+  wrap_in_directory: true
+  files:
+    - LICENSE
+    - README.md
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
