@@ -292,24 +292,35 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 	return d, nil
 }
 
+// https://docs.docker.com/compose/compose-file/compose-versioning/#versioning
 func (p *PipelineDefinition) checkVersion() error {
-	// docker-compose file format versions are MAJOR.MINOR only
-	parts := strings.SplitN(p.Version, ".", 2)
-	if len(parts) != 2 {
+	var err error
+	parts := strings.Split(p.Version, ".")
+	if len(parts) > 2 {
 		return fmt.Errorf("invalid compose file format version: %s", p.Version)
 	}
-	major, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return err
+	// Version 1, the legacy format. This is specified by omitting a `version`
+	// key at the root of the YAML.
+	major := 1
+	if len(parts[0]) > 0 {
+		major, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return fmt.Errorf("invalid compose file format version: %s", p.Version)
+		}
 	}
-	minor, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return err
+	// If no minor version is given, 0 is used by default and not the latest
+	// minor version.
+	minor := 0
+	if len(parts) > 1 {
+		minor, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return fmt.Errorf("invalid compose file format version: %s", p.Version)
+		}
 	}
 	if major < DockerComposeFileFormatMajorMin {
-		return fmt.Errorf("not supported compose file format version: got: %s want >= %d.%d", p.Version, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
+		return fmt.Errorf("not supported compose file format version: got: %d.%d want >= %d.%d", major, minor, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
 	} else if major == DockerComposeFileFormatMajorMin && minor < DockerComposeFileFormatMinorMin {
-		return fmt.Errorf("not supported compose file format version: got: %s want >= %d.%d", p.Version, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
+		return fmt.Errorf("not supported compose file format version: got: %d.%d want >= %d.%d", major, minor, DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin)
 	}
 	return nil
 }

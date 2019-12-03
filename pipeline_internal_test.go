@@ -629,7 +629,7 @@ func TestPipelineDefinitionCheckVersion(t *testing.T) {
 	}{
 		{
 			version: "",
-			err:     "invalid compose file format version: ",
+			err:     fmt.Sprintf("not supported compose file format version: got: 1.0 want >= %d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
 		},
 		{
 			version: "foo",
@@ -637,14 +637,18 @@ func TestPipelineDefinitionCheckVersion(t *testing.T) {
 		},
 		{
 			version: "x.y",
-			err:     "strconv.Atoi: parsing \"x\": invalid syntax",
+			err:     "invalid compose file format version: x.y",
 		},
 		{
 			version: "0.y",
-			err:     "strconv.Atoi: parsing \"y\": invalid syntax",
+			err:     "invalid compose file format version: 0.y",
 		},
 		{
 			version: "1.0",
+			err:     fmt.Sprintf("not supported compose file format version: got: 1.0 want >= %d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
+		},
+		{
+			version: "1",
 			err:     fmt.Sprintf("not supported compose file format version: got: 1.0 want >= %d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin),
 		},
 		{
@@ -656,12 +660,20 @@ func TestPipelineDefinitionCheckVersion(t *testing.T) {
 			err:     "",
 		},
 		{
+			version: fmt.Sprintf("%d", DockerComposeFileFormatMajorMin+1),
+			err:     "",
+		},
+		{
 			version: fmt.Sprintf("%d.%d", DockerComposeFileFormatMajorMin+1, DockerComposeFileFormatMinorMin),
 			err:     "",
 		},
 		{
 			version: fmt.Sprintf("%d.%d", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin+1),
 			err:     "",
+		},
+		{
+			version: fmt.Sprintf("%d.%d.1", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin+1),
+			err:     fmt.Sprintf("invalid compose file format version: %d.%d.1", DockerComposeFileFormatMajorMin, DockerComposeFileFormatMinorMin+1),
 		},
 	}
 	for i, c := range cases {
