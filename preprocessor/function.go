@@ -49,14 +49,14 @@ func (f Function) Usage() string {
 	if f.NumArgsMin > 0 {
 		for i := 0; i < f.NumArgsMin; i++ {
 			argline = fmt.Sprintf("%s ARG%d", argline, argc)
-			argc += 1
+			argc++
 		}
 	}
 	if f.NumArgsMax > f.NumArgsMin {
 		argline = fmt.Sprintf("%s [", argline)
 		for i := 0; i < f.NumArgsMax-f.NumArgsMin; i++ {
 			argline = fmt.Sprintf("%s ARG%d", argline, argc)
-			argc += 1
+			argc++
 		}
 		argline = fmt.Sprintf("%s ]", argline)
 	}
