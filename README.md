@@ -84,4 +84,3 @@ Then build with `-ldflags` such that the version is added to the binary
     go build -ldflags="-X github.com/ad-freiburg/gantry.Version=$(git describe --always --long --dirty)" cmd/gantry/gantry.go
 
 Finally use the GitHub Releases mechanism to release a new version.
-

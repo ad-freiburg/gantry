@@ -1,6 +1,6 @@
 # Using docker-compose.yml
 
-* [docker-compose.yml](./gdocker-compose.yml)
+  * [docker-compose.yml](./gdocker-compose.yml)
 
 ![pipeline.svg](./pipeline.svg)
 
