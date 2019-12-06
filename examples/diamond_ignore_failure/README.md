@@ -1,7 +1,7 @@
 # Diamond dependencies with ignore failure
 
-* [gantry.def.yml](./gantry.def.yml)
-* [gantry.env.yml](./gantry.env.yml)
+  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.env.yml](./gantry.env.yml)
 
 ![pipeline.svg](./pipeline.svg)
 

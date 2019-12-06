@@ -18,7 +18,10 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+// DockerComposeFileFormatMajorMin minimal supported major version part.
 const DockerComposeFileFormatMajorMin int = 2
+
+// DockerComposeFileFormatMinorMin minimal supported minor version part.
 const DockerComposeFileFormatMinorMin int = 0
 
 var (
@@ -132,7 +135,7 @@ func (p Pipeline) GetRunnerForMeta(meta ServiceMeta) Runner {
 	return p.localRunner.Copy()
 }
 
-// GetAllRunner returns a list of all runners
+// GetAllRunners returns a list of all runners
 func (p Pipeline) GetAllRunners() []Runner {
 	res := []Runner{}
 	res = append(res, p.localRunner.Copy())

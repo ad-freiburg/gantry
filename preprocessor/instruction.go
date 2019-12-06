@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// PreprocessorInstruction is a parsed line
+// Instruction is a parsed line
 type Instruction struct {
 	Function          string
 	Variable          string
@@ -19,7 +19,7 @@ func NewInstruction(line string, env Environment) (Instruction, error) {
 	result := Instruction{}
 	parts := strings.Split(line, " ")
 	if len(parts[0]) < 1 {
-		return result, fmt.Errorf("empty preprocessor line found!")
+		return result, fmt.Errorf("empty preprocessor line found")
 	}
 	result.Function = parts[0]
 	if len(parts) < 2 {

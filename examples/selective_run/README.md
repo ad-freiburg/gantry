@@ -1,7 +1,7 @@
 # Selective run
 
-* [gantry.def.yml](./gantry.def.yml)
-* [gantry.env.yml](./gantry.env.yml)
+  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.env.yml](./gantry.env.yml)
 
 ![pipeline.svg](./pipeline.svg)
 
@@ -14,9 +14,7 @@ step/service selection.
 ![test_new_service.svg](./test_new_service.svg)
 ![test_new_service_pruned.svg](./test_new_service_pruned.svg) 
 
-```
-gantry -i prepare_new_service_version test_new_service
-```
+    gantry -i prepare_new_service_version test_new_service
 
 This forces gantry to ignore all non-dependencies of
 `test_new_service`. `prepare_new_service_version` is explicitly ignored thus

@@ -374,7 +374,7 @@ func TestProcessPreprocessorLines(t *testing.T) {
 	}{
 		{
 			"",
-			"empty preprocessor line found!",
+			"empty preprocessor line found",
 		},
 		{
 			"FUNCTION_WITHOUT_VAR_OR_ARG",

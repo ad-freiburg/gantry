@@ -1,7 +1,7 @@
 # Testing QLever using gantry.def.yml and gantry.env.yml
 
-* [gantry.def.yml](./gantry.def.yml)
-* [gantry.env.yml](./gantry.env.yml)
+  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.env.yml](./gantry.env.yml)
 
 ![pipeline.svg](./pipeline.svg)
 
