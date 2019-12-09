@@ -7,12 +7,12 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(stepsCmd)
+	rootCmd.AddCommand(listCmd)
 }
 
-var stepsCmd = &cobra.Command{
-	Use:   "steps",
-	Short: "Lists all defined steps/services",
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "Lists all defined services and steps",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pipelines, err := pipeline.Definition.Pipelines()
 		if err != nil {
