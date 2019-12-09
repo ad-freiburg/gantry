@@ -11,7 +11,8 @@ func init() {
 }
 
 var stepsCmd = &cobra.Command{
-	Use: "steps",
+	Use:   "steps",
+	Short: "Lists all defined steps/services",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pipelines, err := pipeline.Definition.Pipelines()
 		if err != nil {
