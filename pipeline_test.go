@@ -155,7 +155,7 @@ func TestPipelineIgnoreStepsFromMetaAndArgument(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer os.Remove(tmpDef.Name())
-	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", "gantry.def.yml"))
+	diamond, err := ioutil.ReadFile(filepath.Join(".", "examples", "diamond", gantry.GantryDef))
 	if err != nil {
 		log.Fatal(err)
 	}

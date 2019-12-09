@@ -1,6 +1,6 @@
-# Testing QLever using gantry.def.yml and gantry.env.yml
+# Testing QLever using gantry.yml and gantry.env.yml
 
-  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.yml](./gantry.yml)
   * [gantry.env.yml](./gantry.env.yml)
 
 ![pipeline.svg](./pipeline.svg)
@@ -14,6 +14,5 @@ The pipeline downloads and prepares the data to create an index for qlever.
 After the qlever service is started some basic queries are perfomed against
 the newly build index. After the pipeline finishes the temporay download
 directory is automatically cleaned up as the `TempDir` function is used in
-[gantry.def.yml](./gantry.def.yml) and the service is stopped as
-`keep_alive: "no"` is set for the `qlever` service in
-[gantry.env.yml](./gantry.env.yml).
+[gantry.yml](./gantry.yml) and the service is stopped as `keep_alive: "no"`
+is set for the `qlever` service in [gantry.env.yml](./gantry.env.yml).

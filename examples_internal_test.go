@@ -25,7 +25,7 @@ func TestExamples(t *testing.T) {
 	}{
 		{
 			"diamond",
-			"gantry.def.yml",
+			GantryDef,
 			"",
 			[]struct {
 				key    string
@@ -57,8 +57,8 @@ func TestExamples(t *testing.T) {
 		},
 		{
 			"diamond_ignore_failure",
-			"gantry.def.yml",
-			"gantry.env.yml",
+			GantryDef,
+			GantryEnv,
 			[]struct {
 				key    string
 				runner bool
@@ -113,7 +113,7 @@ func TestExamples(t *testing.T) {
 		},
 		{
 			"parallel_pipelines",
-			"gantry.def.yml",
+			GantryDef,
 			"",
 			[]struct {
 				key    string
@@ -153,8 +153,8 @@ func TestExamples(t *testing.T) {
 		},
 		{
 			"partial_execution",
-			"gantry.def.yml",
-			"gantry.env.yml",
+			GantryDef,
+			GantryEnv,
 			[]struct {
 				key    string
 				runner bool
@@ -193,8 +193,8 @@ func TestExamples(t *testing.T) {
 		},
 		{
 			"qlever_e2e",
-			"gantry.def.yml",
-			"gantry.env.yml",
+			GantryDef,
+			GantryEnv,
 			[]struct {
 				key    string
 				runner bool
@@ -233,8 +233,8 @@ func TestExamples(t *testing.T) {
 		},
 		{
 			"selective_run",
-			"gantry.def.yml",
-			"gantry.env.yml",
+			GantryDef,
+			GantryEnv,
 			[]struct {
 				key    string
 				runner bool

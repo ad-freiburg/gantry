@@ -9,7 +9,7 @@ import (
 const DockerCompose string = "docker-compose.yml"
 
 // GantryDef stores the default name of a gantry definition.
-const GantryDef string = "gantry.def.yml"
+const GantryDef string = "gantry.yml"
 
 // GantryEnv stores the default name of a gantry environment.
 const GantryEnv string = "gantry.env.yml"

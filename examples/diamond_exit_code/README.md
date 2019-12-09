@@ -1,6 +1,6 @@
 # Diamond dependencies with specific exit codes
 
-  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.yml](./gantry.yml)
   * [gantry.env.yml](./gantry.env.yml)
 
 ![pipeline.svg](./pipeline.svg)
