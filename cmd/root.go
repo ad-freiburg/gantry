@@ -100,7 +100,7 @@ const (
 	bashCompletionFunc = `__gantry_get_steps()
 {
     local gantry_output out
-    if gantry_output=$(gantry steps 2>/dev/null); then
+    if gantry_output=$(gantry list 2>/dev/null); then
         out=($(echo "${gantry_output}" | awk '{print $1}'))
         COMPREPLY=( $( compgen -W "${out[*]}" -- "$cur" ) )
     fi
