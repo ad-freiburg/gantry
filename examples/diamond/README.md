@@ -1,6 +1,6 @@
 # Diamond dependencies
 
-  * [gantry.def.yml](./gantry.def.yml)
+  * [gantry.yml](./gantry.yml)
 
 ![pipeline.svg](./pipeline.svg)
 
