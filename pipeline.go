@@ -281,8 +281,13 @@ func NewPipelineDefinition(path string, env *PipelineEnvironment) (*PipelineDefi
 				s.Meta.KeepAlive = KeepAliveNo
 			}
 			d.Steps[name] = s
-		} else if !meta.Ignore {
-			log.Printf("Metadata: unknown step '%s'", name)
+		} else {
+			if meta.Selected {
+				return d, fmt.Errorf("no such service or step: %s", name)
+			}
+			if !meta.Ignore {
+				log.Printf("ignoring unknown step '%s'", name)
+			}
 		}
 	}
 	// Open output files for container logs
