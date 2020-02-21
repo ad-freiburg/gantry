@@ -19,7 +19,7 @@ func init() {
 
 var preprocessorApplyCmd = &cobra.Command{
 	Use:   "apply file",
-	Short: "Prints the result of applying the preprocessor to the given file",
+	Short: "Prints the result of pre-processing the given file without executing or altering it",
 	Args:  cobra.ExactArgs(1),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return nil
@@ -51,6 +51,7 @@ var preprocessorApplyCmd = &cobra.Command{
 			}
 		}
 
+		// Read file
 		file, err := os.Open(defFile)
 		if err != nil {
 			return err
@@ -60,8 +61,10 @@ var preprocessorApplyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		// Apply environment to yaml
+
+		// Run preprocessor
 		preproc, err := preprocessor.NewPreprocessor()
+		preproc.DryRun = true
 		if err != nil {
 			return err
 		}
@@ -69,6 +72,8 @@ var preprocessorApplyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		// Print result
 		fmt.Printf("%s\n", data)
 		return nil
 	},
