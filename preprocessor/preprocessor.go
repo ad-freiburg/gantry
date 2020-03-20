@@ -17,7 +17,11 @@ type Environment interface {
 	GetOrCreateTempDir(string) (string, error)
 }
 
-func checkIfDirExists(i Instruction, e Environment) error {
+func checkIfDirExists(i Instruction, e Environment, dryRun bool) error {
+	// If in dryRun, default to found dir
+	if dryRun {
+		return nil
+	}
 	path, err := filepath.Abs(*i.CurrentValue)
 	if err != nil {
 		return fmt.Errorf("path error in %s for %s: err: '%s'", i.Function, i.Variable, err)
@@ -33,7 +37,7 @@ func checkIfDirExists(i Instruction, e Environment) error {
 
 }
 
-func setIfEmpty(i Instruction, e Environment) error {
+func setIfEmpty(i Instruction, e Environment, dryRun bool) error {
 	// If environment variable set and not empty, do not create it!
 	if i.CurrentValueFound && i.CurrentValue != nil && len(*i.CurrentValue) > 0 {
 		return nil
@@ -42,16 +46,20 @@ func setIfEmpty(i Instruction, e Environment) error {
 	return nil
 }
 
-func tempDirIfEmpty(i Instruction, e Environment) error {
+func tempDirIfEmpty(i Instruction, e Environment, dryRun bool) error {
 	if i.CurrentValueFound && i.CurrentValue != nil && len(*i.CurrentValue) > 0 {
-		if err := checkIfDirExists(i, e); err != nil {
+		if err := checkIfDirExists(i, e, dryRun); err != nil {
 			return err
 		}
 	}
-	// We have an empty value or a new variable: create the directory.
-	path, err := e.GetOrCreateTempDir(i.Variable)
-	if err != nil {
-		return err
+	path := "dummy-tmp-dir"
+	if !dryRun {
+		// We have an empty value or a new variable: create the directory.
+		var err error
+		path, err = e.GetOrCreateTempDir(i.Variable)
+		if err != nil {
+			return err
+		}
 	}
 	e.SetSubstitution(i.Variable, &path)
 	return nil
@@ -61,6 +69,7 @@ func tempDirIfEmpty(i Instruction, e Environment) error {
 type Preprocessor struct {
 	mapping   map[string]*Function
 	functions []*Function
+	DryRun    bool
 }
 
 // NewPreprocessor returns a new Preprocessor with basic functions preregistered.
@@ -177,7 +186,7 @@ func (p Preprocessor) processPreprocessorLines(lines []string, env Environment) 
 			return err
 		}
 		if f, ok := p.mapping[instruction.Function]; ok {
-			if err := f.Execute(instruction, env); err != nil {
+			if err := f.Execute(instruction, env, p.DryRun); err != nil {
 				return err
 			}
 		} else {

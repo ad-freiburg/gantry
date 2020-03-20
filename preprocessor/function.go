@@ -6,7 +6,7 @@ import (
 
 // Function is a function executable by the preprocessor
 type Function struct {
-	Func          func(Instruction, Environment) error
+	Func          func(Instruction, Environment, bool) error
 	Names         []string
 	Description   string
 	NumArgsMin    int
@@ -29,11 +29,11 @@ func (f Function) Check(i Instruction) error {
 }
 
 // Execute executes the function for the given instruction and environment
-func (f Function) Execute(i Instruction, e Environment) error {
+func (f Function) Execute(i Instruction, e Environment, dryRun bool) error {
 	if err := f.Check(i); err != nil {
 		return err
 	}
-	return f.Func(i, e)
+	return f.Func(i, e, dryRun)
 }
 
 // Usage returns this usage information of the function.

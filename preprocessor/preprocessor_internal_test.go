@@ -210,6 +210,7 @@ func TestCheckIfDirExists(t *testing.T) {
 
 	cases := []struct {
 		instruction  Instruction
+		dryRun       bool
 		errorMessage string
 	}{
 		{
@@ -219,6 +220,7 @@ func TestCheckIfDirExists(t *testing.T) {
 				CurrentValue:      &iDoNotExist,
 				CurrentValueFound: true,
 			},
+			false,
 			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
 		},
 		{
@@ -228,6 +230,7 @@ func TestCheckIfDirExists(t *testing.T) {
 				CurrentValue:      &notAPath,
 				CurrentValueFound: true,
 			},
+			false,
 			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
 		},
 		{
@@ -237,6 +240,17 @@ func TestCheckIfDirExists(t *testing.T) {
 				CurrentValue:      &tempDir,
 				CurrentValueFound: true,
 			},
+			false,
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "I_DO_NOT_EXIST",
+				CurrentValue:      &iDoNotExist,
+				CurrentValueFound: true,
+			},
+			true,
 			"",
 		},
 	}
@@ -248,7 +262,7 @@ func TestCheckIfDirExists(t *testing.T) {
 			"I_DO_NOT_EXIST": &iDoNotExist,
 			"NOT_A_PATH":     &notAPath,
 		}
-		err := checkIfDirExists(c.instruction, env)
+		err := checkIfDirExists(c.instruction, env, c.dryRun)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -278,7 +292,7 @@ func TestSetIfEmpty(t *testing.T) {
 		Arguments:         []string{"foo"},
 		CurrentValue:      &tempDir,
 		CurrentValueFound: true,
-	}, env)
+	}, env, false)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
@@ -296,7 +310,7 @@ func TestSetIfEmpty(t *testing.T) {
 		Arguments:         []string{"foo"},
 		CurrentValue:      nil,
 		CurrentValueFound: true,
-	}, &env)
+	}, &env, false)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
@@ -320,7 +334,7 @@ func TestSetIfEmpty(t *testing.T) {
 		Variable:     "EMPTY",
 		Arguments:    []string{"foo"},
 		CurrentValue: &empty,
-	}, &env)
+	}, &env, false)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
@@ -347,7 +361,7 @@ func TestSetIfEmpty(t *testing.T) {
 		Variable:     "UNDEFINED",
 		Arguments:    []string{"foo"},
 		CurrentValue: nil,
-	}, &env)
+	}, &env, false)
 	if err != nil {
 		t.Errorf("unexpected error, got: %s", err)
 	}
@@ -450,6 +464,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 
 	cases := []struct {
 		instruction  Instruction
+		dryRun       bool
 		errorMessage string
 	}{
 		{
@@ -459,6 +474,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      &empty,
 				CurrentValueFound: true,
 			},
+			false,
 			"",
 		},
 		{
@@ -468,6 +484,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      &tempDir,
 				CurrentValueFound: true,
 			},
+			false,
 			"",
 		},
 		{
@@ -477,6 +494,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      nil,
 				CurrentValueFound: true,
 			},
+			false,
 			"",
 		},
 		{
@@ -486,6 +504,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      nil,
 				CurrentValueFound: false,
 			},
+			false,
 			"",
 		},
 		{
@@ -495,6 +514,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      &iDoNotExist,
 				CurrentValueFound: true,
 			},
+			false,
 			"path error in FUNCTION for I_DO_NOT_EXIST: err: 'stat /iDoNotExist: no such file or directory'",
 		},
 		{
@@ -504,7 +524,28 @@ func TestTempDirIfEmpty(t *testing.T) {
 				CurrentValue:      &notAPath,
 				CurrentValueFound: true,
 			},
+			false,
 			fmt.Sprintf("path error in FUNCTION for NOT_A_PATH: not a directory '%s'", notAPath),
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "I_DO_NOT_EXIST",
+				CurrentValue:      &iDoNotExist,
+				CurrentValueFound: true,
+			},
+			true,
+			"",
+		},
+		{
+			Instruction{
+				Function:          "FUNCTION",
+				Variable:          "NOT_A_PATH",
+				CurrentValue:      &notAPath,
+				CurrentValueFound: true,
+			},
+			true,
+			"",
 		},
 	}
 	for i, c := range cases {
@@ -515,7 +556,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 			"I_DO_NOT_EXIST": &iDoNotExist,
 			"NOT_A_PATH":     &notAPath,
 		}
-		err := tempDirIfEmpty(c.instruction, env)
+		err := tempDirIfEmpty(c.instruction, env, c.dryRun)
 		if len(c.errorMessage) > 0 {
 			if err == nil {
 				t.Errorf("expected error @%d, got nil", i)
@@ -538,7 +579,7 @@ func TestTempDirIfEmpty(t *testing.T) {
 			"NOT_A_PATH":     &notAPath,
 		}
 		c := cases[0]
-		err = tempDirIfEmpty(c.instruction, env)
+		err = tempDirIfEmpty(c.instruction, env, false)
 		if err == nil {
 			t.Error("expected error, got nil")
 		}

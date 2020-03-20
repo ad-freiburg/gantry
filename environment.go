@@ -12,10 +12,6 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-const undefinedArgumentFormat string = "argmuent '%s' not defined for '%s', no fallback provided"
-const missingArgumentFormat string = "missing argument(s) for '%s'. Need atleast %d argument"
-const tooManyArgumentsFormat string = "too many arguments for '%s'. Got %d want <= %d"
-
 type pipelineEnvironmentJSON struct {
 	Version            string          `json:"version"`
 	Substitutions      types.StringMap `json:"substitutions"`
