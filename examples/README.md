@@ -6,8 +6,13 @@ Gantry supports `services` (oval shapes) and `steps` (box shapes).
 
 ![simple.svg](./simple.svg)
 
-Services and steps can have lines to their dependencies. `precondition` is
+Services and steps can have lines to their dependents. `precondition` is
 executed before `step`.
+
+![simple_arrow_to_precondition.svg](./simple_arrow_to_precondition.svg)
+
+The direction of the arrows can be reversed using `--arrow-to-precondition` to
+point to each precondition.
 
 ![ignored.svg](./ignored.svg)
 ![ignored_hidden.svg](./ignored_hidden.svg)
@@ -30,6 +35,8 @@ The images above can be recreated using:
     dot -T svg -o types.svg types.dot
     gantry dot -f simple.yml --output simple.dot
     dot -T svg -o simple.svg simple.dot
+    gantry dot -f simple.yml --output simple_arrow_to_precondition.dot --arrow-to-precondition
+    dot -T svg -o simple_arrow_to_precondition.svg simple_arrow_to_precondition.dot
     gantry dot -f ignored.yml --output ignored.dot -i ignored
     dot -T svg -o ignored.svg ignored.dot
     gantry dot -f ignored.yml --output ignored_hidden.dot -i ignored --hide-ignored
