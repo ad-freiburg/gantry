@@ -118,11 +118,13 @@ func (e *PipelineEnvironment) updateSubstitutions(substitutions types.StringMap)
 	}
 }
 
+// GetSubstitution returns a string-pointer and whether or not the key is found.
 func (e *PipelineEnvironment) GetSubstitution(key string) (*string, bool) {
 	value, ok := e.Substitutions[key]
 	return value, ok
 }
 
+// SetSubstitution stores/replaces the value under the given key.
 func (e *PipelineEnvironment) SetSubstitution(key string, value *string) {
 	e.Substitutions[key] = value
 }
@@ -138,7 +140,7 @@ func (e *PipelineEnvironment) updateStepsMeta(ignoredSteps types.StringSet, sele
 			e.Steps[name] = ServiceMeta{}
 		}
 	}
-	// Update defined steps and serives
+	// Update defined steps and services
 	for name, stepMeta := range e.Steps {
 		if val, ignored := ignoredSteps[name]; ignored {
 			stepMeta.Ignore = val
@@ -165,6 +167,9 @@ func (e *PipelineEnvironment) CleanUp(signal os.Signal) error {
 	return nil
 }
 
+// GetOrCreateTempDir returns the location of a temporary directory identified
+// by the provided prefix. This directory is created if the prefix has no
+// directory associated.
 func (e *PipelineEnvironment) GetOrCreateTempDir(prefix string) (string, error) {
 	val, ok := e.tempPaths[prefix]
 	if ok {
