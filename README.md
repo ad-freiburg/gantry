@@ -72,10 +72,22 @@ This will result in a binary without a set version.
 
 ## Building a (new) Release
 
-To build a release version first make sure everything works, then edit the
-[Download a prebuild release](#download-a-prebuild-release) section of this
-Readme so the download link points to the future version. *Only after
-committing this final change tag the release*
+To build a release version first make sure everything works.
+This includes checking the codestyle
+
+    gofmt -d .
+
+and running the tests
+
+    go test ./...
+
+The complete test coverage can be viewed with
+
+    go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out
+
+When all is correct edit the [Download a prebuild release](#download-a-prebuild-release)
+section of this Readme so the download link points to the future version.
+*Only after committing this final change tag the release*
 
     git tag -a vX.Y.Z -m <message>
 
